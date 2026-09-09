@@ -14,6 +14,7 @@ from app.db import (
     create_llm_call,
     create_meeting,
     create_nas_asset,
+    get_document_chunk,
     get_meeting,
     get_nas_asset,
     init_db,
@@ -196,7 +197,28 @@ async def nas_assets(q: str | None = None, user: dict = Depends(current_user)) -
 async def nas_asset_detail(asset_id: int, user: dict = Depends(current_user)) -> dict:
     asset = require_nas_asset_access(get_nas_asset(asset_id), user)
     chunks = list_document_chunks(asset_id) if asset["category"] in {"pdf", "docx"} else []
-    return {**asset, "chunks": chunks[:8]}
+    return {**asset, "chunks": serialize_document_chunks(asset_id, chunks[:8])}
+
+
+@app.get("/api/nas-assets/{asset_id}/chunk-images/{chunk_id}")
+async def nas_asset_chunk_image(asset_id: int, chunk_id: int, user: dict = Depends(current_user)) -> FileResponse:
+    asset = require_nas_asset_access(get_nas_asset(asset_id), user)
+    chunk = get_document_chunk(chunk_id)
+    if not chunk or chunk["asset_id"] != asset["id"]:
+        raise HTTPException(status_code=404, detail="Chunk image not found")
+
+    raw_path = chunk.get("image_path")
+    if not raw_path:
+        raise HTTPException(status_code=404, detail="Chunk image not found")
+
+    image_path = Path(raw_path)
+    try:
+        image_path.resolve().relative_to(NAS_ASSETS_DIR.resolve())
+    except ValueError as exc:
+        raise HTTPException(status_code=403, detail="Invalid image path") from exc
+    if not image_path.exists():
+        raise HTTPException(status_code=404, detail="Chunk image not found")
+    return FileResponse(image_path, media_type="image/png")
 
 
 @app.post("/api/nas-assets/{asset_id}/ask")
@@ -212,10 +234,8 @@ async def ask_nas_asset(asset_id: int, payload: dict, user: dict = Depends(curre
         raise HTTPException(status_code=400, detail="This file has no RAG chunks")
 
     chunks = search_document_chunks(asset_id, question, limit=5)
-    context = "\n\n".join(
-        f"[Chunk {chunk['chunk_index']}]\n{chunk['content']}"
-        for chunk in chunks
-    )
+    enriched_chunks = serialize_document_chunks(asset_id, chunks)
+    context = "\n\n".join(format_rag_context(chunk) for chunk in enriched_chunks)
     rag_prompt = (
         "你是 NAS 文件資料庫助理。請只根據下方 RAG context 回答問題；"
         "如果 context 不足，請明確說明缺少資料。\n\n"
@@ -229,7 +249,7 @@ async def ask_nas_asset(asset_id: int, payload: dict, user: dict = Depends(curre
         "asset_id": asset_id,
         "asset_title": asset["title"],
         "question": question,
-        "contexts": chunks,
+        "contexts": enriched_chunks,
     }
 
 
@@ -371,6 +391,31 @@ def require_nas_asset_access(asset: dict | None, user: dict) -> dict:
     if user["role"] != "admin" and asset["user_id"] != user["id"]:
         raise HTTPException(status_code=403, detail="Permission denied")
     return asset
+
+
+def serialize_document_chunks(asset_id: int, chunks: list[dict]) -> list[dict]:
+    serialized = []
+    for chunk in chunks:
+        item = dict(chunk)
+        item["metadata"] = {}
+        if item.get("metadata_json"):
+            try:
+                item["metadata"] = json.loads(item["metadata_json"])
+            except json.JSONDecodeError:
+                item["metadata"] = {}
+        if item.get("image_path"):
+            item["image_url"] = f"/api/nas-assets/{asset_id}/chunk-images/{item['id']}"
+        serialized.append(item)
+    return serialized
+
+
+def format_rag_context(chunk: dict) -> str:
+    source = f"Chunk {chunk['chunk_index']}"
+    if chunk.get("page_number"):
+        source += f", Page {chunk['page_number']}"
+    if chunk.get("chunk_type"):
+        source += f", Type {chunk['chunk_type']}"
+    return f"[{source}]\n{chunk['content']}"
 
 
 @app.post("/api/llm/demo-run")

@@ -125,6 +125,10 @@ const messages = {
       chunkCount: "RAG chunks",
       summary: "處理結果",
       chunks: "RAG 片段",
+      page: "頁碼",
+      type: "類型",
+      pagePreview: "頁面預覽",
+      answerSources: "引用來源",
       questionTitle: "用 LLM 處理此文件",
       questionEyebrow: "RAG 文件問答",
       questionCopy: "文件已建立 RAG chunks，可選擇模型後對此文件提問。",
@@ -383,6 +387,10 @@ const messages = {
       chunkCount: "RAG chunks",
       summary: "Processing result",
       chunks: "RAG chunks",
+      page: "Page",
+      type: "Type",
+      pagePreview: "Page preview",
+      answerSources: "Sources",
       questionTitle: "Use LLM on this document",
       questionEyebrow: "RAG Document Q&A",
       questionCopy: "This document has RAG chunks. Select a model and ask a question.",
@@ -815,7 +823,19 @@ function renderRagChunks(chunks) {
       <strong>${escapeHtml(t("upload.chunks"))}</strong>
       <div class="rag-chunk-list">
         ${chunks
-          .map((chunk) => `<p><b>#${chunk.chunk_index}</b>${escapeHtml(chunk.content.slice(0, 260))}</p>`)
+          .map(
+            (chunk) => `
+              <article class="rag-chunk-card">
+                <div class="chunk-source-line">
+                  <b>#${escapeHtml(chunk.chunk_index)}</b>
+                  ${chunk.page_number ? `<span>${escapeHtml(t("upload.page"))} ${escapeHtml(chunk.page_number)}</span>` : ""}
+                  ${chunk.chunk_type ? `<span>${escapeHtml(t("upload.type"))} ${escapeHtml(chunk.chunk_type)}</span>` : ""}
+                </div>
+                <p>${escapeHtml(chunk.content.slice(0, 260))}</p>
+                ${chunk.image_url ? `<img src="${escapeHtml(chunk.image_url)}" alt="${escapeHtml(t("upload.pagePreview"))}" loading="lazy" />` : ""}
+              </article>
+            `
+          )
           .join("")}
       </div>
     </section>
@@ -968,7 +988,11 @@ async function askSelectedAsset() {
     });
     answerBox.hidden = false;
     answerBox.classList.remove("error");
-    answerBox.innerHTML = `<strong>${escapeHtml(t("upload.answerTitle"))} · ${escapeHtml(result.model)}</strong><pre>${escapeHtml(result.answer)}</pre>`;
+    answerBox.innerHTML = `
+      <strong>${escapeHtml(t("upload.answerTitle"))} · ${escapeHtml(result.model)}</strong>
+      <pre>${escapeHtml(result.answer)}</pre>
+      ${renderAnswerSources(result.contexts || [])}
+    `;
     await loadLlmCalls();
   } catch (error) {
     answerBox.hidden = false;
@@ -976,6 +1000,32 @@ async function askSelectedAsset() {
     answerBox.innerHTML = `<strong>${escapeHtml(t("aiwork.responseFailed"))}</strong><pre>${escapeHtml(error.message)}</pre>`;
     await loadLlmCalls();
   }
+}
+
+function renderAnswerSources(contexts) {
+  if (!contexts.length) return "";
+  return `
+    <div class="answer-source-panel">
+      <strong>${escapeHtml(t("upload.answerSources"))}</strong>
+      <div class="answer-source-list">
+        ${contexts
+          .map(
+            (chunk) => `
+              <article class="answer-source-card">
+                <div class="chunk-source-line">
+                  <b>#${escapeHtml(chunk.chunk_index)}</b>
+                  ${chunk.page_number ? `<span>${escapeHtml(t("upload.page"))} ${escapeHtml(chunk.page_number)}</span>` : ""}
+                  ${chunk.chunk_type ? `<span>${escapeHtml(t("upload.type"))} ${escapeHtml(chunk.chunk_type)}</span>` : ""}
+                </div>
+                <p>${escapeHtml(chunk.content.slice(0, 220))}</p>
+                ${chunk.image_url ? `<img src="${escapeHtml(chunk.image_url)}" alt="${escapeHtml(t("upload.pagePreview"))}" loading="lazy" />` : ""}
+              </article>
+            `
+          )
+          .join("")}
+      </div>
+    </div>
+  `;
 }
 
 function renderLlmControls() {

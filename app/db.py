@@ -104,12 +104,18 @@ def init_db() -> None:
                 chunk_index INTEGER NOT NULL,
                 content TEXT NOT NULL,
                 token_estimate INTEGER NOT NULL DEFAULT 0,
+                page_number INTEGER,
+                chunk_type TEXT NOT NULL DEFAULT 'text',
+                image_path TEXT,
                 metadata_json TEXT,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY(asset_id) REFERENCES nas_assets(id)
             )
             """
         )
+        _ensure_column(conn, "document_chunks", "page_number", "INTEGER")
+        _ensure_column(conn, "document_chunks", "chunk_type", "TEXT NOT NULL DEFAULT 'text'")
+        _ensure_column(conn, "document_chunks", "image_path", "TEXT")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_meetings_user_id ON meetings(user_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_meetings_created_at ON meetings(created_at)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_llm_calls_user_id ON llm_calls(user_id)")
@@ -117,6 +123,12 @@ def init_db() -> None:
         conn.execute("CREATE INDEX IF NOT EXISTS idx_nas_assets_user_id ON nas_assets(user_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_nas_assets_created_at ON nas_assets(created_at)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_document_chunks_asset_id ON document_chunks(asset_id)")
+
+
+def _ensure_column(conn: sqlite3.Connection, table: str, column: str, definition: str) -> None:
+    rows = conn.execute(f"PRAGMA table_info({table})").fetchall()
+    if column not in {row["name"] for row in rows}:
+        conn.execute(f"ALTER TABLE {table} ADD COLUMN {column} {definition}")
 
 
 def seed_admin(password_hash: str) -> None:
@@ -328,8 +340,11 @@ def replace_document_chunks(asset_id: int, chunks: list[dict[str, Any]]) -> None
         conn.execute("DELETE FROM document_chunks WHERE asset_id = ?", (asset_id,))
         conn.executemany(
             """
-            INSERT INTO document_chunks (asset_id, chunk_index, content, token_estimate, metadata_json)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO document_chunks (
+                asset_id, chunk_index, content, token_estimate, page_number,
+                chunk_type, image_path, metadata_json
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
             """,
             [
                 (
@@ -337,6 +352,9 @@ def replace_document_chunks(asset_id: int, chunks: list[dict[str, Any]]) -> None
                     chunk["chunk_index"],
                     chunk["content"],
                     chunk.get("token_estimate", 0),
+                    chunk.get("page_number"),
+                    chunk.get("chunk_type", "text"),
+                    chunk.get("image_path"),
                     chunk.get("metadata_json"),
                 )
                 for chunk in chunks
@@ -348,7 +366,8 @@ def list_document_chunks(asset_id: int) -> list[dict[str, Any]]:
     with connect() as conn:
         rows = conn.execute(
             """
-            SELECT id, asset_id, chunk_index, content, token_estimate, metadata_json, created_at
+            SELECT id, asset_id, chunk_index, content, token_estimate, page_number,
+                   chunk_type, image_path, metadata_json, created_at
             FROM document_chunks
             WHERE asset_id = ?
             ORDER BY chunk_index ASC
@@ -356,6 +375,20 @@ def list_document_chunks(asset_id: int) -> list[dict[str, Any]]:
             (asset_id,),
         ).fetchall()
     return [dict(row) for row in rows]
+
+
+def get_document_chunk(chunk_id: int) -> dict[str, Any] | None:
+    with connect() as conn:
+        row = conn.execute(
+            """
+            SELECT id, asset_id, chunk_index, content, token_estimate, page_number,
+                   chunk_type, image_path, metadata_json, created_at
+            FROM document_chunks
+            WHERE id = ?
+            """,
+            (chunk_id,),
+        ).fetchone()
+    return _row_to_dict(row)
 
 
 def search_document_chunks(asset_id: int, query: str, limit: int = 5) -> list[dict[str, Any]]:
