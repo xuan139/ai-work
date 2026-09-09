@@ -18,7 +18,7 @@ Default login:
 - username: `admin`
 - password: `admin123`
 
-## Simulated NAS
+## NAS Intake
 
 Drop an audio file into:
 

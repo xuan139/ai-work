@@ -9,7 +9,7 @@ async def transcribe_audio_file(audio_path: Path) -> str:
     await asyncio.sleep(1.2)
     file_size = audio_path.stat().st_size if audio_path.exists() else 0
     return (
-        "這是 demo 階段的模擬轉寫結果。\n\n"
+        "這是 demo 階段的轉寫占位結果。\n\n"
         f"系統已保存原始錄音檔案：{audio_path.name}，檔案大小 {file_size} bytes。"
         "後續接入真實語音轉文字工具時，只需要替換 app/transcription.py 中的 adapter。"
     )
