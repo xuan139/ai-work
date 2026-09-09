@@ -922,6 +922,15 @@ button:disabled {
   color: var(--ink);
 }
 
+.llm-call-prompt b,
+.llm-call-response b {
+  display: block;
+  margin-bottom: 3px;
+  color: var(--teal-dark);
+  font-size: 12px;
+  font-weight: 900;
+}
+
 .llm-usage-grid {
   display: flex;
   flex-wrap: wrap;

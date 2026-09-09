@@ -150,13 +150,35 @@ async def llm_pricing(model_id: str, user: dict = Depends(current_user)) -> dict
 
 @app.post("/api/llm/run")
 async def llm_run(payload: dict, user: dict = Depends(current_user)) -> dict:
-    model = get_model(str(payload.get("model_id", "")))
-    prompt = str(payload.get("prompt", "")).strip()
+    requested_model_id = str(payload.get("model_id", "")).strip()
+    model = get_model(requested_model_id)
+    raw_prompt = str(payload.get("prompt", ""))
+    prompt = raw_prompt.strip()
     api_key = str(payload.get("api_key", "")).strip() or None
 
     if not model:
+        create_llm_call(
+            user_id=user["id"],
+            provider="Unknown",
+            model_name="Unknown model",
+            model_id=requested_model_id or "-",
+            prompt=prompt,
+            response=None,
+            status="failed",
+            error_message="Model not found",
+        )
         raise HTTPException(status_code=404, detail="Model not found")
     if not prompt:
+        create_llm_call(
+            user_id=user["id"],
+            provider=model["provider"],
+            model_name=model["name"],
+            model_id=model["id"],
+            prompt=raw_prompt,
+            response=None,
+            status="failed",
+            error_message="Prompt is required",
+        )
         raise HTTPException(status_code=400, detail="Prompt is required")
 
     free_tier = model["free_tier"]
@@ -169,6 +191,7 @@ async def llm_run(payload: dict, user: dict = Depends(current_user)) -> dict:
             prompt=prompt,
             response=None,
             status="blocked",
+            access_mode="no_api_key",
             error_message="API key is required for this model",
         )
         raise HTTPException(status_code=402, detail="API key is required for this model")
@@ -188,6 +211,19 @@ async def llm_run(payload: dict, user: dict = Depends(current_user)) -> dict:
             error_message=str(exc),
         )
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except Exception as exc:
+        create_llm_call(
+            user_id=user["id"],
+            provider=model["provider"],
+            model_name=model["name"],
+            model_id=model["id"],
+            prompt=prompt,
+            response=None,
+            status="failed",
+            access_mode="api_key" if api_key else "free_no_key",
+            error_message=f"Unexpected runtime error: {exc}",
+        )
+        raise HTTPException(status_code=500, detail="Unexpected runtime error") from exc
 
     usage = result.get("usage") or {}
     call = create_llm_call(
@@ -212,6 +248,7 @@ async def llm_run(payload: dict, user: dict = Depends(current_user)) -> dict:
         "model_id": model["id"],
         "provider": model["provider"],
         "model": model["name"],
+        "caller": user["username"],
         "access_mode": result["access_mode"],
         "answer": result["answer"],
         "usage": usage,

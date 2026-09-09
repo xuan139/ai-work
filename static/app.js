@@ -147,6 +147,9 @@ const messages = {
       historySearchLabel: "搜尋",
       historySearchPlaceholder: "搜尋模型、提示詞或回覆",
       historyEmpty: "尚無模型呼叫記錄",
+      historyCaller: "呼叫者",
+      historyInput: "輸入",
+      historyOutput: "輸出",
       statusCompleted: "完成",
       statusFailed: "失敗",
       statusBlocked: "已阻擋",
@@ -340,6 +343,9 @@ const messages = {
       historySearchLabel: "Search",
       historySearchPlaceholder: "Search model, prompt, or response",
       historyEmpty: "No model calls yet",
+      historyCaller: "Caller",
+      historyInput: "Input",
+      historyOutput: "Output",
       statusCompleted: "Completed",
       statusFailed: "Failed",
       statusBlocked: "Blocked",
@@ -750,12 +756,12 @@ function renderLlmCallHistory() {
           <div class="llm-call-header">
             <div>
               <strong>${escapeHtml(call.provider)} · ${escapeHtml(call.model_name)}</strong>
-              <span>${escapeHtml(formatDate(call.created_at))} · ${escapeHtml(call.access_mode || "-")}</span>
+              <span>${escapeHtml(formatDate(call.created_at))} · ${escapeHtml(t("aiwork.historyCaller"))}: ${escapeHtml(call.caller_username || `#${call.user_id}`)} · ${escapeHtml(call.access_mode || "-")}</span>
             </div>
             <span class="badge ${escapeHtml(call.status)}">${callStatusLabel(call.status)}</span>
           </div>
-          <p class="llm-call-prompt">${escapeHtml(call.prompt)}</p>
-          <p class="llm-call-response">${escapeHtml(call.response || call.error_message || "-")}</p>
+          <p class="llm-call-prompt"><b>${escapeHtml(t("aiwork.historyInput"))}</b>${escapeHtml(call.prompt || "-")}</p>
+          <p class="llm-call-response"><b>${escapeHtml(t("aiwork.historyOutput"))}</b>${escapeHtml(call.response || call.error_message || "-")}</p>
           <div class="llm-usage-grid">
             ${usageChip(t("aiwork.usageInput"), call.input_tokens)}
             ${usageChip(t("aiwork.usageOutput"), call.output_tokens)}

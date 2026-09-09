@@ -240,22 +240,30 @@ def list_llm_calls(*, user_id: int, role: str, q: str | None = None) -> list[dic
     where = []
 
     if role != "admin":
-        where.append("user_id = ?")
+        where.append("llm_calls.user_id = ?")
         params.append(user_id)
 
     if q:
-        where.append("(provider LIKE ? OR model_name LIKE ? OR model_id LIKE ? OR prompt LIKE ? OR response LIKE ?)")
+        where.append(
+            """
+            (provider LIKE ? OR model_name LIKE ? OR model_id LIKE ? OR prompt LIKE ?
+             OR response LIKE ? OR error_message LIKE ? OR users.username LIKE ?)
+            """
+        )
         pattern = f"%{q}%"
-        params.extend([pattern, pattern, pattern, pattern, pattern])
+        params.extend([pattern, pattern, pattern, pattern, pattern, pattern, pattern])
 
     where_sql = f"WHERE {' AND '.join(where)}" if where else ""
     sql = f"""
-        SELECT id, user_id, provider, model_name, model_id, prompt, response, status, access_mode,
-               error_message, input_tokens, output_tokens, total_tokens, remaining_tokens,
-               remaining_requests, remaining_balance, raw_usage_json, created_at
+        SELECT llm_calls.id, llm_calls.user_id, users.username AS caller_username,
+               users.role AS caller_role, provider, model_name, model_id, prompt,
+               response, status, access_mode, error_message, input_tokens, output_tokens,
+               total_tokens, remaining_tokens, remaining_requests, remaining_balance,
+               raw_usage_json, llm_calls.created_at
         FROM llm_calls
+        JOIN users ON users.id = llm_calls.user_id
         {where_sql}
-        ORDER BY datetime(created_at) DESC, id DESC
+        ORDER BY datetime(llm_calls.created_at) DESC, llm_calls.id DESC
         LIMIT 100
     """
 
