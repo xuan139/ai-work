@@ -105,6 +105,12 @@ const messages = {
       titleLabel: "資料名稱",
       titlePlaceholder: "例如：董事會錄音、產品簡報 PDF",
       submit: "上傳到 NAS",
+      nasVolumeLabel: "NAS Volume",
+      shareProtocolLabel: "共享協議",
+      snapshotLabel: "快照策略",
+      snapshotValue: "每日 02:00，保留 30 版",
+      aclLabel: "權限來源",
+      aclValue: "登入使用者 + NAS ACL",
       assetsEyebrow: "NAS 資產",
       assetsTitle: "收件與處理狀態",
       searchLabel: "搜尋",
@@ -124,6 +130,13 @@ const messages = {
       fileSize: "大小",
       chunkCount: "RAG chunks",
       summary: "處理結果",
+      processTitle: "NAS 處理流程",
+      processCopy: "下方顯示此檔案進站後經過的 NAS 服務、解析器與模型調用狀態。",
+      stepDone: "已完成",
+      stepActive: "執行中",
+      stepPending: "待處理",
+      stepBlocked: "需要設定",
+      stepSkipped: "已略過",
       chunks: "RAG 片段",
       page: "頁碼",
       type: "類型",
@@ -139,6 +152,38 @@ const messages = {
       answerTitle: "文件處理結果",
       modelNeedsKey: "此模型需要 API Key，請先設定模型",
       noRag: "此檔案尚未建立 RAG chunks；PDF/DOCX 完成處理後才能做文件問答。",
+      timeline: {
+        intakeTitle: "NAS 收件與權限檢查",
+        intakeEngine: "FastAPI Upload + SQLite Audit",
+        intakeCopy: "檔案寫入 storage/nas_assets，紀錄上傳者、原始檔名、大小、MIME type 與處理狀態。",
+        archiveTitle: "NAS 歸檔與索引",
+        archiveEngine: "NAS Asset Indexer",
+        archiveCopy: "建立資產 ID，保存來源路徑，後續可依登入權限查詢。",
+        pdfRenderTitle: "PDF 頁面渲染",
+        pdfRenderEngine: "PyMuPDF",
+        pdfRenderCopy: "把 PDF 每頁渲染成 PNG，提供 OCR 輸入與 RAG 來源頁面預覽。",
+        pdfTextTitle: "PDF 文字層抽取",
+        pdfTextEngine: "pypdf",
+        pdfTextCopy: "如果 PDF 內有可選文字，直接抽取文字並切成頁級 RAG chunks。",
+        ocrTitle: "圖片型 PDF OCR",
+        ocrEngine: "PaddleOCR PP-OCRv6",
+        ocrCopy: "當 pypdf 抽不到文字層時，對每頁圖片執行 OCR，產生 image_ocr chunks。",
+        ragTitle: "RAG 建庫",
+        ragEngine: "RAG Builder + SQLite document_chunks",
+        ragCopy: "寫入 chunk 內容、頁碼、chunk 類型、token 估算與頁面圖片路徑。",
+        docxTitle: "DOCX 文件解析",
+        docxEngine: "python-docx",
+        docxCopy: "抽取段落與表格文字，轉成可查詢的 RAG chunks。",
+        audioTitle: "語音轉文字",
+        audioEngine: "Whisper Speech-to-Text",
+        audioCopy: "保留原始 voice 檔，等待配置 Whisper 模型或語音 API 後產生逐字稿。",
+        videoTitle: "影片內容分析",
+        videoEngine: "YOLO Video/Object Detection",
+        videoCopy: "保留影片檔，等待配置 YOLO 權重或影片分析服務後產生偵測結果。",
+        llmTitle: "文件問答",
+        llmEngine: "RAG Retriever + Selected LLM",
+        llmCopy: "查詢 document_chunks，將命中的頁碼與內容組成 prompt，再交給選定大模型回答。",
+      },
     },
     meetings: {
       eyebrow: "NAS 索引查詢",
@@ -367,6 +412,12 @@ const messages = {
       titleLabel: "Asset Name",
       titlePlaceholder: "Example: board audio, product PDF",
       submit: "Upload to NAS",
+      nasVolumeLabel: "NAS Volume",
+      shareProtocolLabel: "Share Protocols",
+      snapshotLabel: "Snapshot Policy",
+      snapshotValue: "Daily 02:00, 30 versions",
+      aclLabel: "Access Source",
+      aclValue: "Signed-in user + NAS ACL",
       assetsEyebrow: "NAS Assets",
       assetsTitle: "Intake and Processing Status",
       searchLabel: "Search",
@@ -386,6 +437,13 @@ const messages = {
       fileSize: "Size",
       chunkCount: "RAG chunks",
       summary: "Processing result",
+      processTitle: "NAS Processing Flow",
+      processCopy: "The flow below shows the NAS services, parsers, and model calls used for this asset.",
+      stepDone: "Done",
+      stepActive: "Running",
+      stepPending: "Pending",
+      stepBlocked: "Needs setup",
+      stepSkipped: "Skipped",
       chunks: "RAG chunks",
       page: "Page",
       type: "Type",
@@ -401,6 +459,38 @@ const messages = {
       answerTitle: "Document Result",
       modelNeedsKey: "This model needs an API key. Set a model key first.",
       noRag: "This file has no RAG chunks yet. PDF/DOCX files can be queried after processing completes.",
+      timeline: {
+        intakeTitle: "NAS Intake and Access Check",
+        intakeEngine: "FastAPI Upload + SQLite Audit",
+        intakeCopy: "The file is written to storage/nas_assets with uploader, source filename, size, MIME type, and status.",
+        archiveTitle: "NAS Archive and Index",
+        archiveEngine: "NAS Asset Indexer",
+        archiveCopy: "Creates the asset ID, keeps the source path, and makes it searchable according to login permissions.",
+        pdfRenderTitle: "PDF Page Rendering",
+        pdfRenderEngine: "PyMuPDF",
+        pdfRenderCopy: "Renders each PDF page to PNG for OCR input and RAG source page previews.",
+        pdfTextTitle: "PDF Text Layer Extraction",
+        pdfTextEngine: "pypdf",
+        pdfTextCopy: "If selectable text exists, it is extracted directly and split into page-level RAG chunks.",
+        ocrTitle: "Image PDF OCR",
+        ocrEngine: "PaddleOCR PP-OCRv6",
+        ocrCopy: "When pypdf finds no text layer, each page image is OCR processed into image_ocr chunks.",
+        ragTitle: "RAG Index Build",
+        ragEngine: "RAG Builder + SQLite document_chunks",
+        ragCopy: "Stores chunk content, page number, chunk type, token estimate, and page preview image path.",
+        docxTitle: "DOCX Parsing",
+        docxEngine: "python-docx",
+        docxCopy: "Extracts paragraph and table text, then stores it as searchable RAG chunks.",
+        audioTitle: "Speech-to-Text",
+        audioEngine: "Whisper Speech-to-Text",
+        audioCopy: "Keeps the source voice file and waits for a Whisper model or speech API before producing a transcript.",
+        videoTitle: "Video Content Analysis",
+        videoEngine: "YOLO Video/Object Detection",
+        videoCopy: "Keeps the video file and waits for YOLO weights or a video analysis service before producing detections.",
+        llmTitle: "Document Q&A",
+        llmEngine: "RAG Retriever + Selected LLM",
+        llmCopy: "Retrieves document_chunks, builds a prompt from matching pages, then calls the selected model.",
+      },
     },
     meetings: {
       eyebrow: "NAS Index Search",
@@ -621,6 +711,10 @@ function t(key, replacements = {}) {
   }, text);
 }
 
+function translateRaw(key) {
+  return key.split(".").reduce((current, part) => current?.[part], messages[state.lang]);
+}
+
 function applyLanguage(lang) {
   state.lang = messages[lang] ? lang : "zh-Hant";
   localStorage.setItem("ai-work-lang", state.lang);
@@ -807,6 +901,7 @@ function renderNasAssetDetail() {
       <strong>${escapeHtml(t("upload.summary"))}</strong>
       <p>${escapeHtml(asset.summary || asset.error_message || processingText(asset.status, asset.error_message))}</p>
     </section>
+    ${renderAssetProcessTimeline(asset, chunks)}
     ${chunks.length ? renderRagChunks(chunks) : ""}
     ${canAsk ? renderDocumentAskPanel() : `<div class="empty-state compact">${t("upload.noRag")}</div>`}
   `;
@@ -815,6 +910,94 @@ function renderNasAssetDetail() {
 
 function assetMeta(label, value) {
   return `<span><b>${escapeHtml(label)}</b>${escapeHtml(value ?? "-")}</span>`;
+}
+
+function renderAssetProcessTimeline(asset, chunks) {
+  const steps = assetProcessSteps(asset, chunks);
+  return `
+    <section class="asset-process-panel">
+      <div>
+        <strong>${escapeHtml(t("upload.processTitle"))}</strong>
+        <p>${escapeHtml(t("upload.processCopy"))}</p>
+      </div>
+      <div class="process-timeline">
+        ${steps
+          .map(
+            (step) => `
+              <article class="process-step ${escapeHtml(step.state)}">
+                <div class="process-step-head">
+                  <span>${escapeHtml(step.badge)}</span>
+                  <b>${escapeHtml(step.title)}</b>
+                </div>
+                <strong>${escapeHtml(step.engine)}</strong>
+                <p>${escapeHtml(step.copy)}</p>
+              </article>
+            `
+          )
+          .join("")}
+      </div>
+    </section>
+  `;
+}
+
+function assetProcessSteps(asset, chunks) {
+  const timeline = translateRaw("upload.timeline") || {};
+  const done = t("upload.stepDone");
+  const active = t("upload.stepActive");
+  const pending = t("upload.stepPending");
+  const blocked = t("upload.stepBlocked");
+  const skipped = t("upload.stepSkipped");
+  const completed = asset.status === "completed";
+  const failed = asset.status === "failed";
+  const processing = asset.status === "processing";
+  const needsModel = asset.status === "needs_model";
+  const chunkTypes = new Set(chunks.map((chunk) => chunk.chunk_type).filter(Boolean));
+  const hasTextLayer = chunkTypes.has("text_layer");
+  const hasOcr = chunkTypes.has("image_ocr");
+  const baseSteps = [
+    step(timeline.intakeTitle, timeline.intakeEngine, timeline.intakeCopy, "done", done),
+    step(timeline.archiveTitle, timeline.archiveEngine, timeline.archiveCopy, completed || failed || needsModel ? "done" : "active", completed || failed || needsModel ? done : active),
+  ];
+
+  if (asset.category === "pdf") {
+    return [
+      ...baseSteps,
+      step(timeline.pdfRenderTitle, timeline.pdfRenderEngine, timeline.pdfRenderCopy, completed || failed ? "done" : "active", completed || failed ? done : active),
+      step(timeline.pdfTextTitle, timeline.pdfTextEngine, timeline.pdfTextCopy, hasTextLayer ? "done" : hasOcr ? "skipped" : processing ? "active" : failed ? "done" : "pending", hasTextLayer ? done : hasOcr ? skipped : processing ? active : failed ? done : pending),
+      step(timeline.ocrTitle, timeline.ocrEngine, timeline.ocrCopy, hasOcr ? "done" : hasTextLayer ? "skipped" : failed ? "blocked" : processing ? "active" : "pending", hasOcr ? done : hasTextLayer ? skipped : failed ? blocked : processing ? active : pending),
+      step(timeline.ragTitle, timeline.ragEngine, timeline.ragCopy, asset.chunk_count > 0 ? "done" : failed ? "blocked" : "pending", asset.chunk_count > 0 ? done : failed ? blocked : pending),
+      step(timeline.llmTitle, timeline.llmEngine, timeline.llmCopy, asset.chunk_count > 0 ? "pending" : "blocked", asset.chunk_count > 0 ? pending : blocked),
+    ];
+  }
+
+  if (asset.category === "docx") {
+    return [
+      ...baseSteps,
+      step(timeline.docxTitle, timeline.docxEngine, timeline.docxCopy, asset.chunk_count > 0 ? "done" : failed ? "blocked" : "active", asset.chunk_count > 0 ? done : failed ? blocked : active),
+      step(timeline.ragTitle, timeline.ragEngine, timeline.ragCopy, asset.chunk_count > 0 ? "done" : failed ? "blocked" : "pending", asset.chunk_count > 0 ? done : failed ? blocked : pending),
+      step(timeline.llmTitle, timeline.llmEngine, timeline.llmCopy, asset.chunk_count > 0 ? "pending" : "blocked", asset.chunk_count > 0 ? pending : blocked),
+    ];
+  }
+
+  if (asset.category === "audio") {
+    return [
+      ...baseSteps,
+      step(timeline.audioTitle, timeline.audioEngine, timeline.audioCopy, needsModel ? "blocked" : processing ? "active" : completed ? "done" : failed ? "blocked" : "pending", needsModel ? blocked : processing ? active : completed ? done : failed ? blocked : pending),
+    ];
+  }
+
+  if (asset.category === "video") {
+    return [
+      ...baseSteps,
+      step(timeline.videoTitle, timeline.videoEngine, timeline.videoCopy, needsModel ? "blocked" : processing ? "active" : completed ? "done" : failed ? "blocked" : "pending", needsModel ? blocked : processing ? active : completed ? done : failed ? blocked : pending),
+    ];
+  }
+
+  return baseSteps;
+}
+
+function step(title, engine, copy, state, badge) {
+  return { title, engine, copy, state, badge };
 }
 
 function renderRagChunks(chunks) {

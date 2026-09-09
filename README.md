@@ -42,11 +42,13 @@ NAS demo behaviors shown in the UI:
 
 The NAS Upload page accepts audio, video, PDF, DOCX, text, and general files.
 
+- The upload page shows NAS-oriented operating context: volume name, SMB / NFS / WebDAV entry points, snapshot retention, and access control source.
+- Each NAS asset detail page includes a processing timeline that lists the service, parser, or model used at every step.
 - Audio files are routed to the Whisper analysis flow and marked as needing a speech model before real transcripts can be produced.
 - Video files are routed to the YOLO analysis flow and marked as needing YOLO weights or a video analysis service.
 - PDF files render every page image with `PyMuPDF`; files with a text layer are parsed with `pypdf`, while image-only PDFs fall back to `PaddleOCR` when it is installed.
 - PDF RAG chunks store page number, chunk type, and page preview image path, so document Q&A can show source page previews with the model answer.
 - DOCX files are parsed with `python-docx` when the dependency is installed, then split into the same RAG chunk format.
-- PDF/DOCX assets with RAG chunks show a document LLM input panel for document Q&A.
+- PDF/DOCX assets with RAG chunks show a document LLM input panel for document Q&A through the selected LLM provider.
 - If no model is selected for document Q&A, the UI prompts for a model before sending.
 - For scanned or image-based PDFs, install the optional OCR engine with `pip install -r requirements-ocr.txt`; without it the asset status shows that an OCR engine is required. On macOS arm64, use Python 3.12 for PaddlePaddle support.
