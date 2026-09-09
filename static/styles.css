@@ -389,6 +389,60 @@ button:disabled {
   font-size: 13px;
 }
 
+.nas-feature-band {
+  margin-top: 18px;
+  padding: 24px;
+  background: #eef6f4;
+  border: 1px solid #c7e4df;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(25, 37, 34, 0.06);
+}
+
+.nas-feature-band .section-heading {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 18px;
+}
+
+.nas-feature-band .section-heading h3 {
+  margin: 0;
+  font-size: 24px;
+}
+
+.nas-feature-band .section-heading p:last-child {
+  max-width: 920px;
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.nas-feature-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.nas-feature-grid article {
+  min-height: 154px;
+  padding: 16px;
+  background: rgba(255, 255, 255, 0.78);
+  border: 1px solid rgba(17, 104, 95, 0.18);
+  border-radius: 8px;
+}
+
+.nas-feature-grid strong {
+  display: block;
+  margin-bottom: 9px;
+  color: var(--ink);
+  font-size: 15px;
+}
+
+.nas-feature-grid span {
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.58;
+}
+
 .module-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -1103,12 +1157,17 @@ button:disabled {
     grid-column: auto;
   }
 
+  .nas-feature-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .price-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .module-grid,
-  .metric-grid {
+  .metric-grid,
+  .nas-feature-grid {
     grid-template-columns: 1fr;
   }
 }
