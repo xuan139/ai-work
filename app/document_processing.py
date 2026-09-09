@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import re
 from functools import lru_cache
 from pathlib import Path
@@ -10,6 +11,7 @@ from typing import Any
 from app.db import get_nas_asset, replace_document_chunks, update_nas_asset
 from app.notifications import manager
 
+BASE_DIR = Path(__file__).resolve().parent.parent
 AUDIO_SUFFIXES = {".wav", ".mp3", ".m4a", ".webm", ".ogg", ".flac", ".aac"}
 VIDEO_SUFFIXES = {".mp4", ".mov", ".mkv", ".avi", ".webm", ".m4v"}
 PDF_SUFFIXES = {".pdf"}
@@ -246,12 +248,21 @@ def ocr_pdf_pages(page_images: dict[int, Path]) -> list[dict[str, Any]]:
 
 @lru_cache(maxsize=1)
 def paddle_ocr_engine() -> Any:
+    configure_ocr_cache()
     from paddleocr import PaddleOCR
 
     try:
         return PaddleOCR(use_angle_cls=True, lang="ch")
     except TypeError:
         return PaddleOCR(lang="ch")
+
+
+def configure_ocr_cache() -> None:
+    cache_root = BASE_DIR / "storage" / "ocr_cache"
+    cache_root.mkdir(parents=True, exist_ok=True)
+    os.environ.setdefault("PADDLE_PDX_CACHE_HOME", str(cache_root / "paddlex"))
+    os.environ.setdefault("MODELSCOPE_CACHE", str(cache_root / "modelscope"))
+    os.environ.setdefault("HF_HOME", str(cache_root / "huggingface"))
 
 
 def run_paddle_ocr(engine: Any, image_path: Path) -> str:

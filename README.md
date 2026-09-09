@@ -49,4 +49,4 @@ The NAS Upload page accepts audio, video, PDF, DOCX, text, and general files.
 - DOCX files are parsed with `python-docx` when the dependency is installed, then split into the same RAG chunk format.
 - PDF/DOCX assets with RAG chunks show a document LLM input panel for document Q&A.
 - If no model is selected for document Q&A, the UI prompts for a model before sending.
-- For scanned or image-based PDFs, install the optional OCR engine with `pip install paddleocr`; without it the asset status shows that an OCR engine is required.
+- For scanned or image-based PDFs, install the optional OCR engine with `pip install -r requirements-ocr.txt`; without it the asset status shows that an OCR engine is required. On macOS arm64, use Python 3.12 for PaddlePaddle support.
