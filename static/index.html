@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>AI Work 會議入口</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+  </head>
+  <body>
+    <div id="toastHost" class="toast-host" aria-live="polite" aria-atomic="true"></div>
+
+    <main id="loginView" class="login-view" hidden>
+      <div class="login-actions">
+        <div class="lang-switch" role="group" aria-label="語言切換" data-i18n-attr="aria-label:language.label">
+          <button class="lang-option active" type="button" data-lang="zh-Hant">繁</button>
+          <button class="lang-option" type="button" data-lang="en">EN</button>
+        </div>
+      </div>
+      <section class="login-panel">
+        <div class="brand-mark">AW</div>
+        <p class="eyebrow" data-i18n="login.eyebrow">安全工作區</p>
+        <h1 data-i18n="login.title">AI Work 會議入口</h1>
+        <p class="login-copy" data-i18n="login.copy">登入後錄製會議、接收 NAS 新錄音提醒，並查詢歷史會議轉寫結果。</p>
+        <form id="loginForm" class="login-form">
+          <label>
+            <span data-i18n="login.username">使用者名稱</span>
+            <input name="username" autocomplete="username" value="admin" required />
+          </label>
+          <label>
+            <span data-i18n="login.password">密碼</span>
+            <input name="password" type="password" autocomplete="current-password" value="admin123" required />
+          </label>
+          <button class="primary-button" type="submit" data-i18n="login.submit">登入系統</button>
+          <p id="loginError" class="error-text" role="alert"></p>
+        </form>
+      </section>
+    </main>
+
+    <main id="appView" class="app-shell" hidden>
+      <aside class="sidebar">
+        <div class="sidebar-brand">
+          <div class="brand-mark small">AW</div>
+          <div>
+            <strong>AI Work</strong>
+            <span data-i18n="sidebar.subtitle">會議智慧工作台</span>
+          </div>
+        </div>
+        <nav class="nav-list" aria-label="主導覽" data-i18n-attr="aria-label:sidebar.navLabel">
+          <button class="nav-item active" type="button" data-view="dashboard" data-i18n="nav.dashboard">總覽</button>
+          <button class="nav-item" type="button" data-view="record" data-i18n="nav.record">會議記錄</button>
+          <button class="nav-item" type="button" data-view="meetings" data-i18n="nav.meetings">資料庫查詢</button>
+          <button class="nav-item" type="button" data-view="aiwork">AI Work</button>
+        </nav>
+        <div class="nas-panel">
+          <span class="status-dot"></span>
+          <div>
+            <strong data-i18n="nas.title">NAS 發現服務</strong>
+            <span data-i18n="nas.subtitle">監聽 mock_nas/inbox</span>
+          </div>
+        </div>
+      </aside>
+
+      <section class="workspace">
+        <header class="topbar">
+          <div>
+            <p class="eyebrow" data-i18n="topbar.eyebrow">會議智慧</p>
+            <h2 id="viewTitle">總覽</h2>
+          </div>
+          <div class="user-box">
+            <div class="lang-switch" role="group" aria-label="語言切換" data-i18n-attr="aria-label:language.label">
+              <button class="lang-option active" type="button" data-lang="zh-Hant">繁</button>
+              <button class="lang-option" type="button" data-lang="en">EN</button>
+            </div>
+            <span id="currentUser"></span>
+            <button id="logoutButton" class="ghost-button" type="button" data-i18n="auth.logout">登出</button>
+          </div>
+        </header>
+
+        <section id="dashboardSection" class="view-section">
+          <div class="hero-band">
+            <div>
+              <p class="eyebrow" data-i18n="dashboard.eyebrow">Demo 範圍</p>
+              <h1 data-i18n="dashboard.title">錄音保存、NAS 發現、會議轉寫查詢</h1>
+              <p data-i18n="dashboard.copy">第一版聚焦會議資產進入系統後的完整鏈路：瀏覽器錄音上傳、NAS 檔案進入提醒、後台處理狀態，以及可搜尋的歷史會議記錄。</p>
+            </div>
+            <div class="metric-grid">
+              <article>
+                <span id="totalMeetings">0</span>
+                <strong data-i18n="metrics.total">會議記錄</strong>
+              </article>
+              <article>
+                <span id="processingMeetings">0</span>
+                <strong data-i18n="metrics.processing">處理中</strong>
+              </article>
+              <article>
+                <span id="completedMeetings">0</span>
+                <strong data-i18n="metrics.completed">已完成</strong>
+              </article>
+            </div>
+          </div>
+          <div class="module-grid">
+            <button class="module-card" type="button" data-jump="record">
+              <strong data-i18n="modules.record.title">會議記錄</strong>
+              <span data-i18n="modules.record.copy">開啟麥克風錄製整場會議，保存原始語音並啟動轉寫。</span>
+            </button>
+            <button class="module-card" type="button" data-jump="meetings">
+              <strong data-i18n="modules.meetings.title">資料庫查詢</strong>
+              <span data-i18n="modules.meetings.copy">檢索會議標題、原始檔名和轉寫文本。</span>
+            </button>
+            <button class="module-card" type="button" data-jump="aiwork">
+              <strong>AI Work</strong>
+              <span data-i18n="modules.aiwork.copy">預留入口，後續接會議摘要、行動項和問答。</span>
+            </button>
+          </div>
+        </section>
+
+        <section id="recordSection" class="view-section" hidden>
+          <div class="split-layout">
+            <section class="recorder-panel">
+              <div class="section-heading">
+                <p class="eyebrow" data-i18n="record.eyebrow">瀏覽器錄音</p>
+                <h3 data-i18n="record.title">新建會議錄音</h3>
+              </div>
+              <label class="title-field">
+                <span data-i18n="record.meetingTitle">會議標題</span>
+                <input id="meetingTitleInput" placeholder="例如：產品週會 09/09" data-i18n-attr="placeholder:record.titlePlaceholder" />
+              </label>
+              <div class="recorder-stage">
+                <div id="recordPulse" class="record-pulse idle"></div>
+                <strong id="recordTimer">00:00</strong>
+                <span id="recordState">待開始</span>
+              </div>
+              <div class="button-row">
+                <button id="startRecord" class="primary-button" type="button" data-i18n="record.start">開始錄音</button>
+                <button id="pauseRecord" class="secondary-button" type="button" disabled data-i18n="record.pause">暫停</button>
+                <button id="stopRecord" class="danger-button" type="button" disabled data-i18n="record.stop">停止並保存</button>
+              </div>
+              <audio id="recordPreview" controls hidden></audio>
+              <p id="recordHint" class="hint-text" data-i18n="record.hint">瀏覽器會請求麥克風權限。停止後系統會保存原始錄音並進入處理佇列。</p>
+            </section>
+
+            <section class="activity-panel">
+              <div class="section-heading">
+                <p class="eyebrow" data-i18n="activity.eyebrow">即時動態</p>
+                <h3 data-i18n="activity.title">即時處理動態</h3>
+              </div>
+              <div id="activityFeed" class="activity-feed"></div>
+            </section>
+          </div>
+        </section>
+
+        <section id="meetingsSection" class="view-section" hidden>
+          <div class="search-row">
+            <div>
+              <p class="eyebrow" data-i18n="meetings.eyebrow">知識查詢</p>
+              <h3 data-i18n="meetings.title">會議資料庫</h3>
+            </div>
+            <label class="search-box">
+              <span data-i18n="meetings.searchLabel">搜尋</span>
+              <input id="meetingSearch" placeholder="輸入關鍵字查詢會議記錄" data-i18n-attr="placeholder:meetings.searchPlaceholder" />
+            </label>
+          </div>
+          <div class="meeting-layout">
+            <section id="meetingList" class="meeting-list"></section>
+            <section id="meetingDetail" class="meeting-detail">
+              <div class="empty-state" data-i18n="meetings.emptyDetail">選擇一條會議查看錄音和轉寫內容</div>
+            </section>
+          </div>
+        </section>
+
+        <section id="aiworkSection" class="view-section" hidden>
+          <div class="aiwork-layout">
+            <section class="llm-config-panel">
+              <div class="section-heading">
+                <p class="eyebrow" data-i18n="aiwork.eyebrow">模型接入</p>
+                <h3>AI Work</h3>
+                <p data-i18n="aiwork.copy">選擇主流大模型後，系統會查詢該模型目前的公開費用，並提示輸入對應供應商 API Key。</p>
+              </div>
+
+              <div class="llm-form-grid">
+                <label>
+                  <span data-i18n="aiwork.providerLabel">模型供應商</span>
+                  <select id="llmProviderSelect">
+                    <option value="" data-i18n="aiwork.loading">載入中...</option>
+                  </select>
+                </label>
+                <label>
+                  <span data-i18n="aiwork.modelLabel">模型</span>
+                  <select id="llmModelSelect" disabled>
+                    <option value="" data-i18n="aiwork.selectProviderFirst">請先選擇供應商</option>
+                  </select>
+                </label>
+              </div>
+
+              <div class="llm-toolbar">
+                <button id="openKeyModalButton" class="primary-button" type="button" disabled data-i18n="aiwork.configureKey">設定 API Key</button>
+                <span id="keyStatus" class="key-status" data-i18n="aiwork.keyNotSet">尚未設定 API Key</span>
+              </div>
+
+              <div id="modelUsePanel" class="model-use-panel" hidden>
+                <div class="use-panel-header">
+                  <div>
+                    <p class="eyebrow" data-i18n="aiwork.tryEyebrow">模型試用</p>
+                    <h4 id="modelUseTitle"></h4>
+                  </div>
+                  <span id="modelUseMode" class="use-mode-badge"></span>
+                </div>
+                <label class="prompt-field">
+                  <span data-i18n="aiwork.promptLabel">輸入內容</span>
+                  <textarea id="llmPromptInput" rows="5" placeholder="請輸入要交給模型處理的內容" data-i18n-attr="placeholder:aiwork.promptPlaceholder"></textarea>
+                </label>
+                <div class="button-row">
+                  <button id="runModelButton" class="primary-button" type="button" data-i18n="aiwork.runModel">送出</button>
+                </div>
+                <div id="modelResponseBox" class="model-response-box" hidden></div>
+              </div>
+            </section>
+
+            <section id="pricingPanel" class="pricing-panel">
+              <div class="empty-state" data-i18n="aiwork.emptyPricing">選擇模型後顯示費用資訊</div>
+            </section>
+
+            <section class="model-source-panel">
+              <div>
+                <p class="eyebrow" data-i18n="aiwork.sourcesEyebrow">Pricing Sources</p>
+                <h3 data-i18n="aiwork.sourcesTitle">費用資料來源</h3>
+                <p data-i18n="aiwork.sourcesCopy">價格會變動，目前 demo 使用官方公開定價頁整理的快照。正式版建議做每日同步或管理員手動刷新。</p>
+              </div>
+              <div id="providerSummary" class="provider-summary"></div>
+            </section>
+
+            <section class="llm-history-panel">
+              <div class="search-row compact">
+                <div>
+                  <p class="eyebrow" data-i18n="aiwork.historyEyebrow">呼叫記錄</p>
+                  <h3 data-i18n="aiwork.historyTitle">模型呼叫資料庫</h3>
+                </div>
+                <label class="search-box">
+                  <span data-i18n="aiwork.historySearchLabel">搜尋</span>
+                  <input id="llmCallSearch" placeholder="搜尋模型、提示詞或回覆" data-i18n-attr="placeholder:aiwork.historySearchPlaceholder" />
+                </label>
+              </div>
+              <div id="llmCallHistory" class="llm-call-history"></div>
+            </section>
+          </div>
+        </section>
+      </section>
+    </main>
+
+    <div id="apiKeyModal" class="modal-backdrop" hidden>
+      <section class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="apiKeyModalTitle">
+        <div class="modal-header">
+          <div>
+            <p class="eyebrow" data-i18n="keyModal.eyebrow">API Key</p>
+            <h3 id="apiKeyModalTitle" data-i18n="keyModal.title">輸入模型 API Key</h3>
+          </div>
+          <button id="closeKeyModal" class="icon-button" type="button" aria-label="關閉" data-i18n-attr="aria-label:keyModal.close">×</button>
+        </div>
+        <p id="keyModalModelName" class="modal-copy"></p>
+        <label class="api-key-field">
+          <span data-i18n="keyModal.keyLabel">API Key</span>
+          <input id="apiKeyInput" type="password" autocomplete="off" placeholder="sk-..." data-i18n-attr="placeholder:keyModal.keyPlaceholder" />
+        </label>
+        <p class="hint-text" data-i18n="keyModal.securityHint">Demo 只把 API Key 保存在目前瀏覽器工作階段，不會寫入後端資料庫。</p>
+        <div class="modal-actions">
+          <button id="cancelKeyButton" class="secondary-button" type="button" data-i18n="keyModal.cancel">取消</button>
+          <button id="saveKeyButton" class="primary-button" type="button" data-i18n="keyModal.save">套用到本次工作階段</button>
+        </div>
+      </section>
+    </div>
+
+    <script src="/static/app.js"></script>
+  </body>
+</html>
