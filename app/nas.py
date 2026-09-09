@@ -14,6 +14,7 @@ def ensure_storage_dirs(base_dir: Path) -> None:
     for directory in (
         base_dir / "data",
         base_dir / "storage" / "recordings",
+        base_dir / "storage" / "nas_assets",
         base_dir / "mock_nas" / "inbox",
         base_dir / "mock_nas" / "processed",
     ):

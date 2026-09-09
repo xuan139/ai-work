@@ -17,6 +17,7 @@ const messages = {
     nav: {
       dashboard: "總覽",
       record: "會議記錄",
+      upload: "NAS 上傳",
       meetings: "資料庫查詢",
       aiwork: "AI Work",
     },
@@ -58,6 +59,10 @@ const messages = {
         title: "會議記錄",
         copy: "網頁錄音會像 NAS 進站檔案一樣保存原始 voice，並啟動同一條轉寫處理流程。",
       },
+      upload: {
+        title: "NAS 上傳",
+        copy: "上傳 audio、video、PDF、DOCX 等資料，NAS 收件後進入 Whisper、YOLO 或 RAG 流程。",
+      },
       meetings: {
         title: "資料庫查詢",
         copy: "查詢來自 NAS 或網頁錄音的會議標題、原始檔名、來源與轉寫文本。",
@@ -91,6 +96,45 @@ const messages = {
       eyebrow: "即時動態",
       title: "即時處理動態",
       fallbackTitle: "會議處理",
+    },
+    upload: {
+      eyebrow: "NAS 收件",
+      title: "上傳 NAS 資料",
+      copy: "支援 audio、video、PDF、DOCX 與一般文件。NAS 收到檔案後會依類型送入 Whisper、YOLO 或 RAG 建庫流程。",
+      fileLabel: "選擇檔案",
+      titleLabel: "資料名稱",
+      titlePlaceholder: "例如：董事會錄音、產品簡報 PDF",
+      submit: "上傳到 NAS",
+      assetsEyebrow: "NAS 資產",
+      assetsTitle: "收件與處理狀態",
+      searchLabel: "搜尋",
+      searchPlaceholder: "搜尋檔名、類型或分析結果",
+      emptyList: "尚無 NAS 資產",
+      emptyDetail: "選擇一個 NAS 資產查看處理結果",
+      uploadRequired: "請先選擇檔案",
+      uploadFailed: "NAS 上傳失敗",
+      dialogEyebrow: "NAS 已收件",
+      dialogTitle: "NAS 收到上傳成功",
+      dialogAction: "查看處理狀態",
+      dialogMessage: "NAS 已收到《{title}》，目前交給 {analyzer} 處理。",
+      owner: "上傳者",
+      filename: "原始檔名",
+      category: "類型",
+      analyzer: "分析器",
+      fileSize: "大小",
+      chunkCount: "RAG chunks",
+      summary: "處理結果",
+      chunks: "RAG 片段",
+      questionTitle: "用 LLM 處理此文件",
+      questionEyebrow: "RAG 文件問答",
+      questionCopy: "文件已建立 RAG chunks，可選擇模型後對此文件提問。",
+      modelRequired: "需要先選擇模型",
+      questionRequired: "請先輸入問題",
+      ask: "處理文件",
+      questionPlaceholder: "例如：請整理這份文件的重點與待辦事項",
+      answerTitle: "文件處理結果",
+      modelNeedsKey: "此模型需要 API Key，請先設定模型",
+      noRag: "此檔案尚未建立 RAG chunks；PDF/DOCX 完成處理後才能做文件問答。",
     },
     meetings: {
       eyebrow: "NAS 索引查詢",
@@ -192,16 +236,21 @@ const messages = {
       processing: "處理中",
       completed: "已完成",
       failed: "失敗",
+      needs_model: "需要模型",
     },
     toast: {
       meetingDetected: "會議動態",
       meetingCompleted: "會議動態",
       meetingFailed: "處理失敗",
+      nasReceived: "NAS 收件",
+      nasProcessed: "NAS 處理",
       savedFailed: "保存失敗",
       detected: "發現新的會議錄音《{title}》，已經開始處理",
       uploaded: "錄音《{title}》已保存，正在處理",
       completed: "會議《{title}》轉寫完成",
       failed: "會議《{title}》處理失敗",
+      assetUploaded: "NAS 已收到《{title}》，已加入處理佇列",
+      assetProcessed: "NAS 資產《{title}》處理狀態已更新",
     },
     errors: {
       requestFailed: "請求失敗",
@@ -226,6 +275,7 @@ const messages = {
     nav: {
       dashboard: "Overview",
       record: "Meeting Recording",
+      upload: "NAS Upload",
       meetings: "Knowledge Search",
       aiwork: "AI Work",
     },
@@ -267,6 +317,10 @@ const messages = {
         title: "Meeting Recording",
         copy: "Browser recordings are archived like NAS intake files, preserving the source voice and starting the same transcription pipeline.",
       },
+      upload: {
+        title: "NAS Upload",
+        copy: "Upload audio, video, PDF, DOCX, and other assets into Whisper, YOLO, or RAG processing flows.",
+      },
       meetings: {
         title: "Knowledge Search",
         copy: "Search NAS and browser-recorded meetings by title, source filename, origin, and transcript text.",
@@ -300,6 +354,45 @@ const messages = {
       eyebrow: "Live Activity",
       title: "Live Processing Activity",
       fallbackTitle: "Meeting Processing",
+    },
+    upload: {
+      eyebrow: "NAS Intake",
+      title: "Upload NAS Assets",
+      copy: "Supports audio, video, PDF, DOCX, and general files. After NAS receives a file, it is routed to Whisper, YOLO, or RAG indexing by type.",
+      fileLabel: "File",
+      titleLabel: "Asset Name",
+      titlePlaceholder: "Example: board audio, product PDF",
+      submit: "Upload to NAS",
+      assetsEyebrow: "NAS Assets",
+      assetsTitle: "Intake and Processing Status",
+      searchLabel: "Search",
+      searchPlaceholder: "Search filenames, types, or analysis results",
+      emptyList: "No NAS assets yet",
+      emptyDetail: "Select a NAS asset to review processing results",
+      uploadRequired: "Choose a file first",
+      uploadFailed: "NAS upload failed",
+      dialogEyebrow: "NAS Received",
+      dialogTitle: "NAS Upload Received",
+      dialogAction: "View Processing Status",
+      dialogMessage: "NAS received \"{title}\" and routed it to {analyzer}.",
+      owner: "Uploader",
+      filename: "Source filename",
+      category: "Type",
+      analyzer: "Analyzer",
+      fileSize: "Size",
+      chunkCount: "RAG chunks",
+      summary: "Processing result",
+      chunks: "RAG chunks",
+      questionTitle: "Use LLM on this document",
+      questionEyebrow: "RAG Document Q&A",
+      questionCopy: "This document has RAG chunks. Select a model and ask a question.",
+      modelRequired: "A model is required",
+      questionRequired: "Enter a question first",
+      ask: "Process Document",
+      questionPlaceholder: "Example: summarize key points and action items",
+      answerTitle: "Document Result",
+      modelNeedsKey: "This model needs an API key. Set a model key first.",
+      noRag: "This file has no RAG chunks yet. PDF/DOCX files can be queried after processing completes.",
     },
     meetings: {
       eyebrow: "NAS Index Search",
@@ -396,16 +489,21 @@ const messages = {
       processing: "Processing",
       completed: "Completed",
       failed: "Failed",
+      needs_model: "Needs Model",
     },
     toast: {
       meetingDetected: "Meeting Update",
       meetingCompleted: "Meeting Update",
       meetingFailed: "Processing Failed",
+      nasReceived: "NAS Intake",
+      nasProcessed: "NAS Processing",
       savedFailed: "Save Failed",
       detected: "New meeting audio \"{title}\" found. Processing has started.",
       uploaded: "Recording \"{title}\" saved. Processing has started.",
       completed: "Meeting \"{title}\" transcription completed.",
       failed: "Meeting \"{title}\" processing failed.",
+      assetUploaded: "NAS received \"{title}\" and queued it for processing.",
+      assetProcessed: "NAS asset \"{title}\" processing status has been updated.",
     },
     errors: {
       requestFailed: "Request failed",
@@ -432,6 +530,13 @@ const state = {
   selectedPricing: null,
   apiKeys: {},
   llmCalls: [],
+  nasAssets: [],
+  selectedAssetId: null,
+  selectedAsset: null,
+  assetSelectedProvider: "",
+  assetSelectedLlmId: "",
+  assetSelectedPricing: null,
+  keyModalPricing: null,
 };
 
 const els = {
@@ -447,6 +552,7 @@ const els = {
   sections: {
     dashboard: document.querySelector("#dashboardSection"),
     record: document.querySelector("#recordSection"),
+    upload: document.querySelector("#uploadSection"),
     meetings: document.querySelector("#meetingsSection"),
     aiwork: document.querySelector("#aiworkSection"),
   },
@@ -487,6 +593,16 @@ const els = {
   modelResponseBox: document.querySelector("#modelResponseBox"),
   llmCallSearch: document.querySelector("#llmCallSearch"),
   llmCallHistory: document.querySelector("#llmCallHistory"),
+  nasUploadForm: document.querySelector("#nasUploadForm"),
+  nasFileInput: document.querySelector("#nasFileInput"),
+  nasAssetTitleInput: document.querySelector("#nasAssetTitleInput"),
+  nasAssetSearch: document.querySelector("#nasAssetSearch"),
+  nasAssetList: document.querySelector("#nasAssetList"),
+  nasAssetDetail: document.querySelector("#nasAssetDetail"),
+  nasUploadDialog: document.querySelector("#nasUploadDialog"),
+  closeNasUploadDialog: document.querySelector("#closeNasUploadDialog"),
+  confirmNasUploadDialog: document.querySelector("#confirmNasUploadDialog"),
+  nasUploadDialogMessage: document.querySelector("#nasUploadDialogMessage"),
 };
 
 function t(key, replacements = {}) {
@@ -526,6 +642,8 @@ function applyLanguage(lang) {
   renderKeyStatus();
   renderModelUsePanel();
   renderLlmCallHistory();
+  renderNasAssetList();
+  renderNasAssetDetail();
   if (!els.apiKeyModal.hidden) renderKeyModal();
   if (state.user) renderCurrentUser();
 }
@@ -568,6 +686,7 @@ async function showApp() {
   await loadMeetings();
   await loadLlmCatalog();
   await loadLlmCalls();
+  await loadNasAssets();
 }
 
 function renderCurrentUser() {
@@ -581,6 +700,7 @@ function switchView(name) {
   els.navItems.forEach((item) => item.classList.toggle("active", item.dataset.view === name));
   els.viewTitle.textContent = t(`nav.${name}`);
   if (name === "meetings") loadMeetings();
+  if (name === "upload") loadNasAssets();
 }
 
 function currentViewName() {
@@ -609,6 +729,253 @@ async function loadLlmCalls() {
   if (query) params.set("q", query);
   state.llmCalls = await api(`/api/llm/calls${params.toString() ? `?${params}` : ""}`);
   renderLlmCallHistory();
+}
+
+async function loadNasAssets() {
+  const params = new URLSearchParams();
+  const query = els.nasAssetSearch.value.trim();
+  if (query) params.set("q", query);
+  state.nasAssets = await api(`/api/nas-assets${params.toString() ? `?${params}` : ""}`);
+  renderNasAssetList();
+  if (state.selectedAssetId) {
+    const stillExists = state.nasAssets.some((asset) => asset.id === state.selectedAssetId);
+    if (stillExists) await selectNasAsset(state.selectedAssetId);
+  }
+}
+
+function renderNasAssetList() {
+  if (!state.nasAssets.length) {
+    els.nasAssetList.innerHTML = `<div class="empty-state compact">${t("upload.emptyList")}</div>`;
+    return;
+  }
+
+  els.nasAssetList.innerHTML = state.nasAssets
+    .map((asset) => {
+      return `
+        <button class="nas-asset-row ${asset.id === state.selectedAssetId ? "active" : ""}" data-asset-id="${asset.id}">
+          <div class="meeting-row-header">
+            <strong>${escapeHtml(asset.title)}</strong>
+            <span class="badge ${escapeHtml(asset.status)}">${statusLabel(asset.status)}</span>
+          </div>
+          <p>${escapeHtml(asset.category.toUpperCase())} · ${escapeHtml(asset.analyzer || "-")} · ${escapeHtml(formatDate(asset.created_at))}</p>
+          <p>${escapeHtml(asset.original_filename)}</p>
+        </button>
+      `;
+    })
+    .join("");
+}
+
+async function selectNasAsset(id) {
+  state.selectedAssetId = id;
+  renderNasAssetList();
+  state.selectedAsset = await api(`/api/nas-assets/${id}`);
+  renderNasAssetDetail();
+}
+
+function renderNasAssetDetail() {
+  const asset = state.selectedAsset;
+  if (!asset) {
+    els.nasAssetDetail.innerHTML = `<div class="empty-state">${t("upload.emptyDetail")}</div>`;
+    return;
+  }
+
+  const chunks = asset.chunks || [];
+  const canAsk = ["pdf", "docx"].includes(asset.category) && asset.chunk_count > 0;
+  els.nasAssetDetail.innerHTML = `
+    <div class="asset-detail-header">
+      <div>
+        <p class="eyebrow">${escapeHtml(asset.category.toUpperCase())} · ${escapeHtml(asset.analyzer || "-")}</p>
+        <h3>${escapeHtml(asset.title)}</h3>
+      </div>
+      <span class="badge ${escapeHtml(asset.status)}">${statusLabel(asset.status)}</span>
+    </div>
+    <div class="asset-meta-grid">
+      ${assetMeta(t("upload.owner"), asset.owner_username || `#${asset.user_id}`)}
+      ${assetMeta(t("upload.filename"), asset.original_filename)}
+      ${assetMeta(t("upload.fileSize"), formatBytes(asset.file_size))}
+      ${assetMeta(t("upload.chunkCount"), asset.chunk_count)}
+    </div>
+    <section class="asset-summary">
+      <strong>${escapeHtml(t("upload.summary"))}</strong>
+      <p>${escapeHtml(asset.summary || asset.error_message || processingText(asset.status, asset.error_message))}</p>
+    </section>
+    ${chunks.length ? renderRagChunks(chunks) : ""}
+    ${canAsk ? renderDocumentAskPanel() : `<div class="empty-state compact">${t("upload.noRag")}</div>`}
+  `;
+  renderAssetLlmControls();
+}
+
+function assetMeta(label, value) {
+  return `<span><b>${escapeHtml(label)}</b>${escapeHtml(value ?? "-")}</span>`;
+}
+
+function renderRagChunks(chunks) {
+  return `
+    <section class="rag-chunk-panel">
+      <strong>${escapeHtml(t("upload.chunks"))}</strong>
+      <div class="rag-chunk-list">
+        ${chunks
+          .map((chunk) => `<p><b>#${chunk.chunk_index}</b>${escapeHtml(chunk.content.slice(0, 260))}</p>`)
+          .join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderDocumentAskPanel() {
+  return `
+    <section class="document-ask-panel">
+      <div class="section-heading">
+        <p class="eyebrow">${escapeHtml(t("upload.questionEyebrow"))}</p>
+        <h3>${escapeHtml(t("upload.questionTitle"))}</h3>
+        <p>${escapeHtml(t("upload.questionCopy"))}</p>
+      </div>
+      <div class="llm-form-grid compact">
+        <label>
+          <span>${escapeHtml(t("aiwork.providerLabel"))}</span>
+          <select id="assetLlmProviderSelect"></select>
+        </label>
+        <label>
+          <span>${escapeHtml(t("aiwork.modelLabel"))}</span>
+          <select id="assetLlmModelSelect"></select>
+        </label>
+      </div>
+      <label class="prompt-field">
+        <span>${escapeHtml(t("aiwork.promptLabel"))}</span>
+        <textarea id="assetQuestionInput" rows="4" placeholder="${escapeHtml(t("upload.questionPlaceholder"))}"></textarea>
+      </label>
+      <div class="button-row">
+        <button id="askAssetButton" class="primary-button" type="button">${escapeHtml(t("upload.ask"))}</button>
+      </div>
+      <div id="assetAnswerBox" class="model-response-box" hidden></div>
+    </section>
+  `;
+}
+
+function renderAssetLlmControls() {
+  const providerSelect = document.querySelector("#assetLlmProviderSelect");
+  const modelSelect = document.querySelector("#assetLlmModelSelect");
+  if (!providerSelect || !modelSelect) return;
+  if (!state.llmCatalog) {
+    providerSelect.innerHTML = `<option value="">${t("aiwork.loading")}</option>`;
+    modelSelect.innerHTML = `<option value="">${t("aiwork.loading")}</option>`;
+    return;
+  }
+
+  providerSelect.innerHTML = [
+    `<option value="">${t("aiwork.allProviders")}</option>`,
+    ...state.llmCatalog.providers.map((provider) => `<option value="${escapeHtml(provider.name)}">${escapeHtml(provider.name)}</option>`),
+  ].join("");
+  providerSelect.value = state.assetSelectedProvider;
+
+  const models = state.assetSelectedProvider
+    ? state.llmCatalog.models.filter((model) => model.provider === state.assetSelectedProvider)
+    : state.llmCatalog.models;
+  modelSelect.innerHTML = [
+    `<option value="">${t("aiwork.selectModel")}</option>`,
+    ...models.map((model) => `<option value="${escapeHtml(model.id)}">${escapeHtml(model.provider)} · ${escapeHtml(model.name)}</option>`),
+  ].join("");
+  modelSelect.value = state.assetSelectedLlmId;
+}
+
+async function selectAssetLlmModel(modelId) {
+  state.assetSelectedLlmId = modelId;
+  state.assetSelectedPricing = null;
+  if (!modelId) return;
+  state.assetSelectedPricing = await api(`/api/llm/pricing/${encodeURIComponent(modelId)}`);
+  const model = state.assetSelectedPricing.model;
+  const hasKey = Boolean(state.apiKeys[providerKeyId(model.provider)]);
+  if (model.free_tier.requires_api_key_for_real_call && !hasKey) {
+    openKeyModalForPricing(state.assetSelectedPricing);
+  }
+}
+
+async function uploadNasAsset(event) {
+  event.preventDefault();
+  const file = els.nasFileInput.files[0];
+  if (!file) {
+    showToast(t("upload.uploadRequired"), t("toast.nasReceived"));
+    return;
+  }
+
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("title", els.nasAssetTitleInput.value.trim());
+  const response = await fetch("/api/nas-assets/upload", {
+    method: "POST",
+    credentials: "include",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    showToast(t("upload.uploadFailed"), t("toast.savedFailed"));
+    return;
+  }
+
+  const asset = await response.json();
+  els.nasUploadForm.reset();
+  state.selectedAssetId = asset.id;
+  showNasUploadDialog(asset);
+  await loadNasAssets();
+}
+
+function showNasUploadDialog(asset) {
+  els.nasUploadDialogMessage.textContent = t("upload.dialogMessage", {
+    title: asset.title,
+    analyzer: asset.analyzer || "-",
+  });
+  els.nasUploadDialog.hidden = false;
+}
+
+function closeNasUploadDialog() {
+  els.nasUploadDialog.hidden = true;
+}
+
+async function askSelectedAsset() {
+  if (!state.selectedAsset) return;
+  const questionInput = document.querySelector("#assetQuestionInput");
+  const answerBox = document.querySelector("#assetAnswerBox");
+  const question = questionInput?.value.trim() || "";
+  if (!state.assetSelectedLlmId) {
+    showToast(t("upload.modelRequired"), t("upload.questionTitle"));
+    return;
+  }
+  if (!question) {
+    showToast(t("upload.questionRequired"), t("upload.questionTitle"));
+    return;
+  }
+
+  if (!state.assetSelectedPricing) {
+    await selectAssetLlmModel(state.assetSelectedLlmId);
+  }
+  const model = state.assetSelectedPricing?.model;
+  const hasKey = model ? Boolean(state.apiKeys[providerKeyId(model.provider)]) : false;
+  const canUseFreeQuota = Boolean(model?.free_tier.available && !model.free_tier.requires_api_key_for_real_call);
+  if (model && !hasKey && !canUseFreeQuota) {
+    showToast(t("upload.modelNeedsKey"), model.provider);
+    openKeyModalForPricing(state.assetSelectedPricing);
+    return;
+  }
+
+  try {
+    const result = await api(`/api/nas-assets/${state.selectedAsset.id}/ask`, {
+      method: "POST",
+      body: JSON.stringify({
+        model_id: state.assetSelectedLlmId,
+        question,
+        api_key: model ? state.apiKeys[providerKeyId(model.provider)] || "" : "",
+      }),
+    });
+    answerBox.hidden = false;
+    answerBox.classList.remove("error");
+    answerBox.innerHTML = `<strong>${escapeHtml(t("upload.answerTitle"))} · ${escapeHtml(result.model)}</strong><pre>${escapeHtml(result.answer)}</pre>`;
+    await loadLlmCalls();
+  } catch (error) {
+    answerBox.hidden = false;
+    answerBox.classList.add("error");
+    answerBox.innerHTML = `<strong>${escapeHtml(t("aiwork.responseFailed"))}</strong><pre>${escapeHtml(error.message)}</pre>`;
+    await loadLlmCalls();
+  }
 }
 
 function renderLlmControls() {
@@ -816,6 +1183,15 @@ function callStatusLabel(status) {
 
 function openKeyModal() {
   if (!state.selectedPricing) return;
+  state.keyModalPricing = state.selectedPricing;
+  renderKeyModal();
+  els.apiKeyModal.hidden = false;
+  els.apiKeyInput.focus();
+}
+
+function openKeyModalForPricing(pricing) {
+  if (!pricing) return;
+  state.keyModalPricing = pricing;
   renderKeyModal();
   els.apiKeyModal.hidden = false;
   els.apiKeyInput.focus();
@@ -824,10 +1200,11 @@ function openKeyModal() {
 function closeKeyModal() {
   els.apiKeyModal.hidden = true;
   els.apiKeyInput.value = "";
+  state.keyModalPricing = null;
 }
 
 function renderKeyModal() {
-  const model = state.selectedPricing?.model;
+  const model = (state.keyModalPricing || state.selectedPricing)?.model;
   if (!model) return;
   els.keyModalModelName.textContent = t("keyModal.selectedModel", {
     provider: model.provider,
@@ -842,10 +1219,11 @@ function saveApiKeyForSession() {
     return;
   }
 
-  const model = state.selectedPricing.model;
+  const model = (state.keyModalPricing || state.selectedPricing).model;
   state.apiKeys[providerKeyId(model.provider)] = key;
   renderKeyStatus();
   renderModelUsePanel();
+  renderAssetLlmControls();
   closeKeyModal();
   showToast(t("keyModal.saved"), model.provider);
 }
@@ -974,6 +1352,10 @@ function connectWebSocket() {
     const title = notificationTitle(payload.type);
     addActivity(message, payload.title || t("activity.fallbackTitle"));
     showToast(message, title);
+    if (payload.type.startsWith("nas_asset_")) {
+      await loadNasAssets();
+      return;
+    }
     await loadMeetings();
     if (state.selectedMeetingId && payload.meeting_id === state.selectedMeetingId) {
       await selectMeeting(state.selectedMeetingId);
@@ -1111,11 +1493,16 @@ function notificationTitle(type) {
     meeting_detected: t("toast.meetingDetected"),
     meeting_completed: t("toast.meetingCompleted"),
     meeting_failed: t("toast.meetingFailed"),
+    nas_asset_uploaded: t("toast.nasReceived"),
+    nas_asset_processed: t("toast.nasProcessed"),
+    nas_asset_failed: t("toast.meetingFailed"),
   }[type] || t("toast.meetingDetected");
 }
 
 function notificationMessage(payload) {
   const title = payload.title || "";
+  if (payload.type === "nas_asset_uploaded") return t("toast.assetUploaded", { title });
+  if (payload.type === "nas_asset_processed" || payload.type === "nas_asset_failed") return t("toast.assetProcessed", { title });
   if (payload.type === "meeting_completed") return t("toast.completed", { title });
   if (payload.type === "meeting_failed") return t("toast.failed", { title });
   if (payload.meeting?.source === "web_upload") return t("toast.uploaded", { title });
@@ -1144,6 +1531,14 @@ function formatSeconds(totalSeconds) {
   const minutes = String(Math.floor(totalSeconds / 60)).padStart(2, "0");
   const seconds = String(totalSeconds % 60).padStart(2, "0");
   return `${minutes}:${seconds}`;
+}
+
+function formatBytes(bytes) {
+  const value = Number(bytes || 0);
+  if (value < 1024) return `${value} B`;
+  if (value < 1024 * 1024) return `${(value / 1024).toFixed(1)} KB`;
+  if (value < 1024 * 1024 * 1024) return `${(value / 1024 / 1024).toFixed(1)} MB`;
+  return `${(value / 1024 / 1024 / 1024).toFixed(1)} GB`;
 }
 
 function escapeHtml(value) {
@@ -1191,9 +1586,31 @@ els.pauseRecord.addEventListener("click", pauseRecording);
 els.stopRecord.addEventListener("click", stopRecording);
 els.meetingSearch.addEventListener("input", debounce(loadMeetings, 220));
 els.llmCallSearch.addEventListener("input", debounce(loadLlmCalls, 220));
+els.nasAssetSearch.addEventListener("input", debounce(loadNasAssets, 220));
+els.nasUploadForm.addEventListener("submit", (event) => uploadNasAsset(event).catch((error) => showToast(error.message, t("upload.uploadFailed"))));
 els.meetingList.addEventListener("click", (event) => {
   const row = event.target.closest("[data-meeting-id]");
   if (row) selectMeeting(Number(row.dataset.meetingId));
+});
+els.nasAssetList.addEventListener("click", (event) => {
+  const row = event.target.closest("[data-asset-id]");
+  if (row) selectNasAsset(Number(row.dataset.assetId));
+});
+els.nasAssetDetail.addEventListener("change", (event) => {
+  if (event.target.id === "assetLlmProviderSelect") {
+    state.assetSelectedProvider = event.target.value;
+    state.assetSelectedLlmId = "";
+    state.assetSelectedPricing = null;
+    renderAssetLlmControls();
+  }
+  if (event.target.id === "assetLlmModelSelect") {
+    selectAssetLlmModel(event.target.value).catch((error) => showToast(error.message, t("errors.requestFailed")));
+  }
+});
+els.nasAssetDetail.addEventListener("click", (event) => {
+  if (event.target.id === "askAssetButton") {
+    askSelectedAsset().catch((error) => showToast(error.message, t("errors.requestFailed")));
+  }
 });
 els.llmProviderSelect.addEventListener("change", () => {
   state.selectedProvider = els.llmProviderSelect.value;
@@ -1213,6 +1630,14 @@ els.saveKeyButton.addEventListener("click", saveApiKeyForSession);
 els.runModelButton.addEventListener("click", () => runSelectedModel().catch((error) => showToast(error.message, t("errors.requestFailed"))));
 els.apiKeyModal.addEventListener("click", (event) => {
   if (event.target === els.apiKeyModal) closeKeyModal();
+});
+els.closeNasUploadDialog.addEventListener("click", closeNasUploadDialog);
+els.confirmNasUploadDialog.addEventListener("click", () => {
+  closeNasUploadDialog();
+  switchView("upload");
+});
+els.nasUploadDialog.addEventListener("click", (event) => {
+  if (event.target === els.nasUploadDialog) closeNasUploadDialog();
 });
 els.apiKeyInput.addEventListener("keydown", (event) => {
   if (event.key === "Enter") saveApiKeyForSession();

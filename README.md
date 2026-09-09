@@ -1,6 +1,6 @@
 # AI Work Meeting Demo
 
-FastAPI demo for authenticated NAS-style meeting audio intake, browser recording, file discovery, transcription status, searchable meeting history, and LLM call auditing.
+FastAPI demo for authenticated NAS-style meeting audio intake, browser recording, file upload, file discovery, transcription status, searchable meeting history, document RAG, and LLM call auditing.
 
 ## Run
 
@@ -37,3 +37,14 @@ NAS demo behaviors shown in the UI:
 - Meeting metadata, source, timestamps, status, and transcript text are indexed in SQLite.
 - Authenticated users query NAS meeting assets through the meeting database page.
 - AI Work can audit model calls against the NAS meeting knowledge workflow.
+
+## NAS Upload And RAG
+
+The NAS Upload page accepts audio, video, PDF, DOCX, text, and general files.
+
+- Audio files are routed to the Whisper analysis flow and marked as needing a speech model before real transcripts can be produced.
+- Video files are routed to the YOLO analysis flow and marked as needing YOLO weights or a video analysis service.
+- PDF files are parsed with `pypdf`, split into RAG chunks, and stored in SQLite under `document_chunks`.
+- DOCX files are parsed with `python-docx` when the dependency is installed, then split into the same RAG chunk format.
+- PDF/DOCX assets with RAG chunks show a document LLM input panel for document Q&A.
+- If no model is selected for document Q&A, the UI prompts for a model before sending.

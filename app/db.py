@@ -74,10 +74,49 @@ def init_db() -> None:
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS nas_assets (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                category TEXT NOT NULL,
+                title TEXT NOT NULL,
+                original_filename TEXT NOT NULL,
+                stored_path TEXT NOT NULL,
+                mime_type TEXT,
+                file_size INTEGER NOT NULL DEFAULT 0,
+                status TEXT NOT NULL,
+                analyzer TEXT,
+                summary TEXT,
+                error_message TEXT,
+                chunk_count INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS document_chunks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                asset_id INTEGER NOT NULL,
+                chunk_index INTEGER NOT NULL,
+                content TEXT NOT NULL,
+                token_estimate INTEGER NOT NULL DEFAULT 0,
+                metadata_json TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(asset_id) REFERENCES nas_assets(id)
+            )
+            """
+        )
         conn.execute("CREATE INDEX IF NOT EXISTS idx_meetings_user_id ON meetings(user_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_meetings_created_at ON meetings(created_at)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_llm_calls_user_id ON llm_calls(user_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_llm_calls_created_at ON llm_calls(created_at)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_nas_assets_user_id ON nas_assets(user_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_nas_assets_created_at ON nas_assets(created_at)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_document_chunks_asset_id ON document_chunks(asset_id)")
 
 
 def seed_admin(password_hash: str) -> None:
@@ -178,6 +217,164 @@ def get_meeting(meeting_id: int) -> dict[str, Any] | None:
     with connect() as conn:
         row = conn.execute("SELECT * FROM meetings WHERE id = ?", (meeting_id,)).fetchone()
     return _row_to_dict(row)
+
+
+def create_nas_asset(
+    *,
+    user_id: int,
+    category: str,
+    title: str,
+    original_filename: str,
+    stored_path: str,
+    mime_type: str | None,
+    file_size: int,
+    status: str = "processing",
+    analyzer: str | None = None,
+) -> dict[str, Any]:
+    with connect() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO nas_assets (
+                user_id, category, title, original_filename, stored_path, mime_type,
+                file_size, status, analyzer
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (user_id, category, title, original_filename, stored_path, mime_type, file_size, status, analyzer),
+        )
+        row = conn.execute("SELECT * FROM nas_assets WHERE id = ?", (cursor.lastrowid,)).fetchone()
+    asset = _row_to_dict(row)
+    if asset is None:
+        raise RuntimeError("NAS asset creation failed")
+    return asset
+
+
+def update_nas_asset(
+    asset_id: int,
+    *,
+    status: str,
+    analyzer: str | None = None,
+    summary: str | None = None,
+    error_message: str | None = None,
+    chunk_count: int | None = None,
+) -> dict[str, Any] | None:
+    with connect() as conn:
+        conn.execute(
+            """
+            UPDATE nas_assets
+            SET status = ?,
+                analyzer = COALESCE(?, analyzer),
+                summary = ?,
+                error_message = ?,
+                chunk_count = COALESCE(?, chunk_count),
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (status, analyzer, summary, error_message, chunk_count, asset_id),
+        )
+        row = conn.execute("SELECT * FROM nas_assets WHERE id = ?", (asset_id,)).fetchone()
+    return _row_to_dict(row)
+
+
+def get_nas_asset(asset_id: int) -> dict[str, Any] | None:
+    with connect() as conn:
+        row = conn.execute(
+            """
+            SELECT nas_assets.*, users.username AS owner_username, users.role AS owner_role
+            FROM nas_assets
+            JOIN users ON users.id = nas_assets.user_id
+            WHERE nas_assets.id = ?
+            """,
+            (asset_id,),
+        ).fetchone()
+    return _row_to_dict(row)
+
+
+def list_nas_assets(*, user_id: int, role: str, q: str | None = None) -> list[dict[str, Any]]:
+    params: list[Any] = []
+    where = []
+
+    if role != "admin":
+        where.append("nas_assets.user_id = ?")
+        params.append(user_id)
+
+    if q:
+        where.append(
+            """
+            (title LIKE ? OR original_filename LIKE ? OR category LIKE ?
+             OR analyzer LIKE ? OR summary LIKE ? OR users.username LIKE ?)
+            """
+        )
+        pattern = f"%{q}%"
+        params.extend([pattern, pattern, pattern, pattern, pattern, pattern])
+
+    where_sql = f"WHERE {' AND '.join(where)}" if where else ""
+    sql = f"""
+        SELECT nas_assets.*, users.username AS owner_username, users.role AS owner_role
+        FROM nas_assets
+        JOIN users ON users.id = nas_assets.user_id
+        {where_sql}
+        ORDER BY datetime(nas_assets.created_at) DESC, nas_assets.id DESC
+        LIMIT 100
+    """
+
+    with connect() as conn:
+        rows = conn.execute(sql, params).fetchall()
+    return [dict(row) for row in rows]
+
+
+def replace_document_chunks(asset_id: int, chunks: list[dict[str, Any]]) -> None:
+    with connect() as conn:
+        conn.execute("DELETE FROM document_chunks WHERE asset_id = ?", (asset_id,))
+        conn.executemany(
+            """
+            INSERT INTO document_chunks (asset_id, chunk_index, content, token_estimate, metadata_json)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    asset_id,
+                    chunk["chunk_index"],
+                    chunk["content"],
+                    chunk.get("token_estimate", 0),
+                    chunk.get("metadata_json"),
+                )
+                for chunk in chunks
+            ],
+        )
+
+
+def list_document_chunks(asset_id: int) -> list[dict[str, Any]]:
+    with connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, asset_id, chunk_index, content, token_estimate, metadata_json, created_at
+            FROM document_chunks
+            WHERE asset_id = ?
+            ORDER BY chunk_index ASC
+            """,
+            (asset_id,),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def search_document_chunks(asset_id: int, query: str, limit: int = 5) -> list[dict[str, Any]]:
+    terms = [term.lower() for term in query.split() if term.strip()]
+    chunks = list_document_chunks(asset_id)
+    if not terms:
+        return chunks[:limit]
+
+    scored = []
+    for chunk in chunks:
+        text = chunk["content"].lower()
+        score = sum(text.count(term) for term in terms)
+        if score:
+            scored.append((score, chunk))
+
+    if not scored:
+        return chunks[:limit]
+    scored.sort(key=lambda item: (-item[0], item[1]["chunk_index"]))
+    return [chunk for _, chunk in scored[:limit]]
 
 
 def create_llm_call(

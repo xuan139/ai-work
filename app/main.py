@@ -10,7 +10,21 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.auth import SESSION_COOKIE, authenticate, create_session_token, current_user, hash_password, require_meeting_access, websocket_user
-from app.db import create_llm_call, create_meeting, get_meeting, init_db, list_llm_calls, list_meetings, seed_admin
+from app.db import (
+    create_llm_call,
+    create_meeting,
+    create_nas_asset,
+    get_meeting,
+    get_nas_asset,
+    init_db,
+    list_document_chunks,
+    list_llm_calls,
+    list_meetings,
+    list_nas_assets,
+    search_document_chunks,
+    seed_admin,
+)
+from app.document_processing import analyzer_for_category, classify_asset, process_nas_asset
 from app.llm_catalog import PRICING_UPDATED_AT, get_model, model_summary, provider_summary
 from app.llm_runtime import LlmRuntimeError, run_llm
 from app.nas import ensure_storage_dirs, nas_discovery_loop
@@ -20,6 +34,7 @@ from app.transcription import process_meeting_transcription
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = BASE_DIR / "static"
 RECORDINGS_DIR = BASE_DIR / "storage" / "recordings"
+NAS_ASSETS_DIR = BASE_DIR / "storage" / "nas_assets"
 
 
 @asynccontextmanager
@@ -131,6 +146,93 @@ async def meeting_audio(meeting_id: int, user: dict = Depends(current_user)) -> 
     return FileResponse(audio_path, filename=meeting["original_filename"], media_type="audio/*")
 
 
+@app.post("/api/nas-assets/upload")
+async def upload_nas_asset(
+    background_tasks: BackgroundTasks,
+    title: str = Form(default=""),
+    file: UploadFile = File(...),
+    user: dict = Depends(current_user),
+) -> dict:
+    suffix = Path(file.filename or "nas-file").suffix.lower()
+    stored_name = f"{uuid.uuid4().hex}{suffix}"
+    stored_path = NAS_ASSETS_DIR / stored_name
+    stored_path.parent.mkdir(parents=True, exist_ok=True)
+
+    with stored_path.open("wb") as destination:
+        shutil.copyfileobj(file.file, destination)
+
+    category = classify_asset(stored_path, file.content_type)
+    asset_title = title.strip() or Path(file.filename or stored_name).stem or "NAS asset"
+    asset = create_nas_asset(
+        user_id=user["id"],
+        category=category,
+        title=asset_title,
+        original_filename=file.filename or stored_name,
+        stored_path=str(stored_path),
+        mime_type=file.content_type,
+        file_size=stored_path.stat().st_size,
+        status="processing",
+        analyzer=analyzer_for_category(category),
+    )
+    background_tasks.add_task(process_nas_asset, asset["id"])
+    await manager.broadcast(
+        {
+            "type": "nas_asset_uploaded",
+            "asset_id": asset["id"],
+            "title": asset["title"],
+            "message": f"NAS 已收到上傳檔案《{asset['title']}》，正在交給 {asset['analyzer']} 處理",
+            "asset": asset,
+        }
+    )
+    return asset
+
+
+@app.get("/api/nas-assets")
+async def nas_assets(q: str | None = None, user: dict = Depends(current_user)) -> list[dict]:
+    return list_nas_assets(user_id=user["id"], role=user["role"], q=q)
+
+
+@app.get("/api/nas-assets/{asset_id}")
+async def nas_asset_detail(asset_id: int, user: dict = Depends(current_user)) -> dict:
+    asset = require_nas_asset_access(get_nas_asset(asset_id), user)
+    chunks = list_document_chunks(asset_id) if asset["category"] in {"pdf", "docx"} else []
+    return {**asset, "chunks": chunks[:8]}
+
+
+@app.post("/api/nas-assets/{asset_id}/ask")
+async def ask_nas_asset(asset_id: int, payload: dict, user: dict = Depends(current_user)) -> dict:
+    asset = require_nas_asset_access(get_nas_asset(asset_id), user)
+    question = str(payload.get("question", "")).strip()
+    model_id = str(payload.get("model_id", "")).strip()
+    api_key = str(payload.get("api_key", "")).strip() or None
+
+    if not question:
+        raise HTTPException(status_code=400, detail="Question is required")
+    if asset["category"] not in {"pdf", "docx"} or asset["chunk_count"] < 1:
+        raise HTTPException(status_code=400, detail="This file has no RAG chunks")
+
+    chunks = search_document_chunks(asset_id, question, limit=5)
+    context = "\n\n".join(
+        f"[Chunk {chunk['chunk_index']}]\n{chunk['content']}"
+        for chunk in chunks
+    )
+    rag_prompt = (
+        "你是 NAS 文件資料庫助理。請只根據下方 RAG context 回答問題；"
+        "如果 context 不足，請明確說明缺少資料。\n\n"
+        f"文件：{asset['title']} ({asset['original_filename']})\n\n"
+        f"RAG context:\n{context}\n\n"
+        f"問題：{question}"
+    )
+    result = await run_model_with_audit(model_id=model_id, prompt=rag_prompt, api_key=api_key, user=user)
+    return {
+        **result,
+        "asset_id": asset_id,
+        "asset_title": asset["title"],
+        "question": question,
+        "contexts": chunks,
+    }
+
+
 @app.get("/api/llm/models")
 async def llm_models(user: dict = Depends(current_user)) -> dict:
     return {
@@ -150,11 +252,19 @@ async def llm_pricing(model_id: str, user: dict = Depends(current_user)) -> dict
 
 @app.post("/api/llm/run")
 async def llm_run(payload: dict, user: dict = Depends(current_user)) -> dict:
-    requested_model_id = str(payload.get("model_id", "")).strip()
+    return await run_model_with_audit(
+        model_id=str(payload.get("model_id", "")).strip(),
+        prompt=str(payload.get("prompt", "")),
+        api_key=str(payload.get("api_key", "")).strip() or None,
+        user=user,
+    )
+
+
+async def run_model_with_audit(*, model_id: str, prompt: str, api_key: str | None, user: dict) -> dict:
+    requested_model_id = model_id.strip()
     model = get_model(requested_model_id)
-    raw_prompt = str(payload.get("prompt", ""))
-    prompt = raw_prompt.strip()
-    api_key = str(payload.get("api_key", "")).strip() or None
+    raw_prompt = prompt
+    clean_prompt = raw_prompt.strip()
 
     if not model:
         create_llm_call(
@@ -162,13 +272,13 @@ async def llm_run(payload: dict, user: dict = Depends(current_user)) -> dict:
             provider="Unknown",
             model_name="Unknown model",
             model_id=requested_model_id or "-",
-            prompt=prompt,
+            prompt=clean_prompt,
             response=None,
             status="failed",
-            error_message="Model not found",
+            error_message="Model is required" if not requested_model_id else "Model not found",
         )
-        raise HTTPException(status_code=404, detail="Model not found")
-    if not prompt:
+        raise HTTPException(status_code=404, detail="Model is required" if not requested_model_id else "Model not found")
+    if not clean_prompt:
         create_llm_call(
             user_id=user["id"],
             provider=model["provider"],
@@ -188,7 +298,7 @@ async def llm_run(payload: dict, user: dict = Depends(current_user)) -> dict:
             provider=model["provider"],
             model_name=model["name"],
             model_id=model["id"],
-            prompt=prompt,
+            prompt=clean_prompt,
             response=None,
             status="blocked",
             access_mode="no_api_key",
@@ -197,14 +307,14 @@ async def llm_run(payload: dict, user: dict = Depends(current_user)) -> dict:
         raise HTTPException(status_code=402, detail="API key is required for this model")
 
     try:
-        result = await run_llm(model, prompt, api_key)
+        result = await run_llm(model, clean_prompt, api_key)
     except LlmRuntimeError as exc:
         create_llm_call(
             user_id=user["id"],
             provider=model["provider"],
             model_name=model["name"],
             model_id=model["id"],
-            prompt=prompt,
+            prompt=clean_prompt,
             response=None,
             status="failed",
             access_mode="api_key" if api_key else "free_no_key",
@@ -217,7 +327,7 @@ async def llm_run(payload: dict, user: dict = Depends(current_user)) -> dict:
             provider=model["provider"],
             model_name=model["name"],
             model_id=model["id"],
-            prompt=prompt,
+            prompt=clean_prompt,
             response=None,
             status="failed",
             access_mode="api_key" if api_key else "free_no_key",
@@ -231,7 +341,7 @@ async def llm_run(payload: dict, user: dict = Depends(current_user)) -> dict:
         provider=model["provider"],
         model_name=model["name"],
         model_id=model["id"],
-        prompt=prompt,
+        prompt=clean_prompt,
         response=result["answer"],
         status="completed",
         access_mode=result["access_mode"],
@@ -253,6 +363,14 @@ async def llm_run(payload: dict, user: dict = Depends(current_user)) -> dict:
         "answer": result["answer"],
         "usage": usage,
     }
+
+
+def require_nas_asset_access(asset: dict | None, user: dict) -> dict:
+    if not asset:
+        raise HTTPException(status_code=404, detail="NAS asset not found")
+    if user["role"] != "admin" and asset["user_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Permission denied")
+    return asset
 
 
 @app.post("/api/llm/demo-run")
