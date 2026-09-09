@@ -197,27 +197,28 @@
                 <span id="keyStatus" class="key-status" data-i18n="aiwork.keyNotSet">尚未設定 API Key</span>
               </div>
 
-              <div id="modelUsePanel" class="model-use-panel" hidden>
-                <div class="use-panel-header">
-                  <div>
-                    <p class="eyebrow" data-i18n="aiwork.tryEyebrow">模型試用</p>
-                    <h4 id="modelUseTitle"></h4>
-                  </div>
-                  <span id="modelUseMode" class="use-mode-badge"></span>
-                </div>
-                <label class="prompt-field">
-                  <span data-i18n="aiwork.promptLabel">輸入內容</span>
-                  <textarea id="llmPromptInput" rows="5" placeholder="請輸入要交給模型處理的內容" data-i18n-attr="placeholder:aiwork.promptPlaceholder"></textarea>
-                </label>
-                <div class="button-row">
-                  <button id="runModelButton" class="primary-button" type="button" data-i18n="aiwork.runModel">送出</button>
-                </div>
-                <div id="modelResponseBox" class="model-response-box" hidden></div>
-              </div>
             </section>
 
             <section id="pricingPanel" class="pricing-panel">
               <div class="empty-state" data-i18n="aiwork.emptyPricing">選擇模型後顯示費用資訊</div>
+            </section>
+
+            <section id="modelUsePanel" class="model-use-panel" hidden>
+              <div class="use-panel-header">
+                <div>
+                  <p class="eyebrow" data-i18n="aiwork.tryEyebrow">模型試用</p>
+                  <h4 id="modelUseTitle"></h4>
+                </div>
+                <span id="modelUseMode" class="use-mode-badge"></span>
+              </div>
+              <label class="prompt-field">
+                <span data-i18n="aiwork.promptLabel">輸入內容</span>
+                <textarea id="llmPromptInput" rows="5" placeholder="請輸入要交給模型處理的內容" data-i18n-attr="placeholder:aiwork.promptPlaceholder"></textarea>
+              </label>
+              <div class="button-row">
+                <button id="runModelButton" class="primary-button" type="button" data-i18n="aiwork.runModel">送出</button>
+              </div>
+              <div id="modelResponseBox" class="model-response-box" hidden></div>
             </section>
 
             <section class="model-source-panel">

@@ -632,6 +632,7 @@ button:disabled {
 
 .llm-config-panel,
 .pricing-panel,
+.model-use-panel,
 .model-source-panel {
   padding: 24px;
   background: var(--panel);
@@ -666,13 +667,10 @@ button:disabled {
 }
 
 .model-use-panel {
+  grid-column: 1 / -1;
   display: grid;
-  gap: 14px;
-  margin-top: 22px;
-  padding: 18px;
-  background: #f8faf9;
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  gap: 18px;
+  min-height: 430px;
 }
 
 .use-panel-header {
@@ -684,7 +682,8 @@ button:disabled {
 
 .use-panel-header h4 {
   margin: 0;
-  font-size: 18px;
+  font-size: 28px;
+  line-height: 1.18;
 }
 
 .use-mode-badge {
@@ -709,8 +708,12 @@ button:disabled {
   gap: 8px;
 }
 
+.prompt-field textarea {
+  min-height: 220px;
+}
+
 .model-response-box {
-  padding: 14px;
+  padding: 18px;
   background: white;
   border: 1px solid var(--line);
   border-radius: 8px;
