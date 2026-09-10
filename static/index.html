@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>AI Work 會議入口</title>
-    <link rel="stylesheet" href="/static/styles.css" />
+    <link rel="stylesheet" href="/static/styles.css?v=nas-model-manager" />
   </head>
   <body>
     <div id="toastHost" class="toast-host" aria-live="polite" aria-atomic="true"></div>
@@ -196,6 +196,30 @@
                   <span data-i18n="upload.titleLabel">資料名稱</span>
                   <input id="nasAssetTitleInput" placeholder="例如：董事會錄音、產品簡報 PDF" data-i18n-attr="placeholder:upload.titlePlaceholder" />
                 </label>
+                <section class="asr-config-panel">
+                  <div>
+                    <strong data-i18n="upload.asrTitle">音訊識別模型</strong>
+                    <p data-i18n="upload.asrCopy">上傳 audio 時可選本地或雲端 ASR；其他檔案會自動略過此設定。</p>
+                  </div>
+                  <div class="llm-form-grid compact">
+                    <label>
+                      <span data-i18n="upload.asrModeLabel">執行位置</span>
+                      <select id="audioAsrModeSelect">
+                        <option value="local" data-i18n="upload.asrModeLocal">本地 NAS</option>
+                        <option value="cloud" data-i18n="upload.asrModeCloud">雲端 API</option>
+                      </select>
+                    </label>
+                    <label>
+                      <span data-i18n="upload.asrModelLabel">ASR 模型</span>
+                      <select id="audioAsrModelSelect"></select>
+                    </label>
+                  </div>
+                  <label id="audioAsrKeyField" hidden>
+                    <span data-i18n="upload.asrKeyLabel">OpenAI API Key</span>
+                    <input id="audioAsrApiKeyInput" type="password" placeholder="sk-..." data-i18n-attr="placeholder:upload.asrKeyPlaceholder" autocomplete="off" />
+                  </label>
+                  <p class="hint-text" data-i18n="upload.asrHint">本地模型適合 NAS 私有化；雲端模型需要 API Key，Key 只用於本次上傳，不寫入資料庫。</p>
+                </section>
                 <button class="primary-button" type="submit" data-i18n="upload.submit">上傳到 NAS</button>
               </form>
               <div class="nas-storage-map">
@@ -232,6 +256,16 @@
               <div id="nasAssetList" class="nas-asset-list"></div>
             </section>
           </div>
+          <section class="local-model-panel">
+            <div class="model-manager-head">
+              <div>
+                <strong data-i18n="upload.modelManagerTitle">NAS 模型管理</strong>
+                <p data-i18n="upload.modelManagerCopy">管理可由 NAS 主機執行的本地 ASR 模型。下載只會在按下按鈕後開始。</p>
+              </div>
+              <button id="refreshLocalModelsButton" class="secondary-button compact-button" type="button" data-i18n="upload.refreshModels">刷新</button>
+            </div>
+            <div id="localModelList" class="local-model-list"></div>
+          </section>
           <section id="nasAssetDetail" class="nas-asset-detail">
             <div class="empty-state" data-i18n="upload.emptyDetail">選擇一個 NAS 資產查看處理結果</div>
           </section>
@@ -374,6 +408,6 @@
       </section>
     </div>
 
-    <script src="/static/app.js"></script>
+    <script src="/static/app.js?v=nas-model-manager"></script>
   </body>
 </html>

@@ -104,6 +104,43 @@ const messages = {
       fileLabel: "選擇檔案",
       titleLabel: "資料名稱",
       titlePlaceholder: "例如：董事會錄音、產品簡報 PDF",
+      asrTitle: "音訊識別模型",
+      asrCopy: "上傳 audio 時可選本地或雲端 ASR；其他檔案會自動略過此設定。",
+      asrModeLabel: "執行位置",
+      asrModeLocal: "本地 NAS",
+      asrModeCloud: "雲端 API",
+      asrModelLabel: "ASR 模型",
+      asrKeyLabel: "OpenAI API Key",
+      asrKeyPlaceholder: "只用於本次 audio 上傳",
+      asrHint: "本地模型適合 NAS 私有化；雲端模型需要 API Key，Key 只用於本次上傳，不寫入資料庫。",
+      modelManagerTitle: "NAS 模型管理",
+      modelManagerCopy: "管理可由 NAS 主機執行的本地 ASR 模型。下載只會在按下按鈕後開始。",
+      refreshModels: "刷新",
+      runtimeReady: "Runtime 已就緒",
+      runtimeMissing: "Runtime 未就緒",
+      modelPath: "模型路徑",
+      modelSize: "模型大小",
+      modelProgress: "下載進度",
+      modelSetupHint: "設定方式",
+      downloadModel: "下載",
+      cancelDownload: "取消",
+      retryDownload: "重試",
+      installedModel: "已安裝",
+      noPanelDownload: "需依設定安裝",
+      modelActionFailed: "模型操作失敗",
+      modelStatus: {
+        installed: "已安裝",
+        partial: "部分下載",
+        missing: "未安裝",
+        downloading: "下載中",
+        cancelling: "取消中",
+        cancelled: "已取消",
+        failed: "失敗",
+      },
+      setupHints: {
+        whisper_cpp_setup: "需要 whisper-cli 與完整 ggml 模型檔",
+        python_asr_setup: "執行 pip install -r requirements-asr.txt",
+      },
       submit: "上傳到 NAS",
       nasVolumeLabel: "NAS Volume",
       shareProtocolLabel: "共享協議",
@@ -125,6 +162,7 @@ const messages = {
       dialogMessage: "NAS 已收到《{title}》，目前交給 {analyzer} 處理。",
       owner: "上傳者",
       filename: "原始檔名",
+      selectedAsr: "選用 ASR",
       category: "類型",
       analyzer: "分析器",
       fileSize: "大小",
@@ -137,21 +175,22 @@ const messages = {
       stepPending: "待處理",
       stepBlocked: "需要設定",
       stepSkipped: "已略過",
+      stepConfigured: "已選定",
       chunks: "RAG 片段",
       page: "頁碼",
       type: "類型",
       pagePreview: "頁面預覽",
       answerSources: "引用來源",
-      questionTitle: "用 LLM 處理此文件",
+      questionTitle: "用 LLM 處理此資產",
       questionEyebrow: "RAG 文件問答",
-      questionCopy: "文件已建立 RAG chunks，可選擇模型後對此文件提問。",
+      questionCopy: "文件或逐字稿已建立 RAG chunks，可選擇模型後對此資產提問。",
       modelRequired: "需要先選擇模型",
       questionRequired: "請先輸入問題",
       ask: "處理文件",
       questionPlaceholder: "例如：請整理這份文件的重點與待辦事項",
       answerTitle: "文件處理結果",
       modelNeedsKey: "此模型需要 API Key，請先設定模型",
-      noRag: "此檔案尚未建立 RAG chunks；PDF/DOCX 完成處理後才能做文件問答。",
+      noRag: "此檔案尚未建立 RAG chunks；audio/PDF/DOCX 完成處理後才能做 RAG 問答。",
       timeline: {
         intakeTitle: "NAS 收件與權限檢查",
         intakeEngine: "FastAPI Upload + SQLite Audit",
@@ -159,6 +198,12 @@ const messages = {
         archiveTitle: "NAS 歸檔與索引",
         archiveEngine: "NAS Asset Indexer",
         archiveCopy: "建立資產 ID，保存來源路徑，後續可依登入權限查詢。",
+        audioNormalizeTitle: "音訊標準化",
+        audioNormalizeEngine: "FFmpeg Audio Normalize",
+        audioNormalizeCopy: "正式部署會轉成 16kHz mono WAV，方便長會議穩定進入 ASR。此 demo 保留原始音訊並把標準化列入處理流程。",
+        vadTitle: "長音訊切段",
+        vadEngine: "FSMN-VAD / Silero VAD",
+        vadCopy: "正式部署會先偵測語音區段，長會議分段後再送入語音模型，降低超時與漏字風險。",
         pdfRenderTitle: "PDF 頁面渲染",
         pdfRenderEngine: "PyMuPDF",
         pdfRenderCopy: "把 PDF 每頁渲染成 PNG，提供 OCR 輸入與 RAG 來源頁面預覽。",
@@ -175,8 +220,11 @@ const messages = {
         docxEngine: "python-docx",
         docxCopy: "抽取段落與表格文字，轉成可查詢的 RAG chunks。",
         audioTitle: "語音轉文字",
-        audioEngine: "Whisper Speech-to-Text",
-        audioCopy: "保留原始 voice 檔，等待配置 Whisper 模型或語音 API 後產生逐字稿。",
+        audioEngine: "Selected ASR Model",
+        audioCopy: "依使用者選擇調用本地 whisper.cpp / faster-whisper / SenseVoiceSmall，或雲端 OpenAI 語音轉文字模型。",
+        audioRagTitle: "逐字稿 RAG 建庫",
+        audioRagEngine: "Transcript Chunker + SQLite document_chunks",
+        audioRagCopy: "ASR 結果切成 audio_transcript chunks，後續可用 LLM 查詢會議內容。",
         videoTitle: "影片內容分析",
         videoEngine: "YOLO Video/Object Detection",
         videoCopy: "保留影片檔，等待配置 YOLO 權重或影片分析服務後產生偵測結果。",
@@ -411,6 +459,43 @@ const messages = {
       fileLabel: "File",
       titleLabel: "Asset Name",
       titlePlaceholder: "Example: board audio, product PDF",
+      asrTitle: "Audio Recognition Model",
+      asrCopy: "For audio uploads, choose local or cloud ASR. Other file types ignore this setting.",
+      asrModeLabel: "Execution Location",
+      asrModeLocal: "Local NAS",
+      asrModeCloud: "Cloud API",
+      asrModelLabel: "ASR Model",
+      asrKeyLabel: "OpenAI API Key",
+      asrKeyPlaceholder: "Only used for this audio upload",
+      asrHint: "Local models fit private NAS deployments. Cloud models need an API key, used only for this upload and not written to the database.",
+      modelManagerTitle: "NAS Model Management",
+      modelManagerCopy: "Manage local ASR models that run on the NAS host. Downloads start only after pressing a button.",
+      refreshModels: "Refresh",
+      runtimeReady: "Runtime ready",
+      runtimeMissing: "Runtime missing",
+      modelPath: "Model path",
+      modelSize: "Model size",
+      modelProgress: "Progress",
+      modelSetupHint: "Setup",
+      downloadModel: "Download",
+      cancelDownload: "Cancel",
+      retryDownload: "Retry",
+      installedModel: "Installed",
+      noPanelDownload: "Install from setup",
+      modelActionFailed: "Model action failed",
+      modelStatus: {
+        installed: "Installed",
+        partial: "Partial",
+        missing: "Missing",
+        downloading: "Downloading",
+        cancelling: "Cancelling",
+        cancelled: "Cancelled",
+        failed: "Failed",
+      },
+      setupHints: {
+        whisper_cpp_setup: "Requires whisper-cli and a complete ggml model file",
+        python_asr_setup: "Run pip install -r requirements-asr.txt",
+      },
       submit: "Upload to NAS",
       nasVolumeLabel: "NAS Volume",
       shareProtocolLabel: "Share Protocols",
@@ -432,6 +517,7 @@ const messages = {
       dialogMessage: "NAS received \"{title}\" and routed it to {analyzer}.",
       owner: "Uploader",
       filename: "Source filename",
+      selectedAsr: "Selected ASR",
       category: "Type",
       analyzer: "Analyzer",
       fileSize: "Size",
@@ -444,21 +530,22 @@ const messages = {
       stepPending: "Pending",
       stepBlocked: "Needs setup",
       stepSkipped: "Skipped",
+      stepConfigured: "Selected",
       chunks: "RAG chunks",
       page: "Page",
       type: "Type",
       pagePreview: "Page preview",
       answerSources: "Sources",
-      questionTitle: "Use LLM on this document",
+      questionTitle: "Use LLM on this asset",
       questionEyebrow: "RAG Document Q&A",
-      questionCopy: "This document has RAG chunks. Select a model and ask a question.",
+      questionCopy: "This document or transcript has RAG chunks. Select a model and ask a question.",
       modelRequired: "A model is required",
       questionRequired: "Enter a question first",
       ask: "Process Document",
       questionPlaceholder: "Example: summarize key points and action items",
       answerTitle: "Document Result",
       modelNeedsKey: "This model needs an API key. Set a model key first.",
-      noRag: "This file has no RAG chunks yet. PDF/DOCX files can be queried after processing completes.",
+      noRag: "This file has no RAG chunks yet. Audio/PDF/DOCX files can be queried after processing completes.",
       timeline: {
         intakeTitle: "NAS Intake and Access Check",
         intakeEngine: "FastAPI Upload + SQLite Audit",
@@ -466,6 +553,12 @@ const messages = {
         archiveTitle: "NAS Archive and Index",
         archiveEngine: "NAS Asset Indexer",
         archiveCopy: "Creates the asset ID, keeps the source path, and makes it searchable according to login permissions.",
+        audioNormalizeTitle: "Audio Normalize",
+        audioNormalizeEngine: "FFmpeg Audio Normalize",
+        audioNormalizeCopy: "Production deployment converts audio to 16kHz mono WAV before ASR. This demo preserves the source audio and shows the normalization stage in the flow.",
+        vadTitle: "Long Audio Segmentation",
+        vadEngine: "FSMN-VAD / Silero VAD",
+        vadCopy: "Production deployment detects speech ranges and splits long meetings before ASR to reduce timeouts and missed text.",
         pdfRenderTitle: "PDF Page Rendering",
         pdfRenderEngine: "PyMuPDF",
         pdfRenderCopy: "Renders each PDF page to PNG for OCR input and RAG source page previews.",
@@ -482,8 +575,11 @@ const messages = {
         docxEngine: "python-docx",
         docxCopy: "Extracts paragraph and table text, then stores it as searchable RAG chunks.",
         audioTitle: "Speech-to-Text",
-        audioEngine: "Whisper Speech-to-Text",
-        audioCopy: "Keeps the source voice file and waits for a Whisper model or speech API before producing a transcript.",
+        audioEngine: "Selected ASR Model",
+        audioCopy: "Calls the user-selected local whisper.cpp / faster-whisper / SenseVoiceSmall model or cloud OpenAI transcription model.",
+        audioRagTitle: "Transcript RAG Index",
+        audioRagEngine: "Transcript Chunker + SQLite document_chunks",
+        audioRagCopy: "Splits ASR output into audio_transcript chunks so an LLM can query meeting content.",
         videoTitle: "Video Content Analysis",
         videoEngine: "YOLO Video/Object Detection",
         videoCopy: "Keeps the video file and waits for YOLO weights or a video analysis service before producing detections.",
@@ -623,6 +719,11 @@ const state = {
   recordMode: "idle",
   lang: localStorage.getItem("ai-work-lang") || "zh-Hant",
   llmCatalog: null,
+  asrCatalog: null,
+  localModels: null,
+  localModelPollTimer: null,
+  selectedAsrMode: "local",
+  selectedAsrModelId: "local:whisper-cpp-small",
   selectedProvider: "",
   selectedLlmId: "",
   selectedPricing: null,
@@ -694,6 +795,12 @@ const els = {
   nasUploadForm: document.querySelector("#nasUploadForm"),
   nasFileInput: document.querySelector("#nasFileInput"),
   nasAssetTitleInput: document.querySelector("#nasAssetTitleInput"),
+  audioAsrModeSelect: document.querySelector("#audioAsrModeSelect"),
+  audioAsrModelSelect: document.querySelector("#audioAsrModelSelect"),
+  audioAsrKeyField: document.querySelector("#audioAsrKeyField"),
+  audioAsrApiKeyInput: document.querySelector("#audioAsrApiKeyInput"),
+  localModelList: document.querySelector("#localModelList"),
+  refreshLocalModelsButton: document.querySelector("#refreshLocalModelsButton"),
   nasAssetSearch: document.querySelector("#nasAssetSearch"),
   nasAssetList: document.querySelector("#nasAssetList"),
   nasAssetDetail: document.querySelector("#nasAssetDetail"),
@@ -746,6 +853,8 @@ function applyLanguage(lang) {
   renderLlmCallHistory();
   renderNasAssetList();
   renderNasAssetDetail();
+  renderAsrControls();
+  renderLocalModelManager();
   if (!els.apiKeyModal.hidden) renderKeyModal();
   if (state.user) renderCurrentUser();
 }
@@ -787,6 +896,8 @@ async function showApp() {
   connectWebSocket();
   await loadMeetings();
   await loadLlmCatalog();
+  await loadAsrCatalog();
+  await loadLocalModels();
   await loadLlmCalls();
   await loadNasAssets();
 }
@@ -823,6 +934,17 @@ async function loadLlmCatalog() {
   state.llmCatalog = await api("/api/llm/models");
   renderLlmControls();
   renderPricingPanel();
+}
+
+async function loadAsrCatalog() {
+  state.asrCatalog = await api("/api/asr/models");
+  renderAsrControls();
+}
+
+async function loadLocalModels() {
+  state.localModels = await api("/api/local-models");
+  renderLocalModelManager();
+  scheduleLocalModelPolling();
 }
 
 async function loadLlmCalls() {
@@ -882,7 +1004,7 @@ function renderNasAssetDetail() {
   }
 
   const chunks = asset.chunks || [];
-  const canAsk = ["pdf", "docx"].includes(asset.category) && asset.chunk_count > 0;
+  const canAsk = ["audio", "pdf", "docx"].includes(asset.category) && asset.chunk_count > 0;
   els.nasAssetDetail.innerHTML = `
     <div class="asset-detail-header">
       <div>
@@ -896,6 +1018,7 @@ function renderNasAssetDetail() {
       ${assetMeta(t("upload.filename"), asset.original_filename)}
       ${assetMeta(t("upload.fileSize"), formatBytes(asset.file_size))}
       ${assetMeta(t("upload.chunkCount"), asset.chunk_count)}
+      ${asset.category === "audio" ? assetMeta(t("upload.selectedAsr"), selectedAsrLabel(asset)) : ""}
     </div>
     <section class="asset-summary">
       <strong>${escapeHtml(t("upload.summary"))}</strong>
@@ -910,6 +1033,135 @@ function renderNasAssetDetail() {
 
 function assetMeta(label, value) {
   return `<span><b>${escapeHtml(label)}</b>${escapeHtml(value ?? "-")}</span>`;
+}
+
+function selectedAsrLabel(asset) {
+  const config = asset.processor_config || {};
+  if (!config.asr_model) return asset.analyzer || "-";
+  return `${config.asr_provider || "ASR"} · ${config.asr_model}`;
+}
+
+function renderAsrControls() {
+  if (!els.audioAsrModeSelect || !els.audioAsrModelSelect) return;
+  els.audioAsrModeSelect.value = state.selectedAsrMode;
+  const models = (state.asrCatalog?.models || []).filter((model) => {
+    return state.selectedAsrMode === "cloud" ? model.id.startsWith("cloud:") : model.id.startsWith("local:");
+  });
+  els.audioAsrModelSelect.innerHTML = models
+    .map((model) => `<option value="${escapeHtml(model.id)}">${escapeHtml(model.provider)} · ${escapeHtml(model.name)}</option>`)
+    .join("");
+  if (!models.some((model) => model.id === state.selectedAsrModelId)) {
+    state.selectedAsrModelId = models[0]?.id || "";
+  }
+  els.audioAsrModelSelect.value = state.selectedAsrModelId;
+  const selected = models.find((model) => model.id === state.selectedAsrModelId);
+  els.audioAsrKeyField.hidden = !selected?.requires_api_key;
+}
+
+function renderLocalModelManager() {
+  if (!els.localModelList) return;
+  const models = state.localModels?.models || [];
+  if (!models.length) {
+    els.localModelList.innerHTML = `<div class="empty-state compact">${escapeHtml(t("upload.emptyList"))}</div>`;
+    return;
+  }
+
+  els.localModelList.innerHTML = models
+    .map((item) => {
+      const model = item.model || {};
+      const progress = Number(item.progress || 0);
+      const statusText = localModelStatusLabel(item.status);
+      const action = localModelAction(item);
+      return `
+        <article class="local-model-row">
+          <div class="local-model-main">
+            <div class="local-model-title-line">
+              <strong>${escapeHtml(model.provider || "Local")} · ${escapeHtml(model.name || item.id)}</strong>
+              <span class="badge ${escapeHtml(item.status)}">${escapeHtml(statusText)}</span>
+            </div>
+            <div class="model-progress-track" aria-label="${escapeHtml(t("upload.modelProgress"))}">
+              <span style="width: ${Math.max(0, Math.min(100, progress))}%"></span>
+            </div>
+            <div class="local-model-meta">
+              <span>${escapeHtml(t("upload.modelSize"))}: ${escapeHtml(formatModelBytes(item.downloaded_bytes, item.total_bytes))}</span>
+              <span>${escapeHtml(item.runtime_installed ? t("upload.runtimeReady") : t("upload.runtimeMissing"))}</span>
+              ${item.path ? `<span>${escapeHtml(t("upload.modelPath"))}: ${escapeHtml(item.path)}</span>` : ""}
+              ${item.setup_hint || item.setup_hint_key ? `<span>${escapeHtml(t("upload.modelSetupHint"))}: ${escapeHtml(localModelSetupHint(item))}</span>` : ""}
+              ${item.error ? `<span class="error-line">${escapeHtml(item.error)}</span>` : ""}
+            </div>
+          </div>
+          <div class="local-model-actions">
+            ${renderLocalModelActionButton(item, action)}
+          </div>
+        </article>
+      `;
+    })
+    .join("");
+}
+
+function localModelStatusLabel(status) {
+  const labels = translateRaw("upload.modelStatus") || {};
+  return labels[status] || status || "-";
+}
+
+function localModelSetupHint(item) {
+  const hints = translateRaw("upload.setupHints") || {};
+  return hints[item.setup_hint_key] || item.setup_hint || "";
+}
+
+function localModelAction(item) {
+  if (item.status === "downloading" || item.status === "cancelling") return "cancel";
+  if (!item.downloadable) return "";
+  if (item.installed) return "installed";
+  if (item.status === "partial" || item.status === "failed" || item.status === "cancelled") return "retry";
+  return "download";
+}
+
+function renderLocalModelActionButton(item, action) {
+  if (action === "cancel") {
+    return `<button class="secondary-button compact-button" type="button" data-model-action="cancel" data-model-id="${escapeHtml(item.id)}">${escapeHtml(t("upload.cancelDownload"))}</button>`;
+  }
+  if (action === "retry") {
+    return `<button class="primary-button compact-button" type="button" data-model-action="retry" data-model-id="${escapeHtml(item.id)}">${escapeHtml(t("upload.retryDownload"))}</button>`;
+  }
+  if (action === "download") {
+    return `<button class="primary-button compact-button" type="button" data-model-action="download" data-model-id="${escapeHtml(item.id)}">${escapeHtml(t("upload.downloadModel"))}</button>`;
+  }
+  if (action === "installed") {
+    return `<button class="secondary-button compact-button" type="button" disabled>${escapeHtml(t("upload.installedModel"))}</button>`;
+  }
+  return `<button class="secondary-button compact-button" type="button" disabled>${escapeHtml(t("upload.noPanelDownload"))}</button>`;
+}
+
+function formatModelBytes(downloaded, total) {
+  const left = formatBytes(downloaded || 0);
+  return total ? `${left} / ${formatBytes(total)}` : left;
+}
+
+function scheduleLocalModelPolling() {
+  if (state.localModelPollTimer) {
+    clearInterval(state.localModelPollTimer);
+    state.localModelPollTimer = null;
+  }
+  const active = (state.localModels?.models || []).some((item) => item.status === "downloading" || item.status === "cancelling");
+  if (active) {
+    state.localModelPollTimer = window.setInterval(() => {
+      loadLocalModels().catch(() => {});
+    }, 1800);
+  }
+}
+
+async function runLocalModelAction(modelId, action) {
+  const endpoint = action === "retry" ? "retry" : action;
+  try {
+    await api(`/api/local-models/${encodeURIComponent(modelId)}/${endpoint}`, {
+      method: "POST",
+      body: "{}",
+    });
+    await loadLocalModels();
+  } catch (error) {
+    showToast(error.message, t("upload.modelActionFailed"));
+  }
 }
 
 function renderAssetProcessTimeline(asset, chunks) {
@@ -947,6 +1199,7 @@ function assetProcessSteps(asset, chunks) {
   const pending = t("upload.stepPending");
   const blocked = t("upload.stepBlocked");
   const skipped = t("upload.stepSkipped");
+  const configured = t("upload.stepConfigured");
   const completed = asset.status === "completed";
   const failed = asset.status === "failed";
   const processing = asset.status === "processing";
@@ -980,9 +1233,15 @@ function assetProcessSteps(asset, chunks) {
   }
 
   if (asset.category === "audio") {
+    const config = asset.processor_config || {};
+    const asrEngine = config.asr_model ? `${config.asr_provider || "ASR"} · ${config.asr_model}` : timeline.audioEngine;
     return [
       ...baseSteps,
-      step(timeline.audioTitle, timeline.audioEngine, timeline.audioCopy, needsModel ? "blocked" : processing ? "active" : completed ? "done" : failed ? "blocked" : "pending", needsModel ? blocked : processing ? active : completed ? done : failed ? blocked : pending),
+      step(timeline.audioNormalizeTitle, timeline.audioNormalizeEngine, timeline.audioNormalizeCopy, "pending", configured),
+      step(timeline.vadTitle, timeline.vadEngine, timeline.vadCopy, "pending", configured),
+      step(timeline.audioTitle, asrEngine, timeline.audioCopy, needsModel ? "blocked" : processing ? "active" : completed ? "done" : failed ? "blocked" : "pending", needsModel ? blocked : processing ? active : completed ? done : failed ? blocked : pending),
+      step(timeline.audioRagTitle, timeline.audioRagEngine, timeline.audioRagCopy, asset.chunk_count > 0 ? "done" : needsModel || failed ? "blocked" : "pending", asset.chunk_count > 0 ? done : needsModel || failed ? blocked : pending),
+      step(timeline.llmTitle, timeline.llmEngine, timeline.llmCopy, asset.chunk_count > 0 ? "pending" : "blocked", asset.chunk_count > 0 ? pending : blocked),
     ];
   }
 
@@ -1104,6 +1363,8 @@ async function uploadNasAsset(event) {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("title", els.nasAssetTitleInput.value.trim());
+  formData.append("audio_model_id", state.selectedAsrModelId);
+  formData.append("audio_api_key", els.audioAsrApiKeyInput.value.trim());
   const response = await fetch("/api/nas-assets/upload", {
     method: "POST",
     credentials: "include",
@@ -1820,6 +2081,21 @@ els.stopRecord.addEventListener("click", stopRecording);
 els.meetingSearch.addEventListener("input", debounce(loadMeetings, 220));
 els.llmCallSearch.addEventListener("input", debounce(loadLlmCalls, 220));
 els.nasAssetSearch.addEventListener("input", debounce(loadNasAssets, 220));
+els.audioAsrModeSelect.addEventListener("change", () => {
+  state.selectedAsrMode = els.audioAsrModeSelect.value;
+  state.selectedAsrModelId = "";
+  renderAsrControls();
+});
+els.audioAsrModelSelect.addEventListener("change", () => {
+  state.selectedAsrModelId = els.audioAsrModelSelect.value;
+  renderAsrControls();
+});
+els.refreshLocalModelsButton.addEventListener("click", () => loadLocalModels().catch((error) => showToast(error.message, t("upload.modelActionFailed"))));
+els.localModelList.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-model-action]");
+  if (!button || button.disabled) return;
+  runLocalModelAction(button.dataset.modelId, button.dataset.modelAction);
+});
 els.nasUploadForm.addEventListener("submit", (event) => uploadNasAsset(event).catch((error) => showToast(error.message, t("upload.uploadFailed"))));
 els.meetingList.addEventListener("click", (event) => {
   const row = event.target.closest("[data-meeting-id]");

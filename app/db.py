@@ -90,12 +90,14 @@ def init_db() -> None:
                 summary TEXT,
                 error_message TEXT,
                 chunk_count INTEGER NOT NULL DEFAULT 0,
+                processor_config_json TEXT,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 FOREIGN KEY(user_id) REFERENCES users(id)
             )
             """
         )
+        _ensure_column(conn, "nas_assets", "processor_config_json", "TEXT")
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS document_chunks (
@@ -242,17 +244,29 @@ def create_nas_asset(
     file_size: int,
     status: str = "processing",
     analyzer: str | None = None,
+    processor_config_json: str | None = None,
 ) -> dict[str, Any]:
     with connect() as conn:
         cursor = conn.execute(
             """
             INSERT INTO nas_assets (
                 user_id, category, title, original_filename, stored_path, mime_type,
-                file_size, status, analyzer
+                file_size, status, analyzer, processor_config_json
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
-            (user_id, category, title, original_filename, stored_path, mime_type, file_size, status, analyzer),
+            (
+                user_id,
+                category,
+                title,
+                original_filename,
+                stored_path,
+                mime_type,
+                file_size,
+                status,
+                analyzer,
+                processor_config_json,
+            ),
         )
         row = conn.execute("SELECT * FROM nas_assets WHERE id = ?", (cursor.lastrowid,)).fetchone()
     asset = _row_to_dict(row)

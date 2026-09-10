@@ -44,7 +44,14 @@ The NAS Upload page accepts audio, video, PDF, DOCX, text, and general files.
 
 - The upload page shows NAS-oriented operating context: volume name, SMB / NFS / WebDAV entry points, snapshot retention, and access control source.
 - Each NAS asset detail page includes a processing timeline that lists the service, parser, or model used at every step.
-- Audio files are routed to the Whisper analysis flow and marked as needing a speech model before real transcripts can be produced.
+- Audio uploads let the user choose a local NAS ASR model or a cloud ASR API before intake.
+- Local ASR options include `whisper.cpp`, `faster-whisper`, and `SenseVoiceSmall`; they run only when the corresponding runtime and model files are installed on the NAS host.
+- `whisper.cpp` needs `WHISPER_CPP_BIN` and `WHISPER_CPP_MODEL`; Python ASR runtimes can be installed with `pip install -r requirements-asr.txt`.
+- Cloud ASR options use OpenAI `gpt-4o-mini-transcribe`, `gpt-4o-transcribe`, or `whisper-1`; the API key is used only for the current upload and is not written to SQLite.
+- Successful ASR output is split into `audio_transcript` chunks in `document_chunks`, so audio meeting content can be queried through the same RAG panel as PDF/DOCX.
+- The NAS Model Management panel shows local ASR installation state, local file size, download progress, runtime readiness, and model file path.
+- `whisper.cpp` model downloads are explicit user actions from the NAS panel. Cancel leaves the partial file in place; retry resumes the same model file.
+- The transcription runtime checks expected model size before using a local `whisper.cpp` model, so partial downloads are never treated as installed.
 - Video files are routed to the YOLO analysis flow and marked as needing YOLO weights or a video analysis service.
 - PDF files render every page image with `PyMuPDF`; files with a text layer are parsed with `pypdf`, while image-only PDFs fall back to `PaddleOCR` when it is installed.
 - PDF RAG chunks store page number, chunk type, and page preview image path, so document Q&A can show source page previews with the model answer.

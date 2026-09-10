@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from app.auth import SESSION_COOKIE, authenticate, create_session_token, current_user, hash_password, require_meeting_access, websocket_user
+from app.asr_catalog import asr_model_summary, get_asr_model
 from app.db import (
     create_llm_call,
     create_meeting,
@@ -28,6 +29,7 @@ from app.db import (
 from app.document_processing import analyzer_for_category, classify_asset, process_nas_asset
 from app.llm_catalog import PRICING_UPDATED_AT, get_model, model_summary, provider_summary
 from app.llm_runtime import LlmRuntimeError, run_llm
+from app.local_model_manager import cancel_download, list_local_model_statuses, local_model_status, start_download
 from app.nas import ensure_storage_dirs, nas_discovery_loop
 from app.notifications import manager
 from app.transcription import process_meeting_transcription
@@ -151,6 +153,8 @@ async def meeting_audio(meeting_id: int, user: dict = Depends(current_user)) -> 
 async def upload_nas_asset(
     background_tasks: BackgroundTasks,
     title: str = Form(default=""),
+    audio_model_id: str = Form(default=""),
+    audio_api_key: str = Form(default=""),
     file: UploadFile = File(...),
     user: dict = Depends(current_user),
 ) -> dict:
@@ -163,6 +167,20 @@ async def upload_nas_asset(
         shutil.copyfileobj(file.file, destination)
 
     category = classify_asset(stored_path, file.content_type)
+    processor_config = {}
+    selected_audio_key = audio_api_key.strip() or None
+    if category == "audio":
+        asr_model = get_asr_model(audio_model_id.strip() or None)
+        processor_config = {
+            "asr_model_id": asr_model["id"],
+            "asr_provider": asr_model["provider"],
+            "asr_model": asr_model["name"],
+            "asr_engine": asr_model["engine"],
+            "asr_requires_api_key": asr_model["requires_api_key"],
+        }
+        analyzer = asr_model["name"]
+    else:
+        analyzer = analyzer_for_category(category)
     asset_title = title.strip() or Path(file.filename or stored_name).stem or "NAS asset"
     asset = create_nas_asset(
         user_id=user["id"],
@@ -173,9 +191,10 @@ async def upload_nas_asset(
         mime_type=file.content_type,
         file_size=stored_path.stat().st_size,
         status="processing",
-        analyzer=analyzer_for_category(category),
+        analyzer=analyzer,
+        processor_config_json=json.dumps(processor_config, ensure_ascii=False) if processor_config else None,
     )
-    background_tasks.add_task(process_nas_asset, asset["id"])
+    background_tasks.add_task(process_nas_asset, asset["id"], selected_audio_key)
     await manager.broadcast(
         {
             "type": "nas_asset_uploaded",
@@ -193,11 +212,53 @@ async def nas_assets(q: str | None = None, user: dict = Depends(current_user)) -
     return list_nas_assets(user_id=user["id"], role=user["role"], q=q)
 
 
+@app.get("/api/asr/models")
+async def asr_models(user: dict = Depends(current_user)) -> dict:
+    return {"models": asr_model_summary()}
+
+
+@app.get("/api/local-models")
+async def local_models(user: dict = Depends(current_user)) -> dict:
+    return {"models": list_local_model_statuses()}
+
+
+@app.post("/api/local-models/{model_id}/download")
+async def download_local_model(model_id: str, user: dict = Depends(current_user)) -> dict:
+    try:
+        return start_download(model_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/local-models/{model_id}/retry")
+async def retry_local_model_download(model_id: str, user: dict = Depends(current_user)) -> dict:
+    try:
+        return start_download(model_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/local-models/{model_id}/cancel")
+async def cancel_local_model_download(model_id: str, user: dict = Depends(current_user)) -> dict:
+    try:
+        return cancel_download(model_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/api/local-models/{model_id}")
+async def get_local_model(model_id: str, user: dict = Depends(current_user)) -> dict:
+    try:
+        return local_model_status(model_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
 @app.get("/api/nas-assets/{asset_id}")
 async def nas_asset_detail(asset_id: int, user: dict = Depends(current_user)) -> dict:
     asset = require_nas_asset_access(get_nas_asset(asset_id), user)
-    chunks = list_document_chunks(asset_id) if asset["category"] in {"pdf", "docx"} else []
-    return {**asset, "chunks": serialize_document_chunks(asset_id, chunks[:8])}
+    chunks = list_document_chunks(asset_id) if asset["category"] in {"audio", "pdf", "docx"} else []
+    return {**asset, "processor_config": parse_processor_config(asset), "chunks": serialize_document_chunks(asset_id, chunks[:8])}
 
 
 @app.get("/api/nas-assets/{asset_id}/chunk-images/{chunk_id}")
@@ -230,16 +291,16 @@ async def ask_nas_asset(asset_id: int, payload: dict, user: dict = Depends(curre
 
     if not question:
         raise HTTPException(status_code=400, detail="Question is required")
-    if asset["category"] not in {"pdf", "docx"} or asset["chunk_count"] < 1:
+    if asset["category"] not in {"audio", "pdf", "docx"} or asset["chunk_count"] < 1:
         raise HTTPException(status_code=400, detail="This file has no RAG chunks")
 
     chunks = search_document_chunks(asset_id, question, limit=5)
     enriched_chunks = serialize_document_chunks(asset_id, chunks)
     context = "\n\n".join(format_rag_context(chunk) for chunk in enriched_chunks)
     rag_prompt = (
-        "你是 NAS 文件資料庫助理。請只根據下方 RAG context 回答問題；"
+        "你是 NAS 資產資料庫助理。請只根據下方 RAG context 回答問題；"
         "如果 context 不足，請明確說明缺少資料。\n\n"
-        f"文件：{asset['title']} ({asset['original_filename']})\n\n"
+        f"資產：{asset['title']} ({asset['original_filename']})\n\n"
         f"RAG context:\n{context}\n\n"
         f"問題：{question}"
     )
@@ -407,6 +468,17 @@ def serialize_document_chunks(asset_id: int, chunks: list[dict]) -> list[dict]:
             item["image_url"] = f"/api/nas-assets/{asset_id}/chunk-images/{item['id']}"
         serialized.append(item)
     return serialized
+
+
+def parse_processor_config(asset: dict) -> dict:
+    raw = asset.get("processor_config_json")
+    if not raw:
+        return {}
+    try:
+        parsed = json.loads(raw)
+    except json.JSONDecodeError:
+        return {}
+    return parsed if isinstance(parsed, dict) else {}
 
 
 def format_rag_context(chunk: dict) -> str:

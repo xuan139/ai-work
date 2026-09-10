@@ -8,6 +8,8 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any
 
+from app.asr_catalog import get_asr_model
+from app.asr_runtime import AsrRuntimeError, transcribe_audio
 from app.db import get_nas_asset, replace_document_chunks, update_nas_asset
 from app.notifications import manager
 
@@ -42,7 +44,7 @@ def analyzer_for_category(category: str) -> str:
     }.get(category, "NAS Indexer")
 
 
-async def process_nas_asset(asset_id: int) -> None:
+async def process_nas_asset(asset_id: int, audio_api_key: str | None = None) -> None:
     asset = get_nas_asset(asset_id)
     if not asset:
         return
@@ -51,13 +53,7 @@ async def process_nas_asset(asset_id: int) -> None:
         category = asset["category"]
         path = Path(asset["stored_path"])
         if category == "audio":
-            updated = update_nas_asset(
-                asset_id,
-                status="needs_model",
-                analyzer="Whisper",
-                summary="已進入 Whisper 語音分析流程。需要配置 Whisper 語音模型或語音轉文字 API Key 後，才能產生真實逐字稿。",
-                chunk_count=0,
-            )
+            updated = await process_audio_asset(asset, path, audio_api_key)
         elif category == "video":
             updated = update_nas_asset(
                 asset_id,
@@ -94,6 +90,67 @@ async def process_nas_asset(asset_id: int) -> None:
             error_message=str(exc),
         )
         await _notify(asset, updated, "nas_asset_failed")
+
+
+async def process_audio_asset(asset: dict[str, Any], path: Path, api_key: str | None) -> dict[str, Any] | None:
+    config = processor_config(asset)
+    model = get_asr_model(config.get("asr_model_id"))
+    try:
+        result = await asyncio.to_thread(transcribe_audio, path, model["id"], api_key)
+    except AsrRuntimeError as exc:
+        return update_nas_asset(
+            asset["id"],
+            status="needs_model",
+            analyzer=model["name"],
+            summary=f"已選擇 {model['name']}。{exc}",
+            chunk_count=0,
+        )
+
+    chunks = build_transcript_chunks(result["text"], path, model, result)
+    replace_document_chunks(asset["id"], chunks)
+    return update_nas_asset(
+        asset["id"],
+        status="completed",
+        analyzer=model["name"],
+        summary=f"已使用 {model['name']} 完成語音轉文字，建立逐字稿 RAG chunks：{len(chunks)} 段。",
+        chunk_count=len(chunks),
+    )
+
+
+def processor_config(asset: dict[str, Any]) -> dict[str, Any]:
+    raw = asset.get("processor_config_json")
+    if not raw:
+        return {}
+    try:
+        value = json.loads(raw)
+    except json.JSONDecodeError:
+        return {}
+    return value if isinstance(value, dict) else {}
+
+
+def build_transcript_chunks(text: str, path: Path, model: dict[str, Any], result: dict[str, Any]) -> list[dict[str, Any]]:
+    chunks = chunk_text(text, max_chars=1000, overlap=120)
+    return [
+        {
+            "chunk_index": index,
+            "content": chunk,
+            "token_estimate": max(1, len(chunk) // 4),
+            "page_number": None,
+            "chunk_type": "audio_transcript",
+            "image_path": None,
+            "metadata_json": json.dumps(
+                {
+                    "source": path.name,
+                    "category": "audio",
+                    "asr_model_id": model["id"],
+                    "asr_model": model["name"],
+                    "asr_engine": result["engine"],
+                },
+                ensure_ascii=False,
+            ),
+        }
+        for index, chunk in enumerate(chunks)
+    ]
 
 
 def build_rag_chunks(path: Path, category: str, asset_id: int | None = None) -> list[dict[str, Any]]:
