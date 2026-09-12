@@ -37,9 +37,10 @@ def _sign(payload: str) -> str:
     return hmac.new(SECRET_KEY.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).hexdigest()
 
 
-def create_session_token(user_id: int) -> str:
+def create_session_token(user_id: int, session_version: int = 1) -> str:
     payload = {
         "user_id": user_id,
+        "session_version": session_version,
         "exp": int(time.time()) + SESSION_TTL_SECONDS,
     }
     raw_payload = base64.urlsafe_b64encode(json.dumps(payload, separators=(",", ":")).encode()).decode()
@@ -63,7 +64,7 @@ def read_session_token(token: str | None) -> dict[str, Any] | None:
 
 def authenticate(username: str, password: str) -> dict[str, Any] | None:
     user = get_user_by_username(username)
-    if not user or not verify_password(password, user["password_hash"]):
+    if not user or not user.get("is_active", 1) or not verify_password(password, user["password_hash"]):
         return None
     return user
 
@@ -74,8 +75,10 @@ def current_user(session: str | None = Cookie(default=None, alias=SESSION_COOKIE
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
 
     user = get_user_by_id(int(payload["user_id"]))
-    if not user:
+    if not user or not user.get("is_active", 1):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid session")
+    if int(payload.get("session_version", 1)) != int(user.get("session_version", 1)):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session revoked")
     return user
 
 
@@ -83,7 +86,18 @@ def websocket_user(websocket: WebSocket) -> dict[str, Any] | None:
     payload = read_session_token(websocket.cookies.get(SESSION_COOKIE))
     if not payload:
         return None
-    return get_user_by_id(int(payload["user_id"]))
+    user = get_user_by_id(int(payload["user_id"]))
+    if not user or not user.get("is_active", 1):
+        return None
+    if int(payload.get("session_version", 1)) != int(user.get("session_version", 1)):
+        return None
+    return user
+
+
+def require_admin(user: dict[str, Any] = Depends(current_user)) -> dict[str, Any]:
+    if user["role"] != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Administrator access required")
+    return user
 
 
 def require_meeting_access(meeting: dict[str, Any] | None, user: dict[str, Any]) -> dict[str, Any]:

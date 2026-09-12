@@ -11,6 +11,12 @@ ASR_MODELS = {
         "model_file": "ggml-small.bin",
         "expected_bytes": 487601967,
         "download_url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-small.bin",
+        "languages": "多語言，自動偵測",
+        "languages_en": "Multilingual with auto detection",
+        "recommended_for": "離線、多語言、一般會議",
+        "recommended_for_en": "Offline multilingual meetings",
+        "recommendation": "NAS 本地通用首選；準確率與資源用量較平衡。",
+        "recommendation_en": "Recommended local default with balanced accuracy and resource use.",
     },
     "local:whisper-cpp-base": {
         "id": "local:whisper-cpp-base",
@@ -22,6 +28,12 @@ ASR_MODELS = {
         "model_file": "ggml-base.bin",
         "expected_bytes": 147951465,
         "download_url": "https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-base.bin",
+        "languages": "多語言，自動偵測",
+        "languages_en": "Multilingual with auto detection",
+        "recommended_for": "低記憶體、短錄音、快速驗證",
+        "recommended_for_en": "Low-memory hosts and short recordings",
+        "recommendation": "模型較小且啟動快，準確率通常低於 small。",
+        "recommendation_en": "Smaller and faster to start, with lower accuracy than small.",
     },
     "local:faster-whisper-small": {
         "id": "local:faster-whisper-small",
@@ -31,6 +43,12 @@ ASR_MODELS = {
         "requires_api_key": False,
         "runtime": "Local faster-whisper Python package",
         "runtime_model": "small",
+        "languages": "多語言，自動偵測",
+        "languages_en": "Multilingual with auto detection",
+        "recommended_for": "有 Python ASR 環境的 CPU 或 GPU 主機",
+        "recommended_for_en": "CPU or GPU hosts with a Python ASR runtime",
+        "recommendation": "批次轉寫速度佳；首次執行會由套件取得模型檔。",
+        "recommendation_en": "Fast batch transcription; the package fetches model files on first use.",
     },
     "local:faster-whisper-base": {
         "id": "local:faster-whisper-base",
@@ -40,6 +58,12 @@ ASR_MODELS = {
         "requires_api_key": False,
         "runtime": "Local faster-whisper Python package",
         "runtime_model": "base",
+        "languages": "多語言，自動偵測",
+        "languages_en": "Multilingual with auto detection",
+        "recommended_for": "低資源 Python 環境",
+        "recommended_for_en": "Low-resource Python environments",
+        "recommendation": "比 small 輕量，適合先確認 NAS 語音管線。",
+        "recommendation_en": "Lighter than small and suitable for validating the NAS audio pipeline.",
     },
     "local:sensevoice-small": {
         "id": "local:sensevoice-small",
@@ -48,6 +72,28 @@ ASR_MODELS = {
         "engine": "FunASR SenseVoice",
         "requires_api_key": False,
         "runtime": "Local FunASR Python package and SenseVoiceSmall model files",
+        "runtime_model": "iic/SenseVoiceSmall",
+        "languages": "中文、粵語、英文、日文、韓文",
+        "languages_en": "Chinese, Cantonese, English, Japanese, and Korean",
+        "recommended_for": "中文與中英混合會議、語氣與事件標記",
+        "recommended_for_en": "Chinese and mixed Chinese-English meetings",
+        "recommendation": "中文會議本地首選；支援語言、情緒與音訊事件辨識。",
+        "recommendation_en": "Recommended local option for Chinese meetings with language, emotion, and audio-event recognition.",
+    },
+    "local:funasr-paraformer-zh": {
+        "id": "local:funasr-paraformer-zh",
+        "provider": "Local",
+        "name": "Paraformer-zh",
+        "engine": "FunASR Paraformer",
+        "requires_api_key": False,
+        "runtime": "Local FunASR Python package and Paraformer model files",
+        "runtime_model": "paraformer-zh",
+        "languages": "中文、英文",
+        "languages_en": "Chinese and English",
+        "recommended_for": "中文長音訊、會議逐字稿",
+        "recommended_for_en": "Long Chinese recordings and meeting transcripts",
+        "recommendation": "中文長錄音速度與標點處理佳，適合 CPU NAS。",
+        "recommendation_en": "Fast Chinese long-form transcription with punctuation, suitable for CPU NAS hosts.",
     },
     "cloud:openai-gpt-4o-mini-transcribe": {
         "id": "cloud:openai-gpt-4o-mini-transcribe",
@@ -56,6 +102,13 @@ ASR_MODELS = {
         "engine": "OpenAI Audio Transcriptions API",
         "requires_api_key": True,
         "runtime": "Cloud API",
+        "api_key_label": "OpenAI API Key",
+        "languages": "多語言",
+        "languages_en": "Multilingual",
+        "recommended_for": "成本敏感的雲端轉寫",
+        "recommended_for_en": "Cost-sensitive cloud transcription",
+        "recommendation": "OpenAI 較低成本的雲端語音轉文字選項。",
+        "recommendation_en": "Lower-cost OpenAI cloud transcription.",
     },
     "cloud:openai-gpt-4o-transcribe": {
         "id": "cloud:openai-gpt-4o-transcribe",
@@ -64,6 +117,13 @@ ASR_MODELS = {
         "engine": "OpenAI Audio Transcriptions API",
         "requires_api_key": True,
         "runtime": "Cloud API",
+        "api_key_label": "OpenAI API Key",
+        "languages": "多語言",
+        "languages_en": "Multilingual",
+        "recommended_for": "高準確率雲端轉寫",
+        "recommended_for_en": "High-accuracy cloud transcription",
+        "recommendation": "重視準確率時優先，需使用 OpenAI API Key。",
+        "recommendation_en": "Prefer when accuracy matters; requires an OpenAI API key.",
     },
     "cloud:openai-whisper-1": {
         "id": "cloud:openai-whisper-1",
@@ -72,6 +132,43 @@ ASR_MODELS = {
         "engine": "OpenAI Audio Transcriptions API",
         "requires_api_key": True,
         "runtime": "Cloud API",
+        "api_key_label": "OpenAI API Key",
+        "languages": "多語言",
+        "languages_en": "Multilingual",
+        "recommended_for": "既有 Whisper API 相容流程",
+        "recommended_for_en": "Existing Whisper API workflows",
+        "recommendation": "適合既有 whisper-1 整合；新流程可優先考慮 GPT-4o Transcribe。",
+        "recommendation_en": "Fits existing whisper-1 integrations; new workflows can prefer GPT-4o Transcribe.",
+    },
+    "cloud:deepgram-nova-3": {
+        "id": "cloud:deepgram-nova-3",
+        "provider": "Deepgram",
+        "name": "Nova-3",
+        "engine": "Deepgram Pre-Recorded Speech-to-Text API",
+        "requires_api_key": True,
+        "runtime": "Cloud API",
+        "api_key_label": "Deepgram API Key",
+        "languages": "多語言；適合多人、噪音與遠場錄音",
+        "languages_en": "Multilingual; suited to multi-speaker, noisy, and far-field audio",
+        "recommended_for": "會議、活動字幕、噪音環境",
+        "recommended_for_en": "Meetings, captions, and noisy environments",
+        "recommendation": "雲端會議首選之一，支援智慧格式化與語言偵測。",
+        "recommendation_en": "A strong cloud meeting option with smart formatting and language detection.",
+    },
+    "cloud:assemblyai-universal": {
+        "id": "cloud:assemblyai-universal",
+        "provider": "AssemblyAI",
+        "name": "Universal",
+        "engine": "AssemblyAI Pre-Recorded Speech-to-Text API",
+        "requires_api_key": True,
+        "runtime": "Cloud API",
+        "api_key_label": "AssemblyAI API Key",
+        "languages": "99 種語言，含中文",
+        "languages_en": "99 languages including Chinese",
+        "recommended_for": "跨語種錄音與自動語言偵測",
+        "recommended_for_en": "Cross-language audio and automatic language detection",
+        "recommendation": "需要廣泛語言覆蓋時使用；上傳後由雲端非同步完成轉寫。",
+        "recommendation_en": "Use for broad language coverage; transcription completes asynchronously in the cloud.",
     },
 }
 
@@ -79,8 +176,17 @@ DEFAULT_ASR_MODEL_ID = "local:whisper-cpp-small"
 
 
 def get_asr_model(model_id: str | None) -> dict:
-    return ASR_MODELS.get(model_id or "", ASR_MODELS[DEFAULT_ASR_MODEL_ID])
+    if not model_id:
+        return ASR_MODELS[DEFAULT_ASR_MODEL_ID]
+    if model_id in ASR_MODELS:
+        return ASR_MODELS[model_id]
+    from app.model_registry import get_custom_catalog_model
+
+    custom = get_custom_catalog_model(model_id)
+    return custom if custom and custom.get("engine") == "whisper.cpp" else ASR_MODELS[DEFAULT_ASR_MODEL_ID]
 
 
 def asr_model_summary() -> list[dict]:
-    return list(ASR_MODELS.values())
+    from app.model_registry import custom_catalog_models
+
+    return [*ASR_MODELS.values(), *custom_catalog_models("whisper_cpp", ready_only=True)]

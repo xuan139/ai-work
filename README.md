@@ -2,6 +2,8 @@
 
 FastAPI demo for authenticated NAS-style meeting audio intake, browser recording, file upload, file discovery, transcription status, searchable meeting history, document RAG, and LLM call auditing.
 
+Administrators can manage Portal accounts from the Account Management view: create users, assign roles, enable or disable access, reset passwords, and safely remove unused standard accounts. Access or password changes revoke existing sessions.
+
 ## Run
 
 ```bash
@@ -40,14 +42,16 @@ NAS demo behaviors shown in the UI:
 
 ## NAS Upload And RAG
 
-The NAS Upload page accepts audio, video, PDF, DOCX, text, and general files.
+The NAS Upload page accepts audio, video, image, PDF, DOCX, text, and general files.
 
 - The upload page shows NAS-oriented operating context: volume name, SMB / NFS / WebDAV entry points, snapshot retention, and access control source.
 - Each NAS asset detail page includes a processing timeline that lists the service, parser, or model used at every step.
 - Audio uploads let the user choose a local NAS ASR model or a cloud ASR API before intake.
-- Local ASR options include `whisper.cpp`, `faster-whisper`, and `SenseVoiceSmall`; they run only when the corresponding runtime and model files are installed on the NAS host.
-- `whisper.cpp` needs `WHISPER_CPP_BIN` and `WHISPER_CPP_MODEL`; Python ASR runtimes can be installed with `pip install -r requirements-asr.txt`.
-- Cloud ASR options use OpenAI `gpt-4o-mini-transcribe`, `gpt-4o-transcribe`, or `whisper-1`; the API key is used only for the current upload and is not written to SQLite.
+- Browser recordings and audio uploads share the same ASR selector and processing path.
+- Local ASR options include `whisper.cpp`, `faster-whisper`, `SenseVoiceSmall`, and `Paraformer-zh`; they run only when the corresponding runtime and model files are installed on the NAS host.
+- `whisper.cpp` uses CPU by default so it can coexist with the local GPU LLM. Set `WHISPER_CPP_USE_GPU=1` to enable its GPU backend. Python ASR runtimes can be installed with `pip install -r requirements-asr.txt`.
+- Cloud ASR options include OpenAI Transcribe, Deepgram Nova-3, and AssemblyAI Universal. The API key is used only for the current upload and is not written to SQLite.
+- Every ASR success or failure is written to the model call audit table with caller, model, input file descriptor, output, status, and timestamp.
 - Successful ASR output is split into `audio_transcript` chunks in `document_chunks`, so audio meeting content can be queried through the same RAG panel as PDF/DOCX.
 - The NAS Model Management panel shows local ASR installation state, local file size, download progress, runtime readiness, and model file path.
 - `whisper.cpp` model downloads are explicit user actions from the NAS panel. Cancel leaves the partial file in place; retry resumes the same model file.
@@ -55,6 +59,7 @@ The NAS Upload page accepts audio, video, PDF, DOCX, text, and general files.
 - Video files are routed to the YOLO analysis flow and marked as needing YOLO weights or a video analysis service.
 - PDF files render every page image with `PyMuPDF`; files with a text layer are parsed with `pypdf`, while image-only PDFs fall back to `PaddleOCR` when it is installed.
 - PDF RAG chunks store page number, chunk type, and page preview image path, so document Q&A can show source page previews with the model answer.
+- JPG, PNG, WebP, TIFF, and BMP images are processed by PaddleOCR into `image_ocr` chunks, embedded for hybrid retrieval, and shown as source previews in image RAG answers.
 - DOCX files are parsed with `python-docx` when the dependency is installed, then split into the same RAG chunk format.
 - PDF/DOCX assets with RAG chunks show a document LLM input panel for document Q&A through the selected LLM provider.
 - If no model is selected for document Q&A, the UI prompts for a model before sending.

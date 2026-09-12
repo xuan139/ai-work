@@ -11,3 +11,4 @@ data/
 storage/
 mock_nas/inbox/
 mock_nas/processed/
+tmp/

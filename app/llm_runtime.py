@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlencode
@@ -12,12 +13,40 @@ class LlmRuntimeError(RuntimeError):
     pass
 
 
+LOCAL_NAS_SYSTEM_PROMPT = (
+    "You are the AI assistant for a Network Attached Storage (NAS) meeting and document system. "
+    "Unless the user explicitly says otherwise, NAS means Network Attached Storage. "
+    "Answer in the same language as the user and prefer Traditional Chinese when the user writes Chinese."
+)
+
+
+def company_api_key_for_model(model: dict[str, Any]) -> str | None:
+    env_name = {
+        "Alibaba Cloud": "DASHSCOPE_API_KEY",
+        "OpenAI": "OPENAI_API_KEY",
+        "Anthropic": "ANTHROPIC_API_KEY",
+        "Google": "GEMINI_API_KEY",
+        "DeepSeek": "DEEPSEEK_API_KEY",
+        "Mistral AI": "MISTRAL_API_KEY",
+        "Cohere": "COHERE_API_KEY",
+        "xAI": "XAI_API_KEY",
+        "Perplexity": "PERPLEXITY_API_KEY",
+        "Groq": "GROQ_API_KEY",
+        "Cerebras": "CEREBRAS_API_KEY",
+    }.get(model.get("provider"))
+    return (os.getenv(env_name) or None) if env_name else None
+
+
 async def run_llm(model: dict[str, Any], prompt: str, api_key: str | None) -> dict[str, Any]:
     return await asyncio.to_thread(_run_llm_sync, model, prompt, api_key)
 
 
 def _run_llm_sync(model: dict[str, Any], prompt: str, api_key: str | None) -> dict[str, Any]:
     provider = model["provider"]
+    if provider == "Local NAS":
+        answer, usage = _call_local_nas(model, prompt)
+        return {"access_mode": "local_nas", "answer": answer, "usage": usage}
+
     if provider == "Free Gateway":
         answer, headers = _call_pollinations(model["model"], prompt)
         return {"access_mode": "free_no_key", "answer": answer, "usage": usage_from_headers(headers)}
@@ -38,9 +67,13 @@ def _run_llm_sync(model: dict[str, Any], prompt: str, api_key: str | None) -> di
         answer, usage = _call_cohere(model["model"], prompt, api_key)
         return {"access_mode": "api_key", "answer": answer, "usage": usage}
 
+    dashscope_base_url = os.getenv(
+        "DASHSCOPE_BASE_URL",
+        "https://dashscope-intl.aliyuncs.com/compatible-mode/v1",
+    ).rstrip("/")
     openai_compatible = {
         "DeepSeek": "https://api.deepseek.com/chat/completions",
-        "Alibaba Cloud": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions",
+        "Alibaba Cloud": f"{dashscope_base_url}/chat/completions",
         "Mistral AI": "https://api.mistral.ai/v1/chat/completions",
         "xAI": "https://api.x.ai/v1/chat/completions",
         "Perplexity": "https://api.perplexity.ai/chat/completions",
@@ -56,6 +89,76 @@ def _run_llm_sync(model: dict[str, Any], prompt: str, api_key: str | None) -> di
         }
 
     raise LlmRuntimeError(f"Provider is not supported: {provider}")
+
+
+def _call_local_nas(model: dict[str, Any], prompt: str) -> tuple[str, dict[str, Any]]:
+    base_url = (
+        str(model["api_base"])
+        if model.get("custom_model")
+        else os.getenv("NAS_LLM_BASE_URL", str(model["api_base"]))
+    ).rstrip("/")
+    tokenizer_content = f"{LOCAL_NAS_SYSTEM_PROMPT}\n\n{prompt}"
+    tokenizer_used = bool(model.get("supports_tokenize", model.get("id") == "local:qwen3-4b"))
+    if tokenizer_used:
+        token_payload, _ = _request_json(
+            _json_request(f"{base_url}/tokenize", {"content": tokenizer_content}, {}),
+            timeout=30,
+        )
+        tokens = token_payload.get("tokens")
+        if not isinstance(tokens, list):
+            raise LlmRuntimeError("Local NAS tokenizer did not return a token list")
+        input_tokens = len(tokens)
+    else:
+        input_tokens = estimate_prompt_tokens(tokenizer_content)
+    max_input_tokens = int(model.get("max_input_tokens", 4096))
+    if input_tokens > max_input_tokens:
+        raise LlmRuntimeError(
+            f"Prompt has {input_tokens} tokens; local model input limit is {max_input_tokens} tokens"
+        )
+
+    request_payload = {
+        "model": model["model"],
+        "messages": [
+            {"role": "system", "content": LOCAL_NAS_SYSTEM_PROMPT},
+            {"role": "user", "content": prompt},
+        ],
+        "max_tokens": 800,
+    }
+    if model.get("id") == "local:qwen3-4b":
+        request_payload["chat_template_kwargs"] = {"enable_thinking": False}
+
+    payload, headers = _request_json(
+        _json_request(
+            f"{base_url}/v1/chat/completions",
+            request_payload,
+            {},
+        ),
+        timeout=180,
+    )
+    try:
+        answer = str(payload["choices"][0]["message"]["content"] or "").strip()
+    except (KeyError, IndexError, TypeError) as exc:
+        raise LlmRuntimeError("Local NAS model response did not include chat text output") from exc
+    if not answer:
+        raise LlmRuntimeError("Local NAS model response did not include chat text output")
+
+    usage = usage_from_openai_chat(payload, headers)
+    if usage["input_tokens"] is None:
+        usage["input_tokens"] = input_tokens
+        usage["total_tokens"] = _sum_ints(input_tokens, usage["output_tokens"])
+    reported_input_tokens = usage["input_tokens"] if isinstance(usage["input_tokens"], int) else input_tokens
+    usage["remaining_tokens"] = max(0, max_input_tokens - reported_input_tokens)
+    usage["raw_usage"] = {
+        **(usage["raw_usage"] or {}),
+        "tokenizer_input_tokens": input_tokens,
+        "token_count_method": "endpoint" if tokenizer_used else "utf8_estimate",
+        "max_input_tokens": max_input_tokens,
+    }
+    return answer, usage
+
+
+def estimate_prompt_tokens(text: str) -> int:
+    return max(1, (len(text.encode("utf-8")) + 2) // 3)
 
 
 def _call_pollinations(model: str, prompt: str) -> tuple[str, dict[str, str]]:
@@ -172,17 +275,17 @@ def _json_request(url: str, data: dict[str, Any], headers: dict[str, str]) -> Re
     )
 
 
-def _request_json(request: Request) -> tuple[dict[str, Any], dict[str, str]]:
-    text, headers = _request_text(request)
+def _request_json(request: Request, *, timeout: int = 45) -> tuple[dict[str, Any], dict[str, str]]:
+    text, headers = _request_text(request, timeout=timeout)
     try:
         return json.loads(text), headers
     except json.JSONDecodeError as exc:
         raise LlmRuntimeError("Provider returned a non-JSON response") from exc
 
 
-def _request_text(request: Request) -> tuple[str, dict[str, str]]:
+def _request_text(request: Request, *, timeout: int = 45) -> tuple[str, dict[str, str]]:
     try:
-        with urlopen(request, timeout=45) as response:
+        with urlopen(request, timeout=timeout) as response:
             headers = {key.lower(): value for key, value in response.headers.items()}
             return response.read().decode("utf-8", errors="replace").strip(), headers
     except HTTPError as exc:

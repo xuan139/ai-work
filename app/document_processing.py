@@ -9,15 +9,22 @@ from pathlib import Path
 from typing import Any
 
 from app.asr_catalog import get_asr_model
-from app.asr_runtime import AsrRuntimeError, transcribe_audio
+from app.asr_runtime import AsrRuntimeError
+from app.asr_service import run_asr_with_audit
 from app.db import get_nas_asset, replace_document_chunks, update_nas_asset
+from app.embedding_runtime import attach_embeddings
+from app.llm_runtime import LlmRuntimeError
 from app.notifications import manager
+from app.translation_service import translate_transcript_with_audit
+from app.video_catalog import get_video_model
+from app.video_runtime import VideoRuntimeError, analyze_video, build_video_detection_chunks
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 AUDIO_SUFFIXES = {".wav", ".mp3", ".m4a", ".webm", ".ogg", ".flac", ".aac"}
 VIDEO_SUFFIXES = {".mp4", ".mov", ".mkv", ".avi", ".webm", ".m4v"}
 PDF_SUFFIXES = {".pdf"}
 DOCX_SUFFIXES = {".docx"}
+IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff", ".bmp"}
 PDF_RENDER_SCALE = 2.0
 
 
@@ -32,6 +39,8 @@ def classify_asset(path: Path, mime_type: str | None = None) -> str:
         return "pdf"
     if suffix in DOCX_SUFFIXES or "wordprocessingml.document" in mime:
         return "docx"
+    if suffix in IMAGE_SUFFIXES or mime.startswith("image/"):
+        return "image"
     return "file"
 
 
@@ -41,10 +50,16 @@ def analyzer_for_category(category: str) -> str:
         "video": "YOLO",
         "pdf": "RAG Builder",
         "docx": "RAG Builder",
+        "image": "PaddleOCR Image RAG",
     }.get(category, "NAS Indexer")
 
 
-async def process_nas_asset(asset_id: int, audio_api_key: str | None = None) -> None:
+async def process_nas_asset(
+    asset_id: int,
+    audio_api_key: str | None = None,
+    video_api_key: str | None = None,
+    translation_api_key: str | None = None,
+) -> None:
     asset = get_nas_asset(asset_id)
     if not asset:
         return
@@ -53,23 +68,37 @@ async def process_nas_asset(asset_id: int, audio_api_key: str | None = None) -> 
         category = asset["category"]
         path = Path(asset["stored_path"])
         if category == "audio":
-            updated = await process_audio_asset(asset, path, audio_api_key)
+            updated = await process_audio_asset(asset, path, audio_api_key, translation_api_key)
         elif category == "video":
-            updated = update_nas_asset(
-                asset_id,
-                status="needs_model",
-                analyzer="YOLO",
-                summary="已進入 YOLO 影片分析流程。需要配置 YOLO 權重或影片分析服務後，才能產生真實物件偵測結果。",
-                chunk_count=0,
-            )
+            updated = await process_video_asset(asset, path, video_api_key)
         elif category in {"pdf", "docx"}:
             chunks = await asyncio.to_thread(build_rag_chunks, path, category, asset_id)
+            embedded = await attach_embeddings(chunks, asset["user_id"])
             replace_document_chunks(asset_id, chunks)
             updated = update_nas_asset(
                 asset_id,
                 status="completed",
                 analyzer="RAG Builder",
-                summary=f"已抽取文件文字並建立 RAG chunks：{len(chunks)} 段，可在此頁使用 LLM 進行文件問答。",
+                summary=(
+                    f"已抽取文件文字並建立 RAG chunks：{len(chunks)} 段；"
+                    f"{'Qwen3 Embedding 向量已寫入' if embedded else '向量服務暫時不可用，已排入背景補建'}，"
+                    "可在此頁使用 LLM 進行文件問答。"
+                ),
+                chunk_count=len(chunks),
+            )
+        elif category == "image":
+            chunks = await asyncio.to_thread(build_image_rag_chunks, path)
+            embedded = await attach_embeddings(chunks, asset["user_id"])
+            replace_document_chunks(asset_id, chunks)
+            updated = update_nas_asset(
+                asset_id,
+                status="completed",
+                analyzer="PaddleOCR Image RAG",
+                summary=(
+                    f"已使用 PaddleOCR 辨識圖片文字並建立 image_ocr chunks：{len(chunks)} 段；"
+                    f"{'Qwen3 Embedding 向量已寫入' if embedded else '向量服務暫時不可用，已排入背景補建'}，"
+                    "可在此頁依原圖來源使用 LLM 進行 RAG 問答。"
+                ),
                 chunk_count=len(chunks),
             )
         else:
@@ -92,12 +121,76 @@ async def process_nas_asset(asset_id: int, audio_api_key: str | None = None) -> 
         await _notify(asset, updated, "nas_asset_failed")
 
 
-async def process_audio_asset(asset: dict[str, Any], path: Path, api_key: str | None) -> dict[str, Any] | None:
+async def process_audio_asset(
+    asset: dict[str, Any],
+    path: Path,
+    api_key: str | None,
+    translation_api_key: str | None,
+) -> dict[str, Any] | None:
     config = processor_config(asset)
     model = get_asr_model(config.get("asr_model_id"))
     try:
-        result = await asyncio.to_thread(transcribe_audio, path, model["id"], api_key)
+        result = await run_asr_with_audit(
+            path=path,
+            model_id=model["id"],
+            api_key=api_key,
+            user_id=asset["user_id"],
+        )
     except AsrRuntimeError as exc:
+        local_model = model["id"].startswith("local:")
+        return update_nas_asset(
+            asset["id"],
+            status="needs_model" if local_model else "failed",
+            analyzer=model["name"],
+            summary=f"已選擇 {model['name']}。{exc}",
+            error_message=None if local_model else str(exc),
+            chunk_count=0,
+        )
+
+    chunks = build_transcript_chunks(result["text"], path, model, result)
+    translation_summary = ""
+    if config.get("translation_enabled"):
+        try:
+            translated = await translate_transcript_with_audit(
+                text=result["text"],
+                target=config.get("translation_target") or "zh-Hant",
+                model_id=config.get("translation_model_id") or "local:qwen3-4b",
+                api_key=translation_api_key,
+                user_id=asset["user_id"],
+            )
+            chunks.extend(
+                build_translation_chunks(
+                    translated["text"],
+                    path,
+                    translated["model"],
+                    config.get("translation_target") or "zh-Hant",
+                    start_index=len(chunks),
+                )
+            )
+            translation_summary = f"已由 {translated['model']['name']} 完成翻譯；"
+        except LlmRuntimeError as exc:
+            translation_summary = f"逐字稿已保存，但翻譯失敗：{exc}；"
+    embedded = await attach_embeddings(chunks, asset["user_id"])
+    replace_document_chunks(asset["id"], chunks)
+    return update_nas_asset(
+        asset["id"],
+        status="completed",
+        analyzer=model["name"],
+        summary=(
+            f"已使用 {model['name']} 完成語音轉文字，建立逐字稿 RAG chunks：{len(chunks)} 段；"
+            f"{translation_summary}"
+            f"{'Qwen3 Embedding 向量已寫入' if embedded else '向量服務暫時不可用，已排入背景補建'}。"
+        ),
+        chunk_count=len(chunks),
+    )
+
+
+async def process_video_asset(asset: dict[str, Any], path: Path, api_key: str | None) -> dict[str, Any] | None:
+    config = processor_config(asset)
+    model = get_video_model(config.get("video_model_id"))
+    try:
+        result = await asyncio.to_thread(analyze_video, path, model["id"], api_key)
+    except VideoRuntimeError as exc:
         return update_nas_asset(
             asset["id"],
             status="needs_model",
@@ -106,13 +199,18 @@ async def process_audio_asset(asset: dict[str, Any], path: Path, api_key: str | 
             chunk_count=0,
         )
 
-    chunks = build_transcript_chunks(result["text"], path, model, result)
+    chunks = build_video_detection_chunks(path, result)
+    embedded = await attach_embeddings(chunks, asset["user_id"])
     replace_document_chunks(asset["id"], chunks)
     return update_nas_asset(
         asset["id"],
         status="completed",
         analyzer=model["name"],
-        summary=f"已使用 {model['name']} 完成語音轉文字，建立逐字稿 RAG chunks：{len(chunks)} 段。",
+        summary=(
+            f"{result['summary']} 已建立 video_detection chunks：{len(chunks)} 段；"
+            f"{'Qwen3 Embedding 向量已寫入' if embedded else '向量服務暫時不可用，已排入背景補建'}，"
+            "可在此頁使用 LLM 查詢影片內容。"
+        ),
         chunk_count=len(chunks),
     )
 
@@ -153,6 +251,38 @@ def build_transcript_chunks(text: str, path: Path, model: dict[str, Any], result
     ]
 
 
+def build_translation_chunks(
+    text: str,
+    path: Path,
+    model: dict[str, Any],
+    target: str,
+    *,
+    start_index: int,
+) -> list[dict[str, Any]]:
+    chunks = chunk_text(text, max_chars=1000, overlap=120)
+    return [
+        {
+            "chunk_index": start_index + index,
+            "content": chunk,
+            "token_estimate": max(1, len(chunk) // 4),
+            "page_number": None,
+            "chunk_type": "audio_translation",
+            "image_path": None,
+            "metadata_json": json.dumps(
+                {
+                    "source": path.name,
+                    "category": "audio",
+                    "translation_target": target,
+                    "translation_model_id": model["id"],
+                    "translation_model": model["name"],
+                },
+                ensure_ascii=False,
+            ),
+        }
+        for index, chunk in enumerate(chunks)
+    ]
+
+
 def build_rag_chunks(path: Path, category: str, asset_id: int | None = None) -> list[dict[str, Any]]:
     if category == "pdf":
         return build_pdf_rag_chunks(path, asset_id)
@@ -174,6 +304,40 @@ def build_rag_chunks(path: Path, category: str, asset_id: int | None = None) -> 
         }
         for index, chunk in enumerate(chunks)
     ]
+
+
+def build_image_rag_chunks(path: Path) -> list[dict[str, Any]]:
+    try:
+        engine = paddle_ocr_engine()
+    except ImportError as exc:
+        raise RuntimeError("需要安裝 OCR 引擎 PaddleOCR，才能辨識圖片並建立 RAG 索引") from exc
+
+    text = run_paddle_ocr(engine, path).strip()
+    if not text:
+        raise RuntimeError("圖片未辨識出可建立 RAG 索引的文字內容")
+
+    chunks: list[dict[str, Any]] = []
+    for text_chunk in chunk_text(text):
+        chunks.append(
+            {
+                "chunk_index": len(chunks),
+                "content": text_chunk,
+                "token_estimate": max(1, len(text_chunk) // 4),
+                "page_number": None,
+                "chunk_type": "image_ocr",
+                "image_path": str(path),
+                "metadata_json": json.dumps(
+                    {
+                        "source": path.name,
+                        "category": "image",
+                        "chunk_type": "image_ocr",
+                        "extraction_mode": "paddleocr",
+                    },
+                    ensure_ascii=False,
+                ),
+            }
+        )
+    return chunks
 
 
 def extract_text(path: Path, category: str) -> str:
@@ -309,9 +473,12 @@ def paddle_ocr_engine() -> Any:
     from paddleocr import PaddleOCR
 
     try:
-        return PaddleOCR(use_angle_cls=True, lang="ch")
+        return PaddleOCR(use_angle_cls=True, lang="ch", enable_mkldnn=False)
     except TypeError:
-        return PaddleOCR(lang="ch")
+        try:
+            return PaddleOCR(lang="ch", enable_mkldnn=False)
+        except TypeError:
+            return PaddleOCR(lang="ch")
 
 
 def configure_ocr_cache() -> None:

@@ -3,8 +3,15 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#dff2ff" />
+    <meta name="application-name" content="NAS AI Work" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>AI Work 會議入口</title>
-    <link rel="stylesheet" href="/static/styles.css?v=nas-model-manager" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png" />
+    <link rel="apple-touch-icon" href="/static/icons/icon-192.png" />
+    <link rel="stylesheet" href="/static/styles.css?v=line-enterprise-admin-v1" />
   </head>
   <body>
     <div id="toastHost" class="toast-host" aria-live="polite" aria-atomic="true"></div>
@@ -49,8 +56,11 @@
           <button class="nav-item active" type="button" data-view="dashboard" data-i18n="nav.dashboard">總覽</button>
           <button class="nav-item" type="button" data-view="record" data-i18n="nav.record">會議記錄</button>
           <button class="nav-item" type="button" data-view="upload" data-i18n="nav.upload">NAS 上傳</button>
+          <button class="nav-item" type="button" data-view="models" data-i18n="nav.models">模型管理</button>
           <button class="nav-item" type="button" data-view="meetings" data-i18n="nav.meetings">資料庫查詢</button>
           <button class="nav-item" type="button" data-view="aiwork">AI Work</button>
+          <button id="lineAdminNav" class="nav-item" type="button" data-view="lineAdmin" data-i18n="nav.lineAdmin" hidden>LINE 企業管理</button>
+          <button id="accountNav" class="nav-item" type="button" data-view="accounts" data-i18n="nav.accounts" hidden>帳號管理</button>
         </nav>
         <div class="nas-panel">
           <span class="status-dot"></span>
@@ -155,6 +165,98 @@
                 <span data-i18n="record.meetingTitle">會議標題</span>
                 <input id="meetingTitleInput" placeholder="例如：產品週會 09/09" data-i18n-attr="placeholder:record.titlePlaceholder" />
               </label>
+              <section class="asr-config-panel recorder-asr-panel">
+                <div>
+                  <strong data-i18n="record.asrTitle">步驟 1：選擇轉寫模型</strong>
+                  <p data-i18n="record.asrCopy">錄音停止後，NAS 會使用此模型建立逐字稿、向量與 RAG 索引。</p>
+                </div>
+                <div class="llm-form-grid compact">
+                  <label>
+                    <span data-i18n="record.asrModeLabel">執行位置</span>
+                    <select id="recordAsrModeSelect">
+                      <option value="local" data-i18n="record.asrModeLocal">本地 NAS</option>
+                      <option value="cloud" data-i18n="record.asrModeCloud">雲端 API</option>
+                    </select>
+                  </label>
+                  <label>
+                    <span data-i18n="record.asrModelLabel">語音模型</span>
+                    <select id="recordAsrModelSelect"></select>
+                  </label>
+                </div>
+                <label id="recordAsrKeyField" hidden>
+                  <span id="recordAsrKeyLabel">API Key</span>
+                  <input id="recordAsrApiKeyInput" type="password" placeholder="API Key" data-i18n-attr="placeholder:record.asrKeyPlaceholder" autocomplete="off" />
+                </label>
+                <div id="recordAsrRecommendation" class="asr-recommendation"></div>
+              </section>
+              <section class="asr-config-panel translation-config-panel">
+                <div class="config-panel-heading">
+                  <div>
+                    <strong data-i18n="record.translationTitle">步驟 2：逐字稿翻譯</strong>
+                    <p data-i18n="record.translationCopy">可選擇目標語言與本地或雲端 LLM；原文與譯文會分開保存。</p>
+                  </div>
+                  <label class="switch-control">
+                    <input id="recordTranslationToggle" type="checkbox" />
+                    <span data-i18n="record.translationEnable">啟用翻譯</span>
+                  </label>
+                </div>
+                <div id="recordTranslationControls" hidden>
+                  <div class="translation-form-grid">
+                    <label>
+                      <span data-i18n="record.translationTarget">目標語言</span>
+                      <select id="recordTranslationTargetSelect">
+                        <option value="zh-Hant" data-i18n="record.languages.zhHant">繁體中文</option>
+                        <option value="en" data-i18n="record.languages.en">英文</option>
+                        <option value="zh-Hans" data-i18n="record.languages.zhHans">簡體中文</option>
+                        <option value="ja" data-i18n="record.languages.ja">日文</option>
+                        <option value="ko" data-i18n="record.languages.ko">韓文</option>
+                        <option value="es" data-i18n="record.languages.es">西班牙文</option>
+                        <option value="fr" data-i18n="record.languages.fr">法文</option>
+                        <option value="de" data-i18n="record.languages.de">德文</option>
+                      </select>
+                    </label>
+                    <label>
+                      <span data-i18n="record.translationMode">翻譯位置</span>
+                      <select id="recordTranslationModeSelect">
+                        <option value="local" data-i18n="record.asrModeLocal">本地 NAS</option>
+                        <option value="cloud" data-i18n="record.asrModeCloud">雲端 API</option>
+                      </select>
+                    </label>
+                    <label>
+                      <span data-i18n="record.translationModel">翻譯模型</span>
+                      <select id="recordTranslationModelSelect"></select>
+                    </label>
+                  </div>
+                  <label id="recordTranslationKeyField" hidden>
+                    <span data-i18n="record.translationKey">翻譯模型 API Key</span>
+                    <input id="recordTranslationApiKeyInput" type="password" placeholder="只用於本次翻譯" data-i18n-attr="placeholder:record.translationKeyPlaceholder" autocomplete="off" />
+                  </label>
+                  <div id="recordTranslationRecommendation" class="translation-recommendation"></div>
+                </div>
+              </section>
+              <section class="asr-config-panel line-push-config-panel">
+                <div class="config-panel-heading">
+                  <div>
+                    <strong data-i18n="record.lineTitle">步驟 3：推送至 LINE 群組</strong>
+                    <p data-i18n="record.lineCopy">轉寫完成後，由 NAS 本地 Qwen 產生摘要、決議與待辦事項，再推送到指定群組。</p>
+                  </div>
+                  <label class="switch-control">
+                    <input id="recordLinePushToggle" type="checkbox" />
+                    <span data-i18n="record.lineEnable">啟用推送</span>
+                  </label>
+                </div>
+                <div id="recordLinePushControls" class="line-push-controls" hidden>
+                  <label>
+                    <span data-i18n="record.lineGroup">LINE 群組</span>
+                    <select id="recordLineGroupSelect"></select>
+                  </label>
+                  <label class="checkbox-control">
+                    <input id="recordLineFullTranscriptToggle" type="checkbox" />
+                    <span data-i18n="record.lineFullTranscript">同時分段推送完整原文逐字稿</span>
+                  </label>
+                  <div id="recordLineStatus" class="line-push-status"></div>
+                </div>
+              </section>
               <div class="recorder-stage">
                 <div id="recordPulse" class="record-pulse idle"></div>
                 <strong id="recordTimer">00:00</strong>
@@ -185,12 +287,12 @@
               <div class="section-heading">
                 <p class="eyebrow" data-i18n="upload.eyebrow">NAS 收件</p>
                 <h3 data-i18n="upload.title">上傳 NAS 資料</h3>
-                <p data-i18n="upload.copy">支援 audio、video、PDF、DOCX 與一般文件。NAS 收到檔案後會依類型送入 Whisper、YOLO 或 RAG 建庫流程。</p>
+                <p data-i18n="upload.copy">支援 audio、video、圖片、PDF、DOCX 與一般文件。NAS 收到圖片後會執行 OCR、建立向量與可追溯原圖的 RAG 索引。</p>
               </div>
               <form id="nasUploadForm" class="nas-upload-form">
                 <label>
                   <span data-i18n="upload.fileLabel">選擇檔案</span>
-                  <input id="nasFileInput" type="file" accept="audio/*,video/*,.pdf,.docx,.txt,.md" required />
+                  <input id="nasFileInput" type="file" accept="audio/*,video/*,image/*,.jpg,.jpeg,.png,.webp,.tif,.tiff,.bmp,.pdf,.docx,.txt,.md" required />
                 </label>
                 <label>
                   <span data-i18n="upload.titleLabel">資料名稱</span>
@@ -198,7 +300,7 @@
                 </label>
                 <section class="asr-config-panel">
                   <div>
-                    <strong data-i18n="upload.asrTitle">音訊識別模型</strong>
+                    <strong data-i18n="upload.asrTitle">步驟 1：音訊轉寫模型</strong>
                     <p data-i18n="upload.asrCopy">上傳 audio 時可選本地或雲端 ASR；其他檔案會自動略過此設定。</p>
                   </div>
                   <div class="llm-form-grid compact">
@@ -215,10 +317,80 @@
                     </label>
                   </div>
                   <label id="audioAsrKeyField" hidden>
-                    <span data-i18n="upload.asrKeyLabel">OpenAI API Key</span>
+                    <span id="audioAsrKeyLabel" data-i18n="upload.asrKeyLabel">API Key</span>
                     <input id="audioAsrApiKeyInput" type="password" placeholder="sk-..." data-i18n-attr="placeholder:upload.asrKeyPlaceholder" autocomplete="off" />
                   </label>
+                  <div id="audioAsrRecommendation" class="asr-recommendation"></div>
                   <p class="hint-text" data-i18n="upload.asrHint">本地模型適合 NAS 私有化；雲端模型需要 API Key，Key 只用於本次上傳，不寫入資料庫。</p>
+                </section>
+                <section class="asr-config-panel translation-config-panel">
+                  <div class="config-panel-heading">
+                    <div>
+                      <strong data-i18n="upload.translationTitle">步驟 2：逐字稿翻譯</strong>
+                      <p data-i18n="upload.translationCopy">只套用於 audio；可指定目標語言與翻譯 LLM。</p>
+                    </div>
+                    <label class="switch-control">
+                      <input id="audioTranslationToggle" type="checkbox" />
+                      <span data-i18n="record.translationEnable">啟用翻譯</span>
+                    </label>
+                  </div>
+                  <div id="audioTranslationControls" hidden>
+                    <div class="translation-form-grid">
+                      <label>
+                        <span data-i18n="record.translationTarget">目標語言</span>
+                        <select id="audioTranslationTargetSelect">
+                          <option value="zh-Hant" data-i18n="record.languages.zhHant">繁體中文</option>
+                          <option value="en" data-i18n="record.languages.en">英文</option>
+                          <option value="zh-Hans" data-i18n="record.languages.zhHans">簡體中文</option>
+                          <option value="ja" data-i18n="record.languages.ja">日文</option>
+                          <option value="ko" data-i18n="record.languages.ko">韓文</option>
+                          <option value="es" data-i18n="record.languages.es">西班牙文</option>
+                          <option value="fr" data-i18n="record.languages.fr">法文</option>
+                          <option value="de" data-i18n="record.languages.de">德文</option>
+                        </select>
+                      </label>
+                      <label>
+                        <span data-i18n="record.translationMode">翻譯位置</span>
+                        <select id="audioTranslationModeSelect">
+                          <option value="local" data-i18n="record.asrModeLocal">本地 NAS</option>
+                          <option value="cloud" data-i18n="record.asrModeCloud">雲端 API</option>
+                        </select>
+                      </label>
+                      <label>
+                        <span data-i18n="record.translationModel">翻譯模型</span>
+                        <select id="audioTranslationModelSelect"></select>
+                      </label>
+                    </div>
+                    <label id="audioTranslationKeyField" hidden>
+                      <span data-i18n="record.translationKey">翻譯模型 API Key</span>
+                      <input id="audioTranslationApiKeyInput" type="password" placeholder="只用於本次翻譯" data-i18n-attr="placeholder:record.translationKeyPlaceholder" autocomplete="off" />
+                    </label>
+                    <div id="audioTranslationRecommendation" class="translation-recommendation"></div>
+                  </div>
+                </section>
+                <section class="asr-config-panel">
+                  <div>
+                    <strong data-i18n="upload.videoTitle">影片分析模型</strong>
+                    <p data-i18n="upload.videoCopy">上傳 video 時可選本地或雲端模型；其他檔案會自動略過此設定。</p>
+                  </div>
+                  <div class="llm-form-grid compact">
+                    <label>
+                      <span data-i18n="upload.videoModeLabel">執行位置</span>
+                      <select id="videoModelModeSelect">
+                        <option value="local" data-i18n="upload.videoModeLocal">本地 NAS</option>
+                        <option value="cloud" data-i18n="upload.videoModeCloud">雲端 API</option>
+                      </select>
+                    </label>
+                    <label>
+                      <span data-i18n="upload.videoModelLabel">Video 模型</span>
+                      <select id="videoModelSelect"></select>
+                    </label>
+                  </div>
+                  <label id="videoApiKeyField" hidden>
+                    <span data-i18n="upload.videoKeyLabel">Video API Key</span>
+                    <input id="videoApiKeyInput" type="password" placeholder="API Key" data-i18n-attr="placeholder:upload.videoKeyPlaceholder" autocomplete="off" />
+                  </label>
+                  <p class="hint-text" data-i18n="upload.videoHint">本地 YOLO 會在 NAS 主機抽幀與偵測物件；雲端模型需要 API Key，Key 只用於本次上傳，不寫入資料庫。</p>
                 </section>
                 <button class="primary-button" type="submit" data-i18n="upload.submit">上傳到 NAS</button>
               </form>
@@ -256,18 +428,24 @@
               <div id="nasAssetList" class="nas-asset-list"></div>
             </section>
           </div>
+          <section id="nasAssetDetail" class="nas-asset-detail">
+            <div class="empty-state" data-i18n="upload.emptyDetail">選擇一個 NAS 資產查看處理結果</div>
+          </section>
+        </section>
+
+        <section id="modelsSection" class="view-section model-management-view" hidden>
           <section class="local-model-panel">
             <div class="model-manager-head">
               <div>
                 <strong data-i18n="upload.modelManagerTitle">NAS 模型管理</strong>
-                <p data-i18n="upload.modelManagerCopy">管理可由 NAS 主機執行的本地 ASR 模型。下載只會在按下按鈕後開始。</p>
+                <p data-i18n="upload.modelManagerCopy">管理可由 NAS 主機執行的本地 ASR 與 video 模型。下載只會在按下按鈕後開始。</p>
               </div>
-              <button id="refreshLocalModelsButton" class="secondary-button compact-button" type="button" data-i18n="upload.refreshModels">刷新</button>
+              <div class="model-manager-actions">
+                <button id="addCustomModelButton" class="primary-button compact-button" type="button" data-i18n="models.addModel" hidden>新增模型</button>
+                <button id="refreshLocalModelsButton" class="secondary-button compact-button" type="button" data-i18n="upload.refreshModels">刷新</button>
+              </div>
             </div>
             <div id="localModelList" class="local-model-list"></div>
-          </section>
-          <section id="nasAssetDetail" class="nas-asset-detail">
-            <div class="empty-state" data-i18n="upload.emptyDetail">選擇一個 NAS 資產查看處理結果</div>
           </section>
         </section>
 
@@ -292,40 +470,57 @@
 
         <section id="aiworkSection" class="view-section" hidden>
           <div class="aiwork-layout">
-            <section class="llm-config-panel">
-              <div class="section-heading">
-                <p class="eyebrow" data-i18n="aiwork.eyebrow">模型接入</p>
-                <h3>AI Work</h3>
-                <p data-i18n="aiwork.copy">選擇主流大模型後，系統會查詢該模型目前的公開費用，並提示輸入對應供應商 API Key。</p>
+            <details class="model-setup-disclosure" open>
+              <summary>
+                <span data-i18n="aiwork.setupTitle">模型設定與費用</span>
+                <span class="disclosure-state disclosure-state-open" data-i18n="aiwork.collapseSetup">收合</span>
+                <span class="disclosure-state disclosure-state-closed" data-i18n="aiwork.expandSetup">展開</span>
+              </summary>
+              <div class="model-setup-grid">
+                <section class="llm-config-panel">
+                  <div class="section-heading">
+                    <p class="eyebrow" data-i18n="aiwork.eyebrow">模型接入</p>
+                    <h3>AI Work</h3>
+                    <p data-i18n="aiwork.copy">選擇主流大模型後，系統會查詢該模型目前的公開費用，並提示輸入對應供應商 API Key。</p>
+                  </div>
+
+                  <div class="model-mode-group">
+                    <span data-i18n="aiwork.executionLabel">執行位置</span>
+                    <div class="model-mode-switch" role="group" aria-label="模型執行位置" data-i18n-attr="aria-label:aiwork.executionLabel">
+                      <button class="active" type="button" data-llm-mode="local" aria-pressed="true" data-i18n="aiwork.localModels">本地 NAS</button>
+                      <button type="button" data-llm-mode="cloud" aria-pressed="false" data-i18n="aiwork.cloudModels">雲端 API</button>
+                    </div>
+                  </div>
+
+                  <div class="llm-form-grid">
+                    <label>
+                      <span data-i18n="aiwork.providerLabel">模型供應商</span>
+                      <select id="llmProviderSelect">
+                        <option value="" data-i18n="aiwork.loading">載入中...</option>
+                      </select>
+                    </label>
+                    <label>
+                      <span data-i18n="aiwork.modelLabel">模型</span>
+                      <select id="llmModelSelect" disabled>
+                        <option value="" data-i18n="aiwork.selectProviderFirst">請先選擇供應商</option>
+                      </select>
+                    </label>
+                  </div>
+
+                  <div class="llm-toolbar">
+                    <button id="openKeyModalButton" class="primary-button" type="button" disabled data-i18n="aiwork.configureKey">設定 API Key</button>
+                    <span id="keyStatus" class="key-status" data-i18n="aiwork.keyNotSet">尚未設定 API Key</span>
+                  </div>
+
+                </section>
+
+                <section id="pricingPanel" class="pricing-panel">
+                  <div class="empty-state" data-i18n="aiwork.emptyPricing">選擇模型後顯示費用資訊</div>
+                </section>
               </div>
+            </details>
 
-              <div class="llm-form-grid">
-                <label>
-                  <span data-i18n="aiwork.providerLabel">模型供應商</span>
-                  <select id="llmProviderSelect">
-                    <option value="" data-i18n="aiwork.loading">載入中...</option>
-                  </select>
-                </label>
-                <label>
-                  <span data-i18n="aiwork.modelLabel">模型</span>
-                  <select id="llmModelSelect" disabled>
-                    <option value="" data-i18n="aiwork.selectProviderFirst">請先選擇供應商</option>
-                  </select>
-                </label>
-              </div>
-
-              <div class="llm-toolbar">
-                <button id="openKeyModalButton" class="primary-button" type="button" disabled data-i18n="aiwork.configureKey">設定 API Key</button>
-                <span id="keyStatus" class="key-status" data-i18n="aiwork.keyNotSet">尚未設定 API Key</span>
-              </div>
-
-            </section>
-
-            <section id="pricingPanel" class="pricing-panel">
-              <div class="empty-state" data-i18n="aiwork.emptyPricing">選擇模型後顯示費用資訊</div>
-            </section>
-
-            <section id="modelUsePanel" class="model-use-panel" hidden>
+            <section id="modelUsePanel" class="model-use-panel">
               <div class="use-panel-header">
                 <div>
                   <p class="eyebrow" data-i18n="aiwork.tryEyebrow">模型試用</p>
@@ -333,12 +528,19 @@
                 </div>
                 <span id="modelUseMode" class="use-mode-badge"></span>
               </div>
-              <label class="prompt-field">
-                <span data-i18n="aiwork.promptLabel">輸入內容</span>
-                <textarea id="llmPromptInput" rows="5" placeholder="請輸入要交給模型處理的內容" data-i18n-attr="placeholder:aiwork.promptPlaceholder"></textarea>
-              </label>
+              <div class="prompt-field">
+                <div class="prompt-field-heading">
+                  <label for="llmPromptInput" data-i18n="aiwork.promptLabel">輸入內容</label>
+                  <small data-i18n="aiwork.promptSearchHint">先輸入關鍵字，再查詢</small>
+                </div>
+                <div class="prompt-input-wrap">
+                  <input id="llmPromptInput" type="text" placeholder="請輸入要交給模型處理的內容" data-i18n-attr="placeholder:aiwork.promptPlaceholder;aria-label:aiwork.promptLabel" autocomplete="off" aria-autocomplete="list" aria-controls="llmPromptSuggestions" aria-expanded="false" />
+                  <div id="llmPromptSuggestions" class="prompt-suggestions" role="listbox" aria-label="相似歷史問題" data-i18n-attr="aria-label:aiwork.suggestionsLabel" hidden></div>
+                </div>
+              </div>
               <div class="button-row">
                 <button id="runModelButton" class="primary-button" type="button" data-i18n="aiwork.runModel">送出</button>
+                <button id="forceRunModelButton" class="secondary-button force-send-button" type="button" data-i18n="aiwork.forceRunModel" data-i18n-attr="title:aiwork.forceRunHint" title="忽略快取並實際呼叫模型，可能產生費用">強制送出</button>
               </div>
               <div id="modelResponseBox" class="model-response-box" hidden></div>
             </section>
@@ -366,6 +568,98 @@
               <div id="llmCallHistory" class="llm-call-history"></div>
             </section>
           </div>
+        </section>
+
+        <section id="lineAdminSection" class="view-section" hidden>
+          <div class="line-admin-hero">
+            <div>
+              <p class="eyebrow" data-i18n="lineAdmin.eyebrow">LINE 公司治理</p>
+              <h1 data-i18n="lineAdmin.title">LINE 企業管理</h1>
+              <p data-i18n="lineAdmin.copy">只有管理員核准的群組能使用公司 NAS、RAG 與模型。個人聊天室不會取得公司資料或公司 API Key。</p>
+            </div>
+            <div class="line-admin-metrics" aria-label="LINE 管理摘要" data-i18n-attr="aria-label:lineAdmin.metricsLabel">
+              <article><span id="lineGroupTotal">0</span><strong data-i18n="lineAdmin.totalGroups">已發現群組</strong></article>
+              <article><span id="lineGroupApproved">0</span><strong data-i18n="lineAdmin.approvedGroups">已核准</strong></article>
+              <article><span id="lineMonthlyCalls">0</span><strong data-i18n="lineAdmin.monthlyCalls">本月呼叫</strong></article>
+              <article><span id="lineMonthlyTokens">0</span><strong data-i18n="lineAdmin.monthlyTokens">本月 Token</strong></article>
+            </div>
+          </div>
+
+          <section class="line-admin-panel">
+            <div class="line-admin-heading">
+              <div>
+                <p class="eyebrow" data-i18n="lineAdmin.directoryEyebrow">公司群組目錄</p>
+                <h3 data-i18n="lineAdmin.directoryTitle">模型與資料存取政策</h3>
+              </div>
+              <button id="refreshLineAdmin" class="ghost-button" type="button" data-i18n="lineAdmin.refresh">重新同步</button>
+            </div>
+            <div id="lineServiceNotice" class="line-service-notice"></div>
+            <div id="lineAdminList" class="line-admin-list"></div>
+          </section>
+        </section>
+
+        <section id="accountsSection" class="view-section" hidden>
+          <div class="account-summary-band">
+            <div>
+              <p class="eyebrow" data-i18n="accounts.eyebrow">NAS 存取控制</p>
+              <h1 data-i18n="accounts.title">帳號與權限管理</h1>
+              <p data-i18n="accounts.copy">集中管理 Portal 登入、NAS 資產存取範圍與管理員權限。停用、角色或密碼變更會撤銷既有 Session。</p>
+            </div>
+            <div class="account-metrics" aria-label="帳號摘要" data-i18n-attr="aria-label:accounts.metricsLabel">
+              <article><span id="accountTotal">0</span><strong data-i18n="accounts.total">帳號總數</strong></article>
+              <article><span id="accountActive">0</span><strong data-i18n="accounts.active">啟用中</strong></article>
+              <article><span id="accountAdmins">0</span><strong data-i18n="accounts.admins">管理員</strong></article>
+            </div>
+          </div>
+
+          <section class="account-create-panel">
+            <div class="section-heading compact-heading">
+              <p class="eyebrow" data-i18n="accounts.createEyebrow">新增存取身分</p>
+              <h3 data-i18n="accounts.createTitle">建立帳號</h3>
+            </div>
+            <form id="accountCreateForm" class="account-create-form">
+              <label>
+                <span data-i18n="accounts.username">使用者名稱</span>
+                <input id="newAccountUsername" autocomplete="off" minlength="3" maxlength="32" required placeholder="user.name" data-i18n-attr="placeholder:accounts.usernamePlaceholder" />
+              </label>
+              <label>
+                <span data-i18n="accounts.password">初始密碼</span>
+                <input id="newAccountPassword" type="password" autocomplete="new-password" minlength="8" maxlength="128" required placeholder="至少 8 個字元" data-i18n-attr="placeholder:accounts.passwordPlaceholder" />
+              </label>
+              <label>
+                <span data-i18n="accounts.role">角色</span>
+                <select id="newAccountRole">
+                  <option value="user" data-i18n="accounts.roles.user">一般使用者</option>
+                  <option value="admin" data-i18n="accounts.roles.admin">管理員</option>
+                </select>
+              </label>
+              <button class="primary-button" type="submit" data-i18n="accounts.create">建立帳號</button>
+            </form>
+            <p id="accountFormError" class="error-text" role="alert"></p>
+          </section>
+
+          <section class="account-list-panel">
+            <div class="search-row compact">
+              <div>
+                <p class="eyebrow" data-i18n="accounts.directoryEyebrow">使用者目錄</p>
+                <h3 data-i18n="accounts.directoryTitle">Portal 帳號</h3>
+              </div>
+              <label class="search-box">
+                <span data-i18n="accounts.search">搜尋</span>
+                <input id="accountSearch" placeholder="搜尋帳號或角色" data-i18n-attr="placeholder:accounts.searchPlaceholder" />
+              </label>
+            </div>
+            <div class="account-table-wrap">
+              <div class="account-table-head" aria-hidden="true">
+                <span data-i18n="accounts.account">帳號</span>
+                <span data-i18n="accounts.role">角色</span>
+                <span data-i18n="accounts.status">狀態</span>
+                <span data-i18n="accounts.activity">活動</span>
+                <span data-i18n="accounts.actions">操作</span>
+              </div>
+              <div id="accountList" class="account-list"></div>
+            </div>
+          </section>
         </section>
       </section>
     </main>
@@ -408,6 +702,115 @@
       </section>
     </div>
 
-    <script src="/static/app.js?v=nas-model-manager"></script>
+    <div id="passwordResetModal" class="modal-backdrop" hidden>
+      <section class="modal-panel compact" role="dialog" aria-modal="true" aria-labelledby="passwordResetTitle">
+        <div class="modal-header">
+          <div>
+            <p class="eyebrow" data-i18n="accounts.resetEyebrow">帳號安全</p>
+            <h3 id="passwordResetTitle" data-i18n="accounts.resetTitle">重設密碼</h3>
+          </div>
+          <button id="closePasswordReset" class="icon-button" type="button" aria-label="關閉" data-i18n-attr="aria-label:keyModal.close">×</button>
+        </div>
+        <p id="passwordResetAccount" class="modal-copy"></p>
+        <label class="api-key-field">
+          <span data-i18n="accounts.newPassword">新密碼</span>
+          <input id="passwordResetInput" type="password" autocomplete="new-password" minlength="8" maxlength="128" placeholder="至少 8 個字元" data-i18n-attr="placeholder:accounts.passwordPlaceholder" />
+        </label>
+        <p id="passwordResetError" class="error-text" role="alert"></p>
+        <p class="hint-text" data-i18n="accounts.resetHint">重設後，該帳號目前的登入 Session 將立即失效。</p>
+        <div class="modal-actions">
+          <button id="cancelPasswordReset" class="secondary-button" type="button" data-i18n="keyModal.cancel">取消</button>
+          <button id="confirmPasswordReset" class="primary-button" type="button" data-i18n="accounts.confirmReset">確認重設</button>
+        </div>
+      </section>
+    </div>
+
+    <div id="customModelModal" class="modal-backdrop" hidden>
+      <section class="modal-panel custom-model-modal" role="dialog" aria-modal="true" aria-labelledby="customModelModalTitle">
+        <div class="modal-header">
+          <div>
+            <p class="eyebrow" data-i18n="models.eyebrow">NAS 模型登錄</p>
+            <h3 id="customModelModalTitle" data-i18n="models.title">新增本地模型</h3>
+          </div>
+          <button id="closeCustomModelModal" class="icon-button" type="button" aria-label="關閉" data-i18n-attr="aria-label:keyModal.close">×</button>
+        </div>
+        <p class="modal-copy" data-i18n="models.copy">模型會先保存於 NAS 登錄庫，通過檔案、Runtime 或 API 測試後才會出現在工作選單。</p>
+        <form id="customModelForm" class="custom-model-form">
+          <div class="custom-model-grid">
+            <label>
+              <span data-i18n="models.type">模型類型</span>
+              <select id="customModelType" required>
+                <option value="whisper_cpp" data-i18n="models.typeWhisper">whisper.cpp 語音模型</option>
+                <option value="yolo" data-i18n="models.typeYolo">YOLO 影片模型</option>
+                <option value="openai_compatible_llm" data-i18n="models.typeLlm">OpenAI 相容本地 LLM</option>
+              </select>
+            </label>
+            <label>
+              <span data-i18n="models.name">顯示名稱</span>
+              <input id="customModelName" required minlength="2" maxlength="100" placeholder="例如：Whisper medium" data-i18n-attr="placeholder:models.namePlaceholder" />
+            </label>
+            <label>
+              <span data-i18n="models.slug">模型識別碼（選填）</span>
+              <input id="customModelSlug" maxlength="60" placeholder="例如：whisper-medium" data-i18n-attr="placeholder:models.slugPlaceholder" />
+            </label>
+            <label>
+              <span data-i18n="models.recommendation">用途說明（選填）</span>
+              <input id="customModelRecommendation" maxlength="500" placeholder="例如：中文長會議轉寫" data-i18n-attr="placeholder:models.recommendationPlaceholder" />
+            </label>
+          </div>
+
+          <div id="customFileModelFields" class="custom-model-fields">
+            <label>
+              <span data-i18n="models.fileName">NAS 模型檔名</span>
+              <input id="customModelFile" maxlength="160" placeholder="ggml-medium.bin" data-i18n-attr="placeholder:models.filePlaceholder" />
+            </label>
+            <label>
+              <span data-i18n="models.downloadUrl">可信任下載網址（選填）</span>
+              <input id="customModelDownloadUrl" type="url" maxlength="1000" placeholder="https://huggingface.co/..." data-i18n-attr="placeholder:models.downloadUrlPlaceholder" />
+            </label>
+            <div class="custom-model-grid">
+              <label>
+                <span data-i18n="models.expectedSize">預期大小 MB（選填）</span>
+                <input id="customModelExpectedSize" type="number" min="0.001" max="102400" step="0.001" placeholder="465" />
+              </label>
+              <label>
+                <span data-i18n="models.sha256">SHA256（選填）</span>
+                <input id="customModelSha256" maxlength="64" autocomplete="off" placeholder="64 hex characters" />
+              </label>
+            </div>
+          </div>
+
+          <div id="customEndpointModelFields" class="custom-model-fields" hidden>
+            <div class="custom-model-grid">
+              <label>
+                <span data-i18n="models.apiBase">Loopback API 根位址</span>
+                <input id="customModelApiBase" type="url" value="http://127.0.0.1:8080" placeholder="http://127.0.0.1:8080" />
+              </label>
+              <label>
+                <span data-i18n="models.modelAlias">API 模型 alias</span>
+                <input id="customModelAlias" maxlength="160" placeholder="qwen3-4b" />
+              </label>
+              <label>
+                <span data-i18n="models.contextTokens">輸入上限 tokens</span>
+                <input id="customModelContext" type="number" min="256" max="1048576" value="4096" />
+              </label>
+              <label class="checkbox-field">
+                <input id="customModelSupportsTokenize" type="checkbox" />
+                <span data-i18n="models.supportsTokenize">端點支援 /tokenize</span>
+              </label>
+            </div>
+          </div>
+
+          <p class="hint-text" data-i18n="models.securityHint">下載僅允許 Hugging Face 或 GitHub HTTPS；LLM 僅允許 NAS 本機 loopback 端點。</p>
+          <p id="customModelError" class="error-text" role="alert"></p>
+          <div class="modal-actions">
+            <button id="cancelCustomModel" class="secondary-button" type="button" data-i18n="keyModal.cancel">取消</button>
+            <button class="primary-button" type="submit" data-i18n="models.create">建立登錄</button>
+          </div>
+        </form>
+      </section>
+    </div>
+
+    <script src="/static/app.js?v=line-enterprise-admin-v1"></script>
   </body>
 </html>

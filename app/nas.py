@@ -1,9 +1,11 @@
 import asyncio
+import json
 import shutil
 import uuid
 from pathlib import Path
 
-from app.db import create_meeting, get_user_by_username
+from app.asr_catalog import get_asr_model
+from app.db import create_meeting, create_nas_asset, get_user_by_username
 from app.notifications import manager
 from app.transcription import process_meeting_transcription
 
@@ -59,6 +61,27 @@ async def import_nas_file(base_dir: Path, path: Path) -> None:
         processed_path = processed_path.with_name(f"{processed_path.stem}-{uuid.uuid4().hex[:8]}{processed_path.suffix}")
     shutil.move(str(path), processed_path)
 
+    asr_model = get_asr_model(None)
+    processor_config = {
+        "asr_model_id": asr_model["id"],
+        "asr_provider": asr_model["provider"],
+        "asr_model": asr_model["name"],
+        "asr_engine": asr_model["engine"],
+        "asr_requires_api_key": asr_model["requires_api_key"],
+        "source": "nas_discovery",
+    }
+    asset = create_nas_asset(
+        user_id=admin["id"],
+        category="audio",
+        title=path.stem,
+        original_filename=path.name,
+        stored_path=str(stored_path),
+        mime_type=None,
+        file_size=stored_path.stat().st_size,
+        status="processing",
+        analyzer=asr_model["name"],
+        processor_config_json=json.dumps(processor_config, ensure_ascii=False),
+    )
     meeting = create_meeting(
         user_id=admin["id"],
         source="nas_discovery",
@@ -66,6 +89,11 @@ async def import_nas_file(base_dir: Path, path: Path) -> None:
         original_filename=path.name,
         audio_path=str(stored_path),
         status="processing",
+        nas_asset_id=asset["id"],
+        asr_model_id=asr_model["id"],
+        asr_provider=asr_model["provider"],
+        asr_model=asr_model["name"],
+        asr_engine=asr_model["engine"],
     )
 
     await manager.broadcast(

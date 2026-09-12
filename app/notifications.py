@@ -30,5 +30,15 @@ class ConnectionManager:
         for user_id, websocket in stale:
             self.disconnect(user_id, websocket)
 
+    async def send_to_user(self, user_id: int, payload: dict[str, Any]) -> None:
+        stale: list[WebSocket] = []
+        for websocket in list(self._connections.get(user_id, set())):
+            try:
+                await websocket.send_json(payload)
+            except RuntimeError:
+                stale.append(websocket)
+        for websocket in stale:
+            self.disconnect(user_id, websocket)
+
 
 manager = ConnectionManager()

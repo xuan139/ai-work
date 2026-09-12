@@ -6,6 +6,13 @@ from typing import Any
 PRICING_UPDATED_AT = date(2026, 9, 9).isoformat()
 
 FREE_TIER_BY_PROVIDER: dict[str, dict[str, Any]] = {
+    "Local NAS": {
+        "available": True,
+        "label": "NAS-hosted local inference",
+        "description": "Runs on the NAS GPU through a loopback-only llama.cpp server. No API key or external prompt transfer is required.",
+        "requires_api_key_for_real_call": False,
+        "source_url": "https://github.com/QwenLM/Qwen3",
+    },
     "Free Gateway": {
         "available": True,
         "label": "No-key public text generation",
@@ -76,6 +83,24 @@ NO_FREE_TIER: dict[str, Any] = {
 }
 
 LLM_MODELS: list[dict[str, Any]] = [
+    {
+        "id": "local:qwen3-4b",
+        "provider": "Local NAS",
+        "family": "Qwen3 / llama.cpp",
+        "name": "Qwen3 4B Q4_K_M",
+        "model": "qwen3-4b",
+        "execution": "local",
+        "currency": "USD",
+        "unit": "request",
+        "input": 0.00,
+        "output": 0.00,
+        "context": "4,096 tokens",
+        "max_input_tokens": 4096,
+        "api_base": "http://127.0.0.1:8080",
+        "note": "Local llama.cpp inference with -ngl 99, -c 4096, --parallel 1, and alias qwen3-4b. The API is bound to loopback only.",
+        "note_zh_hant": "由 NAS 上的 llama.cpp 執行，參數為 -ngl 99、-c 4096、--parallel 1，模型別名 qwen3-4b；API 僅綁定本機迴環位址。",
+        "source_url": "https://github.com/QwenLM/Qwen3",
+    },
     {
         "id": "free:openai-fast",
         "provider": "Free Gateway",
@@ -586,11 +611,12 @@ LLM_MODELS: list[dict[str, Any]] = [
 
 
 def provider_summary() -> list[dict[str, Any]]:
-    providers = sorted({model["provider"] for model in LLM_MODELS})
+    models = all_llm_models(ready_only=True)
+    providers = sorted({model["provider"] for model in models})
     return [
         {
             "name": provider,
-            "model_count": sum(1 for model in LLM_MODELS if model["provider"] == provider),
+            "model_count": sum(1 for model in models if model["provider"] == provider),
         }
         for provider in providers
     ]
@@ -604,21 +630,28 @@ def model_summary() -> list[dict[str, Any]]:
             "family": model["family"],
             "name": model["name"],
             "model": model["model"],
+            "execution": model.get("execution", "cloud"),
             "currency": model["currency"],
             "free_tier": free_tier_for_model(model),
         }
-        for model in LLM_MODELS
+        for model in all_llm_models(ready_only=True)
     ]
 
 
 def get_model(model_id: str) -> dict[str, Any] | None:
-    model = next((model for model in LLM_MODELS if model["id"] == model_id), None)
+    model = next((model for model in all_llm_models(ready_only=True) if model["id"] == model_id), None)
     if not model:
         return None
 
     enriched = dict(model)
     enriched["free_tier"] = free_tier_for_model(model)
     return enriched
+
+
+def all_llm_models(*, ready_only: bool) -> list[dict[str, Any]]:
+    from app.model_registry import custom_catalog_models
+
+    return [*LLM_MODELS, *custom_catalog_models("openai_compatible_llm", ready_only=ready_only)]
 
 
 def free_tier_for_model(model: dict[str, Any]) -> dict[str, Any]:

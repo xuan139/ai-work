@@ -18,8 +18,11 @@ const messages = {
       dashboard: "總覽",
       record: "會議記錄",
       upload: "NAS 上傳",
+      models: "模型管理",
       meetings: "資料庫查詢",
       aiwork: "AI Work",
+      lineAdmin: "LINE 企業管理",
+      accounts: "帳號管理",
     },
     nas: {
       title: "NAS 發現服務",
@@ -30,6 +33,95 @@ const messages = {
     },
     auth: {
       logout: "登出",
+    },
+    accounts: {
+      eyebrow: "NAS 存取控制",
+      title: "帳號與權限管理",
+      copy: "集中管理 Portal 登入、NAS 資產存取範圍與管理員權限。停用、角色或密碼變更會撤銷既有 Session。",
+      metricsLabel: "帳號摘要",
+      total: "帳號總數",
+      active: "啟用中",
+      admins: "管理員",
+      createEyebrow: "新增存取身分",
+      createTitle: "建立帳號",
+      username: "使用者名稱",
+      usernamePlaceholder: "user.name",
+      password: "初始密碼",
+      passwordPlaceholder: "至少 8 個字元",
+      role: "角色",
+      create: "建立帳號",
+      directoryEyebrow: "使用者目錄",
+      directoryTitle: "Portal 帳號",
+      search: "搜尋",
+      searchPlaceholder: "搜尋帳號或角色",
+      account: "帳號",
+      status: "狀態",
+      activity: "活動",
+      actions: "操作",
+      roles: { admin: "管理員", user: "一般使用者" },
+      statuses: { active: "啟用", inactive: "已停用" },
+      created: "建立",
+      lastLogin: "最後登入",
+      never: "尚未登入",
+      records: "{assets} 項 NAS 資產 · {meetings} 場會議 · {calls} 次模型呼叫",
+      save: "儲存權限",
+      reset: "重設密碼",
+      delete: "刪除",
+      empty: "沒有符合條件的帳號",
+      current: "目前登入",
+      protected: "帳號已有 NAS 資料，請改為停用",
+      resetEyebrow: "帳號安全",
+      resetTitle: "重設密碼",
+      newPassword: "新密碼",
+      resetHint: "重設後，該帳號目前的登入 Session 將立即失效。",
+      confirmReset: "確認重設",
+      resetFor: "為 {username} 設定新密碼",
+      confirmDelete: "確定刪除帳號 {username}？此操作無法復原。",
+      createdSuccess: "帳號已建立",
+      updatedSuccess: "帳號權限已更新",
+      resetSuccess: "密碼已重設",
+      deletedSuccess: "帳號已刪除",
+      operationFailed: "帳號操作失敗",
+      duplicate: "使用者名稱已存在",
+      invalidUsername: "使用者名稱需為 3–32 個字元，只能使用英文字母、數字、句點、底線或連字號",
+      invalidPassword: "密碼長度必須為 8–128 個字元",
+      selfProtection: "不能停用自己或移除自己的管理員權限",
+      ownsRecords: "此帳號已有 NAS 資料，請改為停用",
+    },
+    lineAdmin: {
+      eyebrow: "LINE 公司治理",
+      title: "LINE 企業管理",
+      copy: "只有管理員核准的群組能使用公司 NAS、RAG 與模型。個人聊天室不會取得公司資料或公司 API Key。",
+      metricsLabel: "LINE 管理摘要",
+      totalGroups: "已發現群組",
+      approvedGroups: "已核准",
+      monthlyCalls: "本月呼叫",
+      monthlyTokens: "本月 Token",
+      directoryEyebrow: "公司群組目錄",
+      directoryTitle: "模型與資料存取政策",
+      refresh: "重新同步",
+      serviceReady: "LINE 服務已連線；新群組會以待核准狀態加入。",
+      serviceUnavailable: "LINE 服務目前無法同步，以下顯示 NAS 已保存的群組政策。",
+      empty: "尚未發現 LINE 群組",
+      pending: "待核准",
+      approved: "已核准",
+      groupId: "群組 ID",
+      owner: "管理帳號",
+      documents: "NAS 文件",
+      usage: "本月用量",
+      approve: "允許使用公司 AI",
+      pdfSummary: "PDF 上傳後自動摘要",
+      ragQueries: "允許 @Claire 查詢群組資料",
+      model: "公司模型",
+      localModel: "NAS 本地",
+      companyApi: "公司 API",
+      callLimit: "每月呼叫上限",
+      tokenLimit: "每月 Token 上限",
+      unlimitedHint: "輸入 0 表示不限額",
+      save: "儲存群組政策",
+      saved: "LINE 群組政策已更新",
+      saveFailed: "無法更新 LINE 群組政策",
+      personalBlocked: "個人聊天室固定禁止使用公司 NAS、RAG 與公司 API Key。",
     },
     dashboard: {
       eyebrow: "NAS Demo 範圍",
@@ -61,7 +153,7 @@ const messages = {
       },
       upload: {
         title: "NAS 上傳",
-        copy: "上傳 audio、video、PDF、DOCX 等資料，NAS 收件後進入 Whisper、YOLO 或 RAG 流程。",
+        copy: "上傳 audio、video、PDF、DOCX 等資料，NAS 收件後進入所選 ASR、影片分析或 RAG 流程。",
       },
       meetings: {
         title: "資料庫查詢",
@@ -76,6 +168,60 @@ const messages = {
       title: "新建會議錄音並歸檔",
       meetingTitle: "會議標題",
       titlePlaceholder: "例如：產品週會 09/09",
+      asrTitle: "步驟 1：選擇轉寫模型",
+      asrCopy: "錄音停止後，NAS 會使用此模型建立逐字稿、向量與 RAG 索引。",
+      asrModeLabel: "執行位置",
+      asrModeLocal: "本地 NAS",
+      asrModeCloud: "雲端 API",
+      asrModelLabel: "語音模型",
+      asrKeyPlaceholder: "只用於本次會議錄音",
+      asrLanguages: "語言",
+      asrBestFor: "適合",
+      asrReady: "本地模型已就緒，可直接處理錄音。",
+      asrDownloading: "模型正在下載：{progress}%。錄音可先保存，但轉寫需等下載完成。",
+      asrNotReady: "本地模型尚未就緒，請到 NAS 模型管理完成安裝，或改選已就緒模型。",
+      asrCloud: "此模型由雲端處理，API Key 只用於本次錄音，不會寫入資料庫。",
+      asrKeyRequired: "{model} 需要 API Key，請先輸入後再開始錄音。",
+      asrModelRequired: "請先選擇語音處理模型。",
+      translationTitle: "步驟 2：逐字稿翻譯",
+      translationCopy: "可選擇目標語言與本地或雲端 LLM；原文與譯文會分開保存。",
+      translationEnable: "啟用翻譯",
+      translationTarget: "目標語言",
+      translationMode: "翻譯位置",
+      translationModel: "翻譯模型",
+      translationKey: "翻譯模型 API Key",
+      translationKeyPlaceholder: "只用於本次翻譯",
+      translationModelRequired: "請先選擇翻譯模型。",
+      translationKeyRequired: "{model} 需要 API Key，請先輸入後再開始。",
+      translationLocalHint: "逐字稿會由 NAS 本地模型處理，不會傳送到外部服務。",
+      translationCloudHint: "逐字稿會傳送至 {provider}；API Key 只用於本次工作，不會寫入資料庫。",
+      lineTitle: "步驟 3：推送至 LINE 群組",
+      lineCopy: "轉寫完成後，由 NAS 本地 Qwen 產生摘要、決議與待辦事項，再推送到指定群組。",
+      lineEnable: "啟用推送",
+      lineGroup: "LINE 群組",
+      lineMessages: "{count} 則記錄",
+      lineFullTranscript: "同時分段推送完整原文逐字稿",
+      lineSummaryOnly: "預設只推送摘要與 NAS 查看入口，群組可用 @Claire 查詢這場會議。",
+      lineFullWarning: "完整逐字稿會拆成多則 LINE 訊息；長會議建議保留在 NAS 中查閱。",
+      lineUnavailable: "目前無法取得 LINE 群組，請確認 LINE webhook 服務。",
+      lineNoGroups: "尚未發現 Claire 已加入且有訊息記錄的 LINE 群組。",
+      lineGroupRequired: "請先選擇要接收會議摘要的 LINE 群組。",
+      linePushStatus: "LINE 推送",
+      lineSummaryTitle: "LINE 會議摘要",
+      lineWaiting: "等待轉寫與摘要完成後推送。",
+      lineError: "推送失敗：{error}",
+      lineSummaryMode: "摘要、決議與待辦",
+      lineFullMode: "摘要與完整文字稿",
+      languages: {
+        zhHant: "繁體中文",
+        en: "英文",
+        zhHans: "簡體中文",
+        ja: "日文",
+        ko: "韓文",
+        es: "西班牙文",
+        fr: "法文",
+        de: "德文",
+      },
       start: "開始錄音",
       pause: "暫停",
       resume: "繼續",
@@ -85,6 +231,9 @@ const messages = {
       uploadFailed: "錄音上傳失敗，請重試",
       saved: "錄音已保存，正在處理",
       unavailable: "無法錄音",
+      secureRequired: "麥克風錄音需要 HTTPS 安全連線，請改用 HTTPS 或透過 localhost 開啟此系統。",
+      mediaUnavailable: "此瀏覽器不支援麥克風存取，請使用最新版 Chrome、Edge 或 Safari。",
+      secureHint: "目前頁面使用 HTTP 公網連線，瀏覽器已停用麥克風。請改用 HTTPS 或 SSH Tunnel 的 localhost 位址。",
       states: {
         idle: "待開始",
         recording: "正在錄音",
@@ -100,21 +249,32 @@ const messages = {
     upload: {
       eyebrow: "NAS 收件",
       title: "上傳 NAS 資料",
-      copy: "支援 audio、video、PDF、DOCX 與一般文件。NAS 收到檔案後會依類型送入 Whisper、YOLO 或 RAG 建庫流程。",
+      copy: "支援 audio、video、圖片、PDF、DOCX 與一般文件。NAS 收到圖片後會執行 OCR、建立向量與可追溯原圖的 RAG 索引。",
       fileLabel: "選擇檔案",
       titleLabel: "資料名稱",
       titlePlaceholder: "例如：董事會錄音、產品簡報 PDF",
-      asrTitle: "音訊識別模型",
+      asrTitle: "步驟 1：音訊轉寫模型",
       asrCopy: "上傳 audio 時可選本地或雲端 ASR；其他檔案會自動略過此設定。",
       asrModeLabel: "執行位置",
       asrModeLocal: "本地 NAS",
       asrModeCloud: "雲端 API",
       asrModelLabel: "ASR 模型",
-      asrKeyLabel: "OpenAI API Key",
+      asrKeyLabel: "API Key",
       asrKeyPlaceholder: "只用於本次 audio 上傳",
       asrHint: "本地模型適合 NAS 私有化；雲端模型需要 API Key，Key 只用於本次上傳，不寫入資料庫。",
+      translationTitle: "步驟 2：逐字稿翻譯",
+      translationCopy: "只套用於 audio；可指定目標語言與翻譯 LLM。",
+      videoTitle: "影片分析模型",
+      videoCopy: "上傳 video 時可選本地或雲端模型；其他檔案會自動略過此設定。",
+      videoModeLabel: "執行位置",
+      videoModeLocal: "本地 NAS",
+      videoModeCloud: "雲端 API",
+      videoModelLabel: "Video 模型",
+      videoKeyLabel: "Video API Key",
+      videoKeyPlaceholder: "只用於本次 video 上傳",
+      videoHint: "本地 YOLO 會在 NAS 主機抽幀與偵測物件；雲端模型需要 API Key，Key 只用於本次上傳，不寫入資料庫。",
       modelManagerTitle: "NAS 模型管理",
-      modelManagerCopy: "管理可由 NAS 主機執行的本地 ASR 模型。下載只會在按下按鈕後開始。",
+      modelManagerCopy: "管理可由 NAS 主機執行的本地 ASR 與 video 模型。下載只會在按下按鈕後開始。",
       refreshModels: "刷新",
       runtimeReady: "Runtime 已就緒",
       runtimeMissing: "Runtime 未就緒",
@@ -130,6 +290,10 @@ const messages = {
       modelActionFailed: "模型操作失敗",
       modelStatus: {
         installed: "已安裝",
+        registered: "已登錄",
+        testing: "測試中",
+        ready: "可使用",
+        runtime_missing: "缺少 Runtime",
         partial: "部分下載",
         missing: "未安裝",
         downloading: "下載中",
@@ -140,6 +304,8 @@ const messages = {
       setupHints: {
         whisper_cpp_setup: "需要 whisper-cli 與完整 ggml 模型檔",
         python_asr_setup: "執行 pip install -r requirements-asr.txt",
+        python_video_setup: "執行 pip install -r requirements-video.txt，並下載完整 YOLO 權重",
+        openai_endpoint_setup: "需要可回應 /v1/chat/completions 的 NAS loopback 服務",
       },
       submit: "上傳到 NAS",
       nasVolumeLabel: "NAS Volume",
@@ -163,6 +329,8 @@ const messages = {
       owner: "上傳者",
       filename: "原始檔名",
       selectedAsr: "選用 ASR",
+      selectedTranslation: "選用翻譯",
+      selectedVideo: "選用 Video",
       category: "類型",
       analyzer: "分析器",
       fileSize: "大小",
@@ -181,16 +349,30 @@ const messages = {
       type: "類型",
       pagePreview: "頁面預覽",
       answerSources: "引用來源",
+      retrievalHybrid: "混合檢索",
+      retrievalKeyword: "關鍵字檢索",
+      retrievalScore: "綜合分數",
+      semanticScore: "語意",
+      keywordScore: "關鍵字",
+      cacheHit: "NAS 回答快取命中",
+      cacheExact: "相同問題",
+      cacheSemantic: "語意相近",
       questionTitle: "用 LLM 處理此資產",
       questionEyebrow: "RAG 文件問答",
-      questionCopy: "文件或逐字稿已建立 RAG chunks，可選擇模型後對此資產提問。",
+      questionCopy: "圖片、文件或逐字稿已建立 RAG chunks，可選擇模型後對此資產提問。",
       modelRequired: "需要先選擇模型",
       questionRequired: "請先輸入問題",
       ask: "處理文件",
       questionPlaceholder: "例如：請整理這份文件的重點與待辦事項",
       answerTitle: "文件處理結果",
+      analysisHistoryTitle: "NAS AI 分析知識",
+      analysisHistoryCopy: "以下雲端分析結果已保存於 NAS，並建立可供後續查詢的 RAG chunks。",
+      analysisQuestion: "分析問題",
+      analysisSaved: "分析結果已自動保存到 NAS 並加入 RAG",
+      analysisAlreadySaved: "已使用 NAS 中相同的分析知識，不會重複建庫",
+      analysisEmbeddingQueued: "分析已保存，Embedding 已排入 NAS 背景補建",
       modelNeedsKey: "此模型需要 API Key，請先設定模型",
-      noRag: "此檔案尚未建立 RAG chunks；audio/PDF/DOCX 完成處理後才能做 RAG 問答。",
+      noRag: "此檔案尚未建立 RAG chunks；圖片、audio、video、PDF 或 DOCX 完成處理後才能做 RAG 問答。",
       timeline: {
         intakeTitle: "NAS 收件與權限檢查",
         intakeEngine: "FastAPI Upload + SQLite Audit",
@@ -214,24 +396,73 @@ const messages = {
         ocrEngine: "PaddleOCR PP-OCRv6",
         ocrCopy: "當 pypdf 抽不到文字層時，對每頁圖片執行 OCR，產生 image_ocr chunks。",
         ragTitle: "RAG 建庫",
-        ragEngine: "RAG Builder + SQLite document_chunks",
-        ragCopy: "寫入 chunk 內容、頁碼、chunk 類型、token 估算與頁面圖片路徑。",
+        ragEngine: "Qwen3-Embedding-0.6B + SQLite document_chunks",
+        ragCopy: "寫入 chunk 內容、頁碼、類型、圖片路徑與 1024 維向量；服務中斷時由 NAS 背景工作補建。",
         docxTitle: "DOCX 文件解析",
         docxEngine: "python-docx",
         docxCopy: "抽取段落與表格文字，轉成可查詢的 RAG chunks。",
+        imageDecodeTitle: "圖片格式與完整性檢查",
+        imageDecodeEngine: "NAS Image Intake",
+        imageDecodeCopy: "辨識 JPG、PNG、WebP、TIFF、BMP 與 image MIME type，保存原圖並確認可供 OCR 讀取。",
+        imageOcrTitle: "圖片文字辨識",
+        imageOcrEngine: "PaddleOCR PP-OCRv6",
+        imageOcrCopy: "在 NAS 本地辨識圖片中的中英文文字，寫入 image_ocr chunks，並保留原圖作為 RAG 引用預覽。",
         audioTitle: "語音轉文字",
         audioEngine: "Selected ASR Model",
-        audioCopy: "依使用者選擇調用本地 whisper.cpp / faster-whisper / SenseVoiceSmall，或雲端 OpenAI 語音轉文字模型。",
+        audioCopy: "依使用者選擇調用本地 whisper.cpp、faster-whisper、SenseVoiceSmall、Paraformer，或雲端語音轉文字服務。",
+        translationTitle: "逐字稿翻譯",
+        translationEngine: "Selected Translation LLM",
+        translationCopy: "依使用者指定的目標語言，調用 NAS 本地 Qwen 或所選雲端 LLM；原文與譯文分開入庫。",
         audioRagTitle: "逐字稿 RAG 建庫",
-        audioRagEngine: "Transcript Chunker + SQLite document_chunks",
-        audioRagCopy: "ASR 結果切成 audio_transcript chunks，後續可用 LLM 查詢會議內容。",
+        audioRagEngine: "Transcript Chunker + Qwen3 Embedding",
+        audioRagCopy: "ASR 結果切成 audio_transcript chunks 並建立向量，後續可用 LLM 查詢會議內容。",
         videoTitle: "影片內容分析",
-        videoEngine: "YOLO Video/Object Detection",
-        videoCopy: "保留影片檔，等待配置 YOLO 權重或影片分析服務後產生偵測結果。",
+        videoEngine: "Selected Video Model",
+        videoCopy: "依使用者選擇調用本地 YOLO 抽幀偵測，或等待雲端影片分析 API 設定後執行。",
+        videoRagTitle: "影片結果 RAG 建庫",
+        videoRagEngine: "Detection Chunker + Qwen3 Embedding",
+        videoRagCopy: "把影片時間點、偵測物件、信心分數與畫面預覽寫入 chunks，並建立可檢索向量。",
         llmTitle: "文件問答",
-        llmEngine: "RAG Retriever + Selected LLM",
-        llmCopy: "查詢 document_chunks，將命中的頁碼與內容組成 prompt，再交給選定大模型回答。",
+        llmEngine: "向量相似度 75% + 關鍵字 25%",
+        llmCopy: "使用 Qwen3 query 向量與中英文關鍵字混合排序，將命中的頁碼與內容交給選定大模型回答。",
       },
+    },
+    models: {
+      addModel: "新增模型",
+      eyebrow: "NAS 模型登錄",
+      title: "新增本地模型",
+      copy: "模型會先保存於 NAS 登錄庫，通過檔案、Runtime 或 API 測試後才會出現在工作選單。",
+      type: "模型類型",
+      typeWhisper: "whisper.cpp 語音模型",
+      typeYolo: "YOLO 影片模型",
+      typeLlm: "OpenAI 相容本地 LLM",
+      name: "顯示名稱",
+      namePlaceholder: "例如：Whisper medium",
+      slug: "模型識別碼（選填）",
+      slugPlaceholder: "例如：whisper-medium",
+      recommendation: "用途說明（選填）",
+      recommendationPlaceholder: "例如：中文長會議轉寫",
+      fileName: "NAS 模型檔名",
+      filePlaceholder: "ggml-medium.bin",
+      downloadUrl: "可信任下載網址（選填）",
+      downloadUrlPlaceholder: "https://huggingface.co/...",
+      expectedSize: "預期大小 MB（選填）",
+      sha256: "SHA256（選填）",
+      apiBase: "Loopback API 根位址",
+      modelAlias: "API 模型 alias",
+      contextTokens: "輸入上限 tokens",
+      supportsTokenize: "端點支援 /tokenize",
+      securityHint: "下載僅允許 Hugging Face 或 GitHub HTTPS；LLM 僅允許 NAS 本機 loopback 端點。",
+      create: "建立登錄",
+      customBadge: "自訂",
+      test: "測試",
+      remove: "移除登錄",
+      saved: "模型已保存於 NAS 登錄庫",
+      testReady: "模型測試完成，可在工作選單使用",
+      testIncomplete: "模型檔完整，但 Runtime 尚未就緒",
+      removed: "模型登錄已移除，NAS 模型檔仍保留",
+      removeConfirm: "要移除此模型登錄嗎？NAS 上的模型檔不會刪除。",
+      actionFailed: "自訂模型操作失敗",
     },
     meetings: {
       eyebrow: "NAS 索引查詢",
@@ -241,6 +472,10 @@ const messages = {
       emptyList: "暫無會議記錄",
       emptyDetail: "選擇一條 NAS 會議資產查看錄音和轉寫內容",
       waitingExcerpt: "等待處理完成後顯示轉寫內容",
+      transcriptTitle: "原始逐字稿",
+      translationTitle: "翻譯結果",
+      translationPending: "等待轉寫完成後開始翻譯。",
+      translationFailed: "翻譯失敗：{error}",
       processingText: "正在處理轉寫，請稍候。",
       failedText: "處理失敗",
       sourceNas: "NAS 發現",
@@ -251,13 +486,18 @@ const messages = {
       copy: "選擇主流大模型後，可對 NAS 會議資料進行摘要、問答或審計測試；系統會查詢公開費用，並提示輸入對應供應商 API Key。",
       providerLabel: "模型供應商",
       modelLabel: "模型",
+      executionLabel: "執行位置",
+      localModels: "本地 NAS",
+      cloudModels: "雲端 API",
       loading: "載入中...",
       allProviders: "全部供應商",
       selectProviderFirst: "請先選擇供應商",
       selectModel: "請選擇模型",
       configureKey: "設定 API Key",
       keyNotSet: "尚未設定 API Key",
+      keyNotRequired: "本地模型不需要 API Key",
       keyReady: "{provider} API Key 已套用到本次工作階段",
+      companyKeyReady: "公司 API Key 已由 NAS 伺服器安全配置",
       emptyPricing: "選擇模型後顯示費用資訊",
       sourcesEyebrow: "Pricing Sources",
       sourcesTitle: "費用資料來源",
@@ -278,10 +518,22 @@ const messages = {
       freeQuotaUnavailable: "未列出免費額度",
       realCallNeedsKey: "此供應商的免費額度仍需 API Key，因此未設定 Key 前不能直接送出。",
       tryEyebrow: "模型試用",
+      setupTitle: "模型設定與費用",
+      collapseSetup: "收合",
+      expandSetup: "展開",
       promptLabel: "輸入內容",
       promptPlaceholder: "請輸入要交給模型處理的內容",
+      promptSearchHint: "先輸入關鍵字，再查詢",
+      suggestionsLabel: "相似歷史問題",
+      suggestionCached: "NAS 快取",
+      suggestionHistory: "歷史問題",
       runModel: "送出",
+      forceRunModel: "強制送出",
+      forceRunHint: "忽略快取並實際呼叫模型，可能產生費用",
       useTitle: "使用 {model}",
+      useSelectModel: "請先選擇模型",
+      useWaiting: "等待選擇模型",
+      useLocalNas: "本地 NAS GPU 模型",
       useWithKey: "API Key 模式",
       useWithFreeQuota: "免費真實模型模式",
       useNeedsKey: "需要 API Key",
@@ -289,6 +541,7 @@ const messages = {
       noAccess: "此模型需要 API Key，請先設定後再送出",
       responseTitle: "模型回覆",
       responseFailed: "模型呼叫失敗",
+      cacheBypassed: "已繞過快取",
       usageInput: "輸入 tokens",
       usageOutput: "輸出 tokens",
       usageTotal: "總 tokens",
@@ -308,6 +561,7 @@ const messages = {
       statusFailed: "失敗",
       statusBlocked: "已阻擋",
       freeTierDescriptions: {
+        "Local NAS": "提示詞與回覆只在 NAS 主機及其本機 GPU 上處理，不需要 API Key，也不會傳送到外部模型服務。",
         "Free Gateway": "公開 no-key 文字生成端點，適合 demo 快速驗證。提示詞會送到公開服務，不要輸入機密內容。",
         Google: "Gemini API 對符合資格的模型提供有限免費輸入與輸出 token。",
         "Alibaba Cloud": "阿里雲百鍊新使用者可能取得各模型獨立免費額度，通常有效期 90 天，且受地域與服務範圍限制。",
@@ -331,6 +585,7 @@ const messages = {
     },
     status: {
       processing: "處理中",
+      pending: "等待中",
       completed: "已完成",
       failed: "失敗",
       needs_model: "需要模型",
@@ -373,8 +628,11 @@ const messages = {
       dashboard: "Overview",
       record: "Meeting Recording",
       upload: "NAS Upload",
+      models: "Model Management",
       meetings: "Knowledge Search",
       aiwork: "AI Work",
+      lineAdmin: "LINE Enterprise",
+      accounts: "Account Management",
     },
     nas: {
       title: "NAS Discovery Service",
@@ -385,6 +643,95 @@ const messages = {
     },
     auth: {
       logout: "Sign Out",
+    },
+    accounts: {
+      eyebrow: "NAS Access Control",
+      title: "Accounts and Permissions",
+      copy: "Manage Portal sign-in, NAS asset scope, and administrator access. Disabling an account or changing its role or password revokes existing sessions.",
+      metricsLabel: "Account summary",
+      total: "Total Accounts",
+      active: "Active",
+      admins: "Administrators",
+      createEyebrow: "New Access Identity",
+      createTitle: "Create Account",
+      username: "Username",
+      usernamePlaceholder: "user.name",
+      password: "Initial Password",
+      passwordPlaceholder: "At least 8 characters",
+      role: "Role",
+      create: "Create Account",
+      directoryEyebrow: "User Directory",
+      directoryTitle: "Portal Accounts",
+      search: "Search",
+      searchPlaceholder: "Search account or role",
+      account: "Account",
+      status: "Status",
+      activity: "Activity",
+      actions: "Actions",
+      roles: { admin: "Administrator", user: "Standard User" },
+      statuses: { active: "Active", inactive: "Disabled" },
+      created: "Created",
+      lastLogin: "Last sign-in",
+      never: "Never signed in",
+      records: "{assets} NAS assets · {meetings} meetings · {calls} model calls",
+      save: "Save Access",
+      reset: "Reset Password",
+      delete: "Delete",
+      empty: "No accounts match this search",
+      current: "Signed in",
+      protected: "This account owns NAS data; disable it instead",
+      resetEyebrow: "Account Security",
+      resetTitle: "Reset Password",
+      newPassword: "New Password",
+      resetHint: "Resetting the password immediately revokes this account's current sessions.",
+      confirmReset: "Reset Password",
+      resetFor: "Set a new password for {username}",
+      confirmDelete: "Delete account {username}? This action cannot be undone.",
+      createdSuccess: "Account created",
+      updatedSuccess: "Account access updated",
+      resetSuccess: "Password reset",
+      deletedSuccess: "Account deleted",
+      operationFailed: "Account operation failed",
+      duplicate: "Username already exists",
+      invalidUsername: "Username must be 3–32 characters using letters, numbers, dot, underscore, or hyphen",
+      invalidPassword: "Password must be 8–128 characters",
+      selfProtection: "You cannot deactivate yourself or remove your administrator access",
+      ownsRecords: "This account owns NAS data and must be disabled instead",
+    },
+    lineAdmin: {
+      eyebrow: "LINE Company Governance",
+      title: "LINE Enterprise Management",
+      copy: "Only administrator-approved groups can use company NAS data, RAG, and models. Direct chats never receive company data or company API keys.",
+      metricsLabel: "LINE management summary",
+      totalGroups: "Discovered Groups",
+      approvedGroups: "Approved",
+      monthlyCalls: "Calls This Month",
+      monthlyTokens: "Tokens This Month",
+      directoryEyebrow: "Company Group Directory",
+      directoryTitle: "Model and Data Access Policies",
+      refresh: "Sync Again",
+      serviceReady: "LINE service is connected. Newly discovered groups are added as pending approval.",
+      serviceUnavailable: "LINE service cannot be synchronized right now. Saved NAS group policies are shown below.",
+      empty: "No LINE groups have been discovered",
+      pending: "Pending Approval",
+      approved: "Approved",
+      groupId: "Group ID",
+      owner: "Managed By",
+      documents: "NAS Documents",
+      usage: "Monthly Usage",
+      approve: "Allow Company AI",
+      pdfSummary: "Automatically summarize uploaded PDFs",
+      ragQueries: "Allow @Claire to query group data",
+      model: "Company Model",
+      localModel: "NAS Local",
+      companyApi: "Company API",
+      callLimit: "Monthly Call Limit",
+      tokenLimit: "Monthly Token Limit",
+      unlimitedHint: "Enter 0 for unlimited usage",
+      save: "Save Group Policy",
+      saved: "LINE group policy updated",
+      saveFailed: "Unable to update the LINE group policy",
+      personalBlocked: "Direct chats are always blocked from company NAS, RAG, and company API keys.",
     },
     dashboard: {
       eyebrow: "NAS Demo Scope",
@@ -416,7 +763,7 @@ const messages = {
       },
       upload: {
         title: "NAS Upload",
-        copy: "Upload audio, video, PDF, DOCX, and other assets into Whisper, YOLO, or RAG processing flows.",
+        copy: "Upload audio, video, PDF, DOCX, and other assets into the selected ASR, video analysis, or RAG workflow.",
       },
       meetings: {
         title: "Knowledge Search",
@@ -431,6 +778,60 @@ const messages = {
       title: "New Meeting Recording Archive",
       meetingTitle: "Meeting Title",
       titlePlaceholder: "Example: Product Weekly 09/09",
+      asrTitle: "Step 1: Choose a Transcription Model",
+      asrCopy: "After recording stops, the NAS uses this model to build a transcript, vectors, and a RAG index.",
+      asrModeLabel: "Execution Location",
+      asrModeLocal: "Local NAS",
+      asrModeCloud: "Cloud API",
+      asrModelLabel: "Speech Model",
+      asrKeyPlaceholder: "Used only for this meeting recording",
+      asrLanguages: "Languages",
+      asrBestFor: "Best for",
+      asrReady: "The local model is ready and can process recordings.",
+      asrDownloading: "Model download in progress: {progress}%. The recording can be saved, but transcription waits for completion.",
+      asrNotReady: "The local model is not ready. Complete setup in NAS Model Management or choose a ready model.",
+      asrCloud: "This model runs in the cloud. The API key is used only for this recording and is not stored in the database.",
+      asrKeyRequired: "{model} requires an API key. Enter it before recording.",
+      asrModelRequired: "Choose a speech model first.",
+      translationTitle: "Step 2: Transcript Translation",
+      translationCopy: "Choose a target language and a local or cloud LLM. The source transcript and translation are stored separately.",
+      translationEnable: "Enable translation",
+      translationTarget: "Target language",
+      translationMode: "Translation location",
+      translationModel: "Translation model",
+      translationKey: "Translation model API key",
+      translationKeyPlaceholder: "Used only for this translation",
+      translationModelRequired: "Choose a translation model first.",
+      translationKeyRequired: "{model} requires an API key. Enter it before starting.",
+      translationLocalHint: "The transcript is processed by the local NAS model and is not sent to an external service.",
+      translationCloudHint: "The transcript is sent to {provider}. The API key is used only for this job and is not stored.",
+      lineTitle: "Step 3: Push to a LINE Group",
+      lineCopy: "After transcription, the local NAS Qwen model creates a summary, decisions, and action items for the selected group.",
+      lineEnable: "Enable push",
+      lineGroup: "LINE group",
+      lineMessages: "{count} records",
+      lineFullTranscript: "Also push the full source transcript in sections",
+      lineSummaryOnly: "By default, only the summary and NAS entry are pushed. The group can query the meeting with @Claire.",
+      lineFullWarning: "A full transcript is split across multiple LINE messages. Keep long meetings on the NAS for easier review.",
+      lineUnavailable: "LINE groups are unavailable. Check the LINE webhook service.",
+      lineNoGroups: "No LINE group with Claire and recorded activity was found.",
+      lineGroupRequired: "Choose the LINE group that should receive the meeting summary.",
+      linePushStatus: "LINE push",
+      lineSummaryTitle: "LINE meeting summary",
+      lineWaiting: "Waiting for transcription and summary generation.",
+      lineError: "Push failed: {error}",
+      lineSummaryMode: "Summary, decisions, and action items",
+      lineFullMode: "Summary and full transcript",
+      languages: {
+        zhHant: "Traditional Chinese",
+        en: "English",
+        zhHans: "Simplified Chinese",
+        ja: "Japanese",
+        ko: "Korean",
+        es: "Spanish",
+        fr: "French",
+        de: "German",
+      },
       start: "Start Recording",
       pause: "Pause",
       resume: "Resume",
@@ -440,6 +841,9 @@ const messages = {
       uploadFailed: "Recording upload failed. Please try again.",
       saved: "Recording saved and processing started.",
       unavailable: "Recording unavailable",
+      secureRequired: "Microphone recording requires a secure HTTPS connection. Open this system over HTTPS or localhost.",
+      mediaUnavailable: "This browser does not support microphone access. Use the latest Chrome, Edge, or Safari.",
+      secureHint: "This page is using public HTTP, so the browser has disabled microphone access. Use HTTPS or a localhost address through an SSH tunnel.",
       states: {
         idle: "Ready",
         recording: "Recording",
@@ -455,21 +859,32 @@ const messages = {
     upload: {
       eyebrow: "NAS Intake",
       title: "Upload NAS Assets",
-      copy: "Supports audio, video, PDF, DOCX, and general files. After NAS receives a file, it is routed to Whisper, YOLO, or RAG indexing by type.",
+      copy: "Supports audio, video, images, PDF, DOCX, and general files. Images are OCR processed, embedded, and indexed for RAG with traceable source previews.",
       fileLabel: "File",
       titleLabel: "Asset Name",
       titlePlaceholder: "Example: board audio, product PDF",
-      asrTitle: "Audio Recognition Model",
+      asrTitle: "Step 1: Audio Transcription Model",
       asrCopy: "For audio uploads, choose local or cloud ASR. Other file types ignore this setting.",
       asrModeLabel: "Execution Location",
       asrModeLocal: "Local NAS",
       asrModeCloud: "Cloud API",
       asrModelLabel: "ASR Model",
-      asrKeyLabel: "OpenAI API Key",
+      asrKeyLabel: "API Key",
       asrKeyPlaceholder: "Only used for this audio upload",
       asrHint: "Local models fit private NAS deployments. Cloud models need an API key, used only for this upload and not written to the database.",
+      translationTitle: "Step 2: Transcript Translation",
+      translationCopy: "Applies to audio only. Choose the target language and translation LLM.",
+      videoTitle: "Video Analysis Model",
+      videoCopy: "For video uploads, choose a local or cloud model. Other file types ignore this setting.",
+      videoModeLabel: "Execution Location",
+      videoModeLocal: "Local NAS",
+      videoModeCloud: "Cloud API",
+      videoModelLabel: "Video Model",
+      videoKeyLabel: "Video API Key",
+      videoKeyPlaceholder: "Only used for this video upload",
+      videoHint: "Local YOLO extracts frames and detects objects on the NAS host. Cloud models need an API key, used only for this upload and not written to the database.",
       modelManagerTitle: "NAS Model Management",
-      modelManagerCopy: "Manage local ASR models that run on the NAS host. Downloads start only after pressing a button.",
+      modelManagerCopy: "Manage local ASR and video models that run on the NAS host. Downloads start only after pressing a button.",
       refreshModels: "Refresh",
       runtimeReady: "Runtime ready",
       runtimeMissing: "Runtime missing",
@@ -485,6 +900,10 @@ const messages = {
       modelActionFailed: "Model action failed",
       modelStatus: {
         installed: "Installed",
+        registered: "Registered",
+        testing: "Testing",
+        ready: "Ready",
+        runtime_missing: "Runtime missing",
         partial: "Partial",
         missing: "Missing",
         downloading: "Downloading",
@@ -495,6 +914,8 @@ const messages = {
       setupHints: {
         whisper_cpp_setup: "Requires whisper-cli and a complete ggml model file",
         python_asr_setup: "Run pip install -r requirements-asr.txt",
+        python_video_setup: "Run pip install -r requirements-video.txt, then download complete YOLO weights",
+        openai_endpoint_setup: "Requires a NAS loopback service that responds to /v1/chat/completions",
       },
       submit: "Upload to NAS",
       nasVolumeLabel: "NAS Volume",
@@ -518,6 +939,8 @@ const messages = {
       owner: "Uploader",
       filename: "Source filename",
       selectedAsr: "Selected ASR",
+      selectedTranslation: "Selected translation",
+      selectedVideo: "Selected Video",
       category: "Type",
       analyzer: "Analyzer",
       fileSize: "Size",
@@ -536,16 +959,30 @@ const messages = {
       type: "Type",
       pagePreview: "Page preview",
       answerSources: "Sources",
+      retrievalHybrid: "Hybrid retrieval",
+      retrievalKeyword: "Keyword retrieval",
+      retrievalScore: "Combined",
+      semanticScore: "Semantic",
+      keywordScore: "Keyword",
+      cacheHit: "NAS answer cache hit",
+      cacheExact: "Exact question",
+      cacheSemantic: "Semantic match",
       questionTitle: "Use LLM on this asset",
       questionEyebrow: "RAG Document Q&A",
-      questionCopy: "This document or transcript has RAG chunks. Select a model and ask a question.",
+      questionCopy: "This image, document, or transcript has RAG chunks. Select a model and ask a question.",
       modelRequired: "A model is required",
       questionRequired: "Enter a question first",
       ask: "Process Document",
       questionPlaceholder: "Example: summarize key points and action items",
       answerTitle: "Document Result",
+      analysisHistoryTitle: "NAS AI Analysis Knowledge",
+      analysisHistoryCopy: "These cloud analysis results are stored on the NAS and indexed as RAG chunks for later queries.",
+      analysisQuestion: "Analysis Question",
+      analysisSaved: "Analysis automatically saved to the NAS and added to RAG",
+      analysisAlreadySaved: "Matching NAS analysis knowledge was reused without duplicate indexing",
+      analysisEmbeddingQueued: "Analysis saved; embedding is queued for NAS background processing",
       modelNeedsKey: "This model needs an API key. Set a model key first.",
-      noRag: "This file has no RAG chunks yet. Audio/PDF/DOCX files can be queried after processing completes.",
+      noRag: "This file has no RAG chunks yet. Image, audio, video, PDF, and DOCX assets can be queried after processing completes.",
       timeline: {
         intakeTitle: "NAS Intake and Access Check",
         intakeEngine: "FastAPI Upload + SQLite Audit",
@@ -569,24 +1006,73 @@ const messages = {
         ocrEngine: "PaddleOCR PP-OCRv6",
         ocrCopy: "When pypdf finds no text layer, each page image is OCR processed into image_ocr chunks.",
         ragTitle: "RAG Index Build",
-        ragEngine: "RAG Builder + SQLite document_chunks",
-        ragCopy: "Stores chunk content, page number, chunk type, token estimate, and page preview image path.",
+        ragEngine: "Qwen3-Embedding-0.6B + SQLite document_chunks",
+        ragCopy: "Stores chunk content, page, type, preview path, and a 1024-dimensional vector. The NAS background worker fills any missing vectors.",
         docxTitle: "DOCX Parsing",
         docxEngine: "python-docx",
         docxCopy: "Extracts paragraph and table text, then stores it as searchable RAG chunks.",
+        imageDecodeTitle: "Image Format and Integrity Check",
+        imageDecodeEngine: "NAS Image Intake",
+        imageDecodeCopy: "Recognizes JPG, PNG, WebP, TIFF, BMP, and image MIME types, preserves the source image, and verifies OCR input.",
+        imageOcrTitle: "Image Text Recognition",
+        imageOcrEngine: "PaddleOCR PP-OCRv6",
+        imageOcrCopy: "Recognizes Chinese and English text locally on the NAS, writes image_ocr chunks, and preserves the image as the RAG source preview.",
         audioTitle: "Speech-to-Text",
         audioEngine: "Selected ASR Model",
-        audioCopy: "Calls the user-selected local whisper.cpp / faster-whisper / SenseVoiceSmall model or cloud OpenAI transcription model.",
+        audioCopy: "Calls the selected local whisper.cpp, faster-whisper, SenseVoiceSmall, or Paraformer model, or a cloud speech service.",
+        translationTitle: "Transcript Translation",
+        translationEngine: "Selected Translation LLM",
+        translationCopy: "Uses the chosen local Qwen or cloud LLM for the selected language and stores source and translated text separately.",
         audioRagTitle: "Transcript RAG Index",
-        audioRagEngine: "Transcript Chunker + SQLite document_chunks",
-        audioRagCopy: "Splits ASR output into audio_transcript chunks so an LLM can query meeting content.",
+        audioRagEngine: "Transcript Chunker + Qwen3 Embedding",
+        audioRagCopy: "Splits ASR output into audio_transcript chunks and builds vectors for later LLM queries.",
         videoTitle: "Video Content Analysis",
-        videoEngine: "YOLO Video/Object Detection",
-        videoCopy: "Keeps the video file and waits for YOLO weights or a video analysis service before producing detections.",
+        videoEngine: "Selected Video Model",
+        videoCopy: "Calls the selected local YOLO frame detection path, or waits for cloud video analysis API setup.",
+        videoRagTitle: "Video Result RAG Index",
+        videoRagEngine: "Detection Chunker + Qwen3 Embedding",
+        videoRagCopy: "Stores timestamps, detected objects, confidence scores, and frame previews, then builds searchable vectors.",
         llmTitle: "Document Q&A",
-        llmEngine: "RAG Retriever + Selected LLM",
-        llmCopy: "Retrieves document_chunks, builds a prompt from matching pages, then calls the selected model.",
+        llmEngine: "75% vector similarity + 25% keywords",
+        llmCopy: "Ranks chunks with a Qwen3 query vector and multilingual keywords, then sends matched pages to the selected model.",
       },
+    },
+    models: {
+      addModel: "Add Model",
+      eyebrow: "NAS Model Registry",
+      title: "Add Local Model",
+      copy: "The model is stored in the NAS registry first and appears in work selectors only after file, runtime, or API validation.",
+      type: "Model Type",
+      typeWhisper: "whisper.cpp speech model",
+      typeYolo: "YOLO video model",
+      typeLlm: "OpenAI-compatible local LLM",
+      name: "Display Name",
+      namePlaceholder: "Example: Whisper medium",
+      slug: "Model Identifier (optional)",
+      slugPlaceholder: "Example: whisper-medium",
+      recommendation: "Usage Note (optional)",
+      recommendationPlaceholder: "Example: long Chinese meetings",
+      fileName: "NAS Model Filename",
+      filePlaceholder: "ggml-medium.bin",
+      downloadUrl: "Trusted Download URL (optional)",
+      downloadUrlPlaceholder: "https://huggingface.co/...",
+      expectedSize: "Expected Size MB (optional)",
+      sha256: "SHA256 (optional)",
+      apiBase: "Loopback API Base URL",
+      modelAlias: "API Model Alias",
+      contextTokens: "Input Limit in Tokens",
+      supportsTokenize: "Endpoint supports /tokenize",
+      securityHint: "Downloads are restricted to Hugging Face or GitHub HTTPS. LLM endpoints must use NAS loopback.",
+      create: "Create Registry Entry",
+      customBadge: "Custom",
+      test: "Test",
+      remove: "Remove Entry",
+      saved: "Model saved in the NAS registry",
+      testReady: "Model validation passed and is available in work selectors",
+      testIncomplete: "The model file is complete, but its runtime is not ready",
+      removed: "Registry entry removed; the NAS model file was preserved",
+      removeConfirm: "Remove this model registry entry? The model file on the NAS will not be deleted.",
+      actionFailed: "Custom model action failed",
     },
     meetings: {
       eyebrow: "NAS Index Search",
@@ -596,6 +1082,10 @@ const messages = {
       emptyList: "No meeting records yet",
       emptyDetail: "Select a NAS meeting asset to review audio and transcript",
       waitingExcerpt: "Transcript will appear after processing finishes",
+      transcriptTitle: "Source Transcript",
+      translationTitle: "Translation",
+      translationPending: "Translation starts after transcription is complete.",
+      translationFailed: "Translation failed: {error}",
       processingText: "Transcription is processing. Please wait.",
       failedText: "Processing failed",
       sourceNas: "NAS Discovery",
@@ -606,13 +1096,18 @@ const messages = {
       copy: "Choose a mainstream LLM for NAS meeting summaries, Q&A, or audit tests. The demo shows public pricing and prompts for the provider API key when needed.",
       providerLabel: "Provider",
       modelLabel: "Model",
+      executionLabel: "Execution Location",
+      localModels: "Local NAS",
+      cloudModels: "Cloud API",
       loading: "Loading...",
       allProviders: "All Providers",
       selectProviderFirst: "Select a provider first",
       selectModel: "Select a model",
       configureKey: "Set API Key",
       keyNotSet: "API Key not set",
+      keyNotRequired: "No API key required for the local model",
       keyReady: "{provider} API Key is active for this session",
+      companyKeyReady: "The company API key is securely configured on the NAS server",
       emptyPricing: "Select a model to view pricing",
       sourcesEyebrow: "Pricing Sources",
       sourcesTitle: "Pricing Data Sources",
@@ -633,10 +1128,22 @@ const messages = {
       freeQuotaUnavailable: "No free quota listed",
       realCallNeedsKey: "This provider's free quota still requires an API key, so requests stay disabled until a key is set.",
       tryEyebrow: "Model Test",
+      setupTitle: "Model Setup and Pricing",
+      collapseSetup: "Collapse",
+      expandSetup: "Expand",
       promptLabel: "Prompt",
       promptPlaceholder: "Enter content to send to the selected model",
+      promptSearchHint: "Enter keywords, then search",
+      suggestionsLabel: "Similar Previous Questions",
+      suggestionCached: "NAS Cache",
+      suggestionHistory: "History",
       runModel: "Send",
+      forceRunModel: "Force Send",
+      forceRunHint: "Bypass the cache and call the model; charges may apply",
       useTitle: "Use {model}",
+      useSelectModel: "Select a model to begin",
+      useWaiting: "Waiting for model",
+      useLocalNas: "Local NAS GPU Model",
       useWithKey: "API Key Mode",
       useWithFreeQuota: "Free Real Model Mode",
       useNeedsKey: "API Key Required",
@@ -644,6 +1151,7 @@ const messages = {
       noAccess: "This model requires an API key. Set a key before sending.",
       responseTitle: "Model Response",
       responseFailed: "Model Call Failed",
+      cacheBypassed: "Cache bypassed",
       usageInput: "Input tokens",
       usageOutput: "Output tokens",
       usageTotal: "Total tokens",
@@ -681,6 +1189,7 @@ const messages = {
     },
     status: {
       processing: "Processing",
+      pending: "Pending",
       completed: "Completed",
       failed: "Failed",
       needs_model: "Needs Model",
@@ -720,22 +1229,49 @@ const state = {
   lang: localStorage.getItem("ai-work-lang") || "zh-Hant",
   llmCatalog: null,
   asrCatalog: null,
+  videoCatalog: null,
   localModels: null,
   localModelPollTimer: null,
+  selectedRecordAsrMode: "local",
+  selectedRecordAsrModelId: "local:whisper-cpp-small",
+  recordTranslationEnabled: false,
+  recordTranslationMode: "local",
+  recordTranslationModelId: "local:qwen3-4b",
+  recordTranslationTarget: "en",
+  lineGroups: [],
+  recordLinePushEnabled: false,
+  recordLineGroupId: "",
+  recordLineFullTranscript: false,
   selectedAsrMode: "local",
   selectedAsrModelId: "local:whisper-cpp-small",
-  selectedProvider: "",
-  selectedLlmId: "",
+  audioTranslationEnabled: false,
+  audioTranslationMode: "local",
+  audioTranslationModelId: "local:qwen3-4b",
+  audioTranslationTarget: "en",
+  selectedVideoMode: "local",
+  selectedVideoModelId: "local:yolov8n",
+  selectedLlmMode: "local",
+  selectedProvider: "Local NAS",
+  selectedLlmId: "local:qwen3-4b",
   selectedPricing: null,
   apiKeys: {},
   llmCalls: [],
+  llmSuggestions: [],
+  activeLlmSuggestion: -1,
+  llmSuggestionRequestId: 0,
   nasAssets: [],
   selectedAssetId: null,
   selectedAsset: null,
-  assetSelectedProvider: "",
-  assetSelectedLlmId: "",
+  assetSelectedLlmMode: "local",
+  assetSelectedProvider: "Local NAS",
+  assetSelectedLlmId: "local:qwen3-4b",
   assetSelectedPricing: null,
   keyModalPricing: null,
+  users: [],
+  passwordResetUserId: null,
+  lineAdminSources: [],
+  lineAdminModels: [],
+  lineServiceConnected: false,
 };
 
 const els = {
@@ -752,8 +1288,11 @@ const els = {
     dashboard: document.querySelector("#dashboardSection"),
     record: document.querySelector("#recordSection"),
     upload: document.querySelector("#uploadSection"),
+    models: document.querySelector("#modelsSection"),
     meetings: document.querySelector("#meetingsSection"),
     aiwork: document.querySelector("#aiworkSection"),
+    lineAdmin: document.querySelector("#lineAdminSection"),
+    accounts: document.querySelector("#accountsSection"),
   },
   totalMeetings: document.querySelector("#totalMeetings"),
   processingMeetings: document.querySelector("#processingMeetings"),
@@ -767,6 +1306,25 @@ const els = {
   recordPulse: document.querySelector("#recordPulse"),
   recordPreview: document.querySelector("#recordPreview"),
   recordHint: document.querySelector("#recordHint"),
+  recordAsrModeSelect: document.querySelector("#recordAsrModeSelect"),
+  recordAsrModelSelect: document.querySelector("#recordAsrModelSelect"),
+  recordAsrKeyField: document.querySelector("#recordAsrKeyField"),
+  recordAsrKeyLabel: document.querySelector("#recordAsrKeyLabel"),
+  recordAsrApiKeyInput: document.querySelector("#recordAsrApiKeyInput"),
+  recordAsrRecommendation: document.querySelector("#recordAsrRecommendation"),
+  recordTranslationToggle: document.querySelector("#recordTranslationToggle"),
+  recordTranslationControls: document.querySelector("#recordTranslationControls"),
+  recordTranslationTargetSelect: document.querySelector("#recordTranslationTargetSelect"),
+  recordTranslationModeSelect: document.querySelector("#recordTranslationModeSelect"),
+  recordTranslationModelSelect: document.querySelector("#recordTranslationModelSelect"),
+  recordTranslationKeyField: document.querySelector("#recordTranslationKeyField"),
+  recordTranslationApiKeyInput: document.querySelector("#recordTranslationApiKeyInput"),
+  recordTranslationRecommendation: document.querySelector("#recordTranslationRecommendation"),
+  recordLinePushToggle: document.querySelector("#recordLinePushToggle"),
+  recordLinePushControls: document.querySelector("#recordLinePushControls"),
+  recordLineGroupSelect: document.querySelector("#recordLineGroupSelect"),
+  recordLineFullTranscriptToggle: document.querySelector("#recordLineFullTranscriptToggle"),
+  recordLineStatus: document.querySelector("#recordLineStatus"),
   activityFeed: document.querySelector("#activityFeed"),
   meetingSearch: document.querySelector("#meetingSearch"),
   meetingList: document.querySelector("#meetingList"),
@@ -774,6 +1332,7 @@ const els = {
   toastHost: document.querySelector("#toastHost"),
   llmProviderSelect: document.querySelector("#llmProviderSelect"),
   llmModelSelect: document.querySelector("#llmModelSelect"),
+  llmModeButtons: [...document.querySelectorAll("[data-llm-mode]")],
   pricingPanel: document.querySelector("#pricingPanel"),
   providerSummary: document.querySelector("#providerSummary"),
   openKeyModalButton: document.querySelector("#openKeyModalButton"),
@@ -788,7 +1347,9 @@ const els = {
   modelUseTitle: document.querySelector("#modelUseTitle"),
   modelUseMode: document.querySelector("#modelUseMode"),
   llmPromptInput: document.querySelector("#llmPromptInput"),
+  llmPromptSuggestions: document.querySelector("#llmPromptSuggestions"),
   runModelButton: document.querySelector("#runModelButton"),
+  forceRunModelButton: document.querySelector("#forceRunModelButton"),
   modelResponseBox: document.querySelector("#modelResponseBox"),
   llmCallSearch: document.querySelector("#llmCallSearch"),
   llmCallHistory: document.querySelector("#llmCallHistory"),
@@ -798,9 +1359,43 @@ const els = {
   audioAsrModeSelect: document.querySelector("#audioAsrModeSelect"),
   audioAsrModelSelect: document.querySelector("#audioAsrModelSelect"),
   audioAsrKeyField: document.querySelector("#audioAsrKeyField"),
+  audioAsrKeyLabel: document.querySelector("#audioAsrKeyLabel"),
   audioAsrApiKeyInput: document.querySelector("#audioAsrApiKeyInput"),
+  audioAsrRecommendation: document.querySelector("#audioAsrRecommendation"),
+  audioTranslationToggle: document.querySelector("#audioTranslationToggle"),
+  audioTranslationControls: document.querySelector("#audioTranslationControls"),
+  audioTranslationTargetSelect: document.querySelector("#audioTranslationTargetSelect"),
+  audioTranslationModeSelect: document.querySelector("#audioTranslationModeSelect"),
+  audioTranslationModelSelect: document.querySelector("#audioTranslationModelSelect"),
+  audioTranslationKeyField: document.querySelector("#audioTranslationKeyField"),
+  audioTranslationApiKeyInput: document.querySelector("#audioTranslationApiKeyInput"),
+  audioTranslationRecommendation: document.querySelector("#audioTranslationRecommendation"),
+  videoModelModeSelect: document.querySelector("#videoModelModeSelect"),
+  videoModelSelect: document.querySelector("#videoModelSelect"),
+  videoApiKeyField: document.querySelector("#videoApiKeyField"),
+  videoApiKeyInput: document.querySelector("#videoApiKeyInput"),
   localModelList: document.querySelector("#localModelList"),
   refreshLocalModelsButton: document.querySelector("#refreshLocalModelsButton"),
+  addCustomModelButton: document.querySelector("#addCustomModelButton"),
+  customModelModal: document.querySelector("#customModelModal"),
+  customModelForm: document.querySelector("#customModelForm"),
+  closeCustomModelModal: document.querySelector("#closeCustomModelModal"),
+  cancelCustomModel: document.querySelector("#cancelCustomModel"),
+  customModelType: document.querySelector("#customModelType"),
+  customModelName: document.querySelector("#customModelName"),
+  customModelSlug: document.querySelector("#customModelSlug"),
+  customModelRecommendation: document.querySelector("#customModelRecommendation"),
+  customFileModelFields: document.querySelector("#customFileModelFields"),
+  customEndpointModelFields: document.querySelector("#customEndpointModelFields"),
+  customModelFile: document.querySelector("#customModelFile"),
+  customModelDownloadUrl: document.querySelector("#customModelDownloadUrl"),
+  customModelExpectedSize: document.querySelector("#customModelExpectedSize"),
+  customModelSha256: document.querySelector("#customModelSha256"),
+  customModelApiBase: document.querySelector("#customModelApiBase"),
+  customModelAlias: document.querySelector("#customModelAlias"),
+  customModelContext: document.querySelector("#customModelContext"),
+  customModelSupportsTokenize: document.querySelector("#customModelSupportsTokenize"),
+  customModelError: document.querySelector("#customModelError"),
   nasAssetSearch: document.querySelector("#nasAssetSearch"),
   nasAssetList: document.querySelector("#nasAssetList"),
   nasAssetDetail: document.querySelector("#nasAssetDetail"),
@@ -808,6 +1403,32 @@ const els = {
   closeNasUploadDialog: document.querySelector("#closeNasUploadDialog"),
   confirmNasUploadDialog: document.querySelector("#confirmNasUploadDialog"),
   nasUploadDialogMessage: document.querySelector("#nasUploadDialogMessage"),
+  accountNav: document.querySelector("#accountNav"),
+  lineAdminNav: document.querySelector("#lineAdminNav"),
+  lineGroupTotal: document.querySelector("#lineGroupTotal"),
+  lineGroupApproved: document.querySelector("#lineGroupApproved"),
+  lineMonthlyCalls: document.querySelector("#lineMonthlyCalls"),
+  lineMonthlyTokens: document.querySelector("#lineMonthlyTokens"),
+  refreshLineAdmin: document.querySelector("#refreshLineAdmin"),
+  lineServiceNotice: document.querySelector("#lineServiceNotice"),
+  lineAdminList: document.querySelector("#lineAdminList"),
+  accountTotal: document.querySelector("#accountTotal"),
+  accountActive: document.querySelector("#accountActive"),
+  accountAdmins: document.querySelector("#accountAdmins"),
+  accountCreateForm: document.querySelector("#accountCreateForm"),
+  newAccountUsername: document.querySelector("#newAccountUsername"),
+  newAccountPassword: document.querySelector("#newAccountPassword"),
+  newAccountRole: document.querySelector("#newAccountRole"),
+  accountFormError: document.querySelector("#accountFormError"),
+  accountSearch: document.querySelector("#accountSearch"),
+  accountList: document.querySelector("#accountList"),
+  passwordResetModal: document.querySelector("#passwordResetModal"),
+  closePasswordReset: document.querySelector("#closePasswordReset"),
+  cancelPasswordReset: document.querySelector("#cancelPasswordReset"),
+  confirmPasswordReset: document.querySelector("#confirmPasswordReset"),
+  passwordResetAccount: document.querySelector("#passwordResetAccount"),
+  passwordResetInput: document.querySelector("#passwordResetInput"),
+  passwordResetError: document.querySelector("#passwordResetError"),
 };
 
 function t(key, replacements = {}) {
@@ -840,6 +1461,7 @@ function applyLanguage(lang) {
   els.langOptions.forEach((button) => button.classList.toggle("active", button.dataset.lang === state.lang));
   els.viewTitle.textContent = t(`nav.${currentViewName()}`);
   updateRecordingUi(state.recordMode);
+  updateRecordingAvailability();
   renderMeetingList();
   if (state.selectedMeetingId) {
     selectMeeting(state.selectedMeetingId);
@@ -850,11 +1472,23 @@ function applyLanguage(lang) {
   renderPricingPanel();
   renderKeyStatus();
   renderModelUsePanel();
+  renderLlmSuggestions();
   renderLlmCallHistory();
   renderNasAssetList();
   renderNasAssetDetail();
+  renderRecordingAsrControls();
   renderAsrControls();
+  renderTranslationControls("record");
+  renderTranslationControls("audio");
+  renderLinePushControls();
+  renderVideoControls();
   renderLocalModelManager();
+  renderLineAdmin();
+  renderAccountList();
+  if (state.passwordResetUserId) {
+    const resetUser = state.users.find((user) => user.id === state.passwordResetUserId);
+    if (resetUser) els.passwordResetAccount.textContent = t("accounts.resetFor", { username: resetUser.username });
+  }
   if (!els.apiKeyModal.hidden) renderKeyModal();
   if (state.user) renderCurrentUser();
 }
@@ -892,21 +1526,31 @@ async function showApp() {
   els.loginView.hidden = true;
   els.appView.hidden = false;
   renderCurrentUser();
+  els.accountNav.hidden = state.user.role !== "admin";
+  els.lineAdminNav.hidden = state.user.role !== "admin";
+  els.addCustomModelButton.hidden = state.user.role !== "admin";
   switchView("dashboard");
   connectWebSocket();
   await loadMeetings();
   await loadLlmCatalog();
   await loadAsrCatalog();
+  await loadVideoCatalog();
   await loadLocalModels();
+  await loadLineGroups();
   await loadLlmCalls();
   await loadNasAssets();
+  if (state.user.role === "admin") {
+    await loadLineAdmin();
+    await loadAccounts();
+  }
 }
 
 function renderCurrentUser() {
-  els.currentUser.textContent = `${state.user.username} · ${state.user.role}`;
+  els.currentUser.textContent = `${state.user.username} · ${t(`accounts.roles.${state.user.role}`)}`;
 }
 
 function switchView(name) {
+  if (["lineAdmin", "accounts"].includes(name) && state.user?.role !== "admin") name = "dashboard";
   Object.entries(els.sections).forEach(([key, section]) => {
     section.hidden = key !== name;
   });
@@ -914,6 +1558,9 @@ function switchView(name) {
   els.viewTitle.textContent = t(`nav.${name}`);
   if (name === "meetings") loadMeetings();
   if (name === "upload") loadNasAssets();
+  if (name === "models") loadLocalModels();
+  if (name === "lineAdmin") loadLineAdmin();
+  if (name === "accounts") loadAccounts();
 }
 
 function currentViewName() {
@@ -930,20 +1577,318 @@ async function loadMeetings() {
   renderMeetingList();
 }
 
+async function loadLineGroups() {
+  try {
+    const result = await api("/api/line/groups");
+    state.lineGroups = result.groups || [];
+    if (!state.lineGroups.some((group) => group.id === state.recordLineGroupId)) {
+      state.recordLineGroupId = state.lineGroups[0]?.id || "";
+    }
+  } catch {
+    state.lineGroups = [];
+    state.recordLineGroupId = "";
+  }
+  renderLinePushControls();
+}
+
+async function loadLineAdmin() {
+  if (state.user?.role !== "admin") return;
+  const result = await api("/api/admin/line/sources");
+  state.lineAdminSources = result.sources || [];
+  state.lineAdminModels = result.models || [];
+  state.lineServiceConnected = Boolean(result.service_connected);
+  renderLineAdmin();
+}
+
+function renderLineAdmin() {
+  if (!els.lineAdminList || state.user?.role !== "admin") return;
+  const sources = state.lineAdminSources;
+  const totalCalls = sources.reduce((sum, source) => sum + Number(source.monthly_call_count || 0), 0);
+  const totalTokens = sources.reduce((sum, source) => sum + Number(source.monthly_token_count || 0), 0);
+  els.lineGroupTotal.textContent = sources.length;
+  els.lineGroupApproved.textContent = sources.filter((source) => Boolean(source.is_approved)).length;
+  els.lineMonthlyCalls.textContent = formatCompactNumber(totalCalls);
+  els.lineMonthlyTokens.textContent = formatCompactNumber(totalTokens);
+  els.lineServiceNotice.className = `line-service-notice ${state.lineServiceConnected ? "ready" : "unavailable"}`;
+  els.lineServiceNotice.textContent = t(state.lineServiceConnected ? "lineAdmin.serviceReady" : "lineAdmin.serviceUnavailable");
+
+  if (!sources.length) {
+    els.lineAdminList.innerHTML = `<div class="empty-state compact">${escapeHtml(t("lineAdmin.empty"))}</div>`;
+    return;
+  }
+
+  els.lineAdminList.innerHTML = sources.map((source) => {
+    const approved = Boolean(source.is_approved);
+    const callCount = Number(source.monthly_call_count || 0);
+    const tokenCount = Number(source.monthly_token_count || 0);
+    const callLimit = Number(source.monthly_call_limit || 0);
+    const tokenLimit = Number(source.monthly_token_limit || 0);
+    const modelOptions = state.lineAdminModels.map((model) => {
+      const mode = model.access_mode === "local_nas" ? t("lineAdmin.localModel") : t("lineAdmin.companyApi");
+      return `<option value="${escapeHtml(model.id)}" ${model.id === source.default_model_id ? "selected" : ""}>${escapeHtml(mode)} · ${escapeHtml(model.provider)} · ${escapeHtml(model.name)}</option>`;
+    }).join("");
+    return `
+      <article class="line-group-card ${approved ? "approved" : "pending"}" data-line-source-id="${source.id}">
+        <div class="line-group-header">
+          <div>
+            <span class="line-group-status">${escapeHtml(t(approved ? "lineAdmin.approved" : "lineAdmin.pending"))}</span>
+            <h4>${escapeHtml(source.display_name || source.source_id)}</h4>
+          </div>
+          <div class="line-group-meta">
+            <span>${escapeHtml(t("lineAdmin.documents"))}: <strong>${source.document_count}</strong></span>
+            <span>${escapeHtml(t("lineAdmin.usage"))}: <strong>${formatCompactNumber(callCount)} / ${callLimit ? formatCompactNumber(callLimit) : "∞"}</strong> · <strong>${formatCompactNumber(tokenCount)} / ${tokenLimit ? formatCompactNumber(tokenLimit) : "∞"} Token</strong></span>
+          </div>
+        </div>
+        <div class="line-group-reference">
+          <span>${escapeHtml(t("lineAdmin.groupId"))}: ${escapeHtml(source.source_id)}</span>
+          <span>${escapeHtml(t("lineAdmin.owner"))}: ${escapeHtml(source.owner_username)}</span>
+        </div>
+        <div class="line-policy-switches">
+          <label><input type="checkbox" data-line-approved ${approved ? "checked" : ""} /><span>${escapeHtml(t("lineAdmin.approve"))}</span></label>
+          <label><input type="checkbox" data-line-pdf-summary ${source.auto_pdf_summary ? "checked" : ""} /><span>${escapeHtml(t("lineAdmin.pdfSummary"))}</span></label>
+          <label><input type="checkbox" data-line-rag ${source.rag_queries_enabled ? "checked" : ""} /><span>${escapeHtml(t("lineAdmin.ragQueries"))}</span></label>
+        </div>
+        <div class="line-policy-grid">
+          <label>
+            <span>${escapeHtml(t("lineAdmin.model"))}</span>
+            <select data-line-model>${modelOptions}</select>
+          </label>
+          <label>
+            <span>${escapeHtml(t("lineAdmin.callLimit"))}</span>
+            <input data-line-call-limit type="number" min="0" max="1000000" step="1" value="${callLimit}" />
+          </label>
+          <label>
+            <span>${escapeHtml(t("lineAdmin.tokenLimit"))}</span>
+            <input data-line-token-limit type="number" min="0" max="1000000000" step="1000" value="${tokenLimit}" />
+          </label>
+          <button class="primary-button" type="button" data-line-action="save">${escapeHtml(t("lineAdmin.save"))}</button>
+        </div>
+        <small class="line-policy-hint">${escapeHtml(t("lineAdmin.unlimitedHint"))}</small>
+      </article>
+    `;
+  }).join("");
+}
+
+function formatCompactNumber(value) {
+  return new Intl.NumberFormat(state.lang, { notation: value >= 10000 ? "compact" : "standard", maximumFractionDigits: 1 }).format(value);
+}
+
+async function saveLineSourcePolicy(button) {
+  const card = button.closest("[data-line-source-id]");
+  if (!card) return;
+  button.disabled = true;
+  try {
+    await api(`/api/admin/line/sources/${card.dataset.lineSourceId}`, {
+      method: "PATCH",
+      body: JSON.stringify({
+        is_approved: card.querySelector("[data-line-approved]").checked,
+        auto_pdf_summary: card.querySelector("[data-line-pdf-summary]").checked,
+        rag_queries_enabled: card.querySelector("[data-line-rag]").checked,
+        default_model_id: card.querySelector("[data-line-model]").value,
+        monthly_call_limit: Number(card.querySelector("[data-line-call-limit]").value),
+        monthly_token_limit: Number(card.querySelector("[data-line-token-limit]").value),
+      }),
+    });
+    showToast(t("lineAdmin.saved"), t("nav.lineAdmin"));
+    await Promise.all([loadLineAdmin(), loadLineGroups()]);
+  } catch (error) {
+    showToast(error.message || t("lineAdmin.saveFailed"), t("lineAdmin.saveFailed"));
+    await loadLineAdmin();
+  } finally {
+    button.disabled = false;
+  }
+}
+
+async function loadAccounts() {
+  if (state.user?.role !== "admin") return;
+  state.users = await api("/api/admin/users");
+  renderAccountList();
+}
+
+function renderAccountList() {
+  if (!els.accountList || state.user?.role !== "admin") return;
+  els.accountTotal.textContent = state.users.length;
+  els.accountActive.textContent = state.users.filter((user) => Boolean(user.is_active)).length;
+  els.accountAdmins.textContent = state.users.filter((user) => user.role === "admin" && user.is_active).length;
+
+  const query = els.accountSearch.value.trim().toLocaleLowerCase();
+  const visibleUsers = query
+    ? state.users.filter((user) => `${user.username} ${user.role} ${t(`accounts.roles.${user.role}`)}`.toLocaleLowerCase().includes(query))
+    : state.users;
+
+  if (!visibleUsers.length) {
+    els.accountList.innerHTML = `<div class="empty-state compact">${escapeHtml(t("accounts.empty"))}</div>`;
+    return;
+  }
+
+  els.accountList.innerHTML = visibleUsers.map((user) => {
+    const isSelf = user.id === state.user.id;
+    const ownedRecords = Number(user.asset_count) + Number(user.meeting_count) + Number(user.llm_call_count);
+    const canDelete = !isSelf && user.role !== "admin" && ownedRecords === 0;
+    const lastLogin = user.last_login_at ? formatDate(user.last_login_at) : t("accounts.never");
+    const deleteTitle = canDelete ? t("accounts.delete") : t("accounts.protected");
+    return `
+      <article class="account-row ${user.is_active ? "" : "inactive"}" data-user-id="${user.id}">
+        <div class="account-identity">
+          <div class="account-avatar">${escapeHtml(user.username.slice(0, 2).toUpperCase())}</div>
+          <div>
+            <strong>${escapeHtml(user.username)}</strong>
+            ${isSelf ? `<span class="current-account-label">${escapeHtml(t("accounts.current"))}</span>` : ""}
+            <small>#${user.id} · ${escapeHtml(t("accounts.created"))} ${escapeHtml(formatDate(user.created_at))}</small>
+          </div>
+        </div>
+        <label class="account-role-field">
+          <span class="sr-only">${escapeHtml(t("accounts.role"))}</span>
+          <select data-account-role ${isSelf ? "disabled" : ""}>
+            <option value="user" ${user.role === "user" ? "selected" : ""}>${escapeHtml(t("accounts.roles.user"))}</option>
+            <option value="admin" ${user.role === "admin" ? "selected" : ""}>${escapeHtml(t("accounts.roles.admin"))}</option>
+          </select>
+        </label>
+        <label class="account-status-control">
+          <input type="checkbox" data-account-active ${user.is_active ? "checked" : ""} ${isSelf ? "disabled" : ""} />
+          <span>${escapeHtml(t(`accounts.statuses.${user.is_active ? "active" : "inactive"}`))}</span>
+        </label>
+        <div class="account-activity">
+          <strong>${escapeHtml(t("accounts.lastLogin"))}: ${escapeHtml(lastLogin)}</strong>
+          <small>${escapeHtml(t("accounts.records", {
+            assets: user.asset_count,
+            meetings: user.meeting_count,
+            calls: user.llm_call_count,
+          }))}</small>
+        </div>
+        <div class="account-actions">
+          <button class="secondary-button" type="button" data-account-action="save" ${isSelf ? "disabled" : ""}>${escapeHtml(t("accounts.save"))}</button>
+          <button class="secondary-button" type="button" data-account-action="reset">${escapeHtml(t("accounts.reset"))}</button>
+          <button class="danger-button" type="button" data-account-action="delete" title="${escapeHtml(deleteTitle)}" ${canDelete ? "" : "disabled"}>${escapeHtml(t("accounts.delete"))}</button>
+        </div>
+      </article>
+    `;
+  }).join("");
+}
+
+function accountErrorMessage(message) {
+  if (message === "Username already exists") return t("accounts.duplicate");
+  if (message.includes("Username must be")) return t("accounts.invalidUsername");
+  if (message.includes("Password must be")) return t("accounts.invalidPassword");
+  if (message.includes("cannot deactivate")) return t("accounts.selfProtection");
+  if (message.includes("owns NAS records")) return t("accounts.ownsRecords");
+  return t("accounts.operationFailed");
+}
+
+function openPasswordReset(userId) {
+  const user = state.users.find((item) => item.id === userId);
+  if (!user) return;
+  state.passwordResetUserId = userId;
+  els.passwordResetAccount.textContent = t("accounts.resetFor", { username: user.username });
+  els.passwordResetInput.value = "";
+  els.passwordResetError.textContent = "";
+  els.passwordResetModal.hidden = false;
+  window.setTimeout(() => els.passwordResetInput.focus(), 0);
+}
+
+function closePasswordReset() {
+  state.passwordResetUserId = null;
+  els.passwordResetInput.value = "";
+  els.passwordResetError.textContent = "";
+  els.passwordResetModal.hidden = true;
+}
+
+async function resetSelectedAccountPassword() {
+  const userId = state.passwordResetUserId;
+  const password = els.passwordResetInput.value;
+  if (!userId || password.length < 8 || password.length > 128) {
+    els.passwordResetError.textContent = t("accounts.invalidPassword");
+    return;
+  }
+  try {
+    await api(`/api/admin/users/${userId}/reset-password`, {
+      method: "POST",
+      body: JSON.stringify({ password }),
+    });
+    closePasswordReset();
+    showToast(t("accounts.resetSuccess"), t("nav.accounts"));
+    if (userId === state.user.id) {
+      state.user = null;
+      showLogin();
+      return;
+    }
+    await loadAccounts();
+  } catch (error) {
+    els.passwordResetError.textContent = accountErrorMessage(error.message);
+  }
+}
+
+async function handleAccountAction(button) {
+  const row = button.closest("[data-user-id]");
+  const userId = Number(row?.dataset.userId);
+  const user = state.users.find((item) => item.id === userId);
+  if (!user) return;
+
+  if (button.dataset.accountAction === "reset") {
+    openPasswordReset(userId);
+    return;
+  }
+
+  try {
+    if (button.dataset.accountAction === "save") {
+      await api(`/api/admin/users/${userId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          role: row.querySelector("[data-account-role]").value,
+          is_active: row.querySelector("[data-account-active]").checked,
+        }),
+      });
+      showToast(t("accounts.updatedSuccess"), t("nav.accounts"));
+    }
+    if (button.dataset.accountAction === "delete") {
+      if (!window.confirm(t("accounts.confirmDelete", { username: user.username }))) return;
+      await api(`/api/admin/users/${userId}`, { method: "DELETE" });
+      showToast(t("accounts.deletedSuccess"), t("nav.accounts"));
+    }
+    await loadAccounts();
+  } catch (error) {
+    showToast(accountErrorMessage(error.message), t("accounts.operationFailed"));
+    await loadAccounts();
+  }
+}
+
 async function loadLlmCatalog() {
   state.llmCatalog = await api("/api/llm/models");
+  const selectedModelExists = state.llmCatalog.models.some(
+    (model) => model.id === state.selectedLlmId && model.execution === state.selectedLlmMode
+  );
+  if (!selectedModelExists) {
+    const fallback = defaultLlmModelForMode(state.selectedLlmMode);
+    state.selectedProvider = fallback?.provider || "";
+    state.selectedLlmId = fallback?.id || "";
+  }
   renderLlmControls();
-  renderPricingPanel();
+  renderTranslationControls("record");
+  renderTranslationControls("audio");
+  if (state.selectedLlmId) {
+    await selectLlmModel(state.selectedLlmId);
+  } else {
+    renderPricingPanel();
+    renderKeyStatus();
+  }
 }
 
 async function loadAsrCatalog() {
   state.asrCatalog = await api("/api/asr/models");
+  renderRecordingAsrControls();
   renderAsrControls();
+}
+
+async function loadVideoCatalog() {
+  state.videoCatalog = await api("/api/video/models");
+  renderVideoControls();
 }
 
 async function loadLocalModels() {
   state.localModels = await api("/api/local-models");
   renderLocalModelManager();
+  renderRecordingAsrControls();
+  renderAsrControls();
   scheduleLocalModelPolling();
 }
 
@@ -1004,7 +1949,7 @@ function renderNasAssetDetail() {
   }
 
   const chunks = asset.chunks || [];
-  const canAsk = ["audio", "pdf", "docx"].includes(asset.category) && asset.chunk_count > 0;
+  const canAsk = ["audio", "video", "pdf", "docx", "image"].includes(asset.category) && asset.chunk_count > 0;
   els.nasAssetDetail.innerHTML = `
     <div class="asset-detail-header">
       <div>
@@ -1019,16 +1964,44 @@ function renderNasAssetDetail() {
       ${assetMeta(t("upload.fileSize"), formatBytes(asset.file_size))}
       ${assetMeta(t("upload.chunkCount"), asset.chunk_count)}
       ${asset.category === "audio" ? assetMeta(t("upload.selectedAsr"), selectedAsrLabel(asset)) : ""}
+      ${asset.category === "audio" && asset.processor_config?.translation_enabled ? assetMeta(t("upload.selectedTranslation"), selectedTranslationLabel(asset)) : ""}
+      ${asset.category === "video" ? assetMeta(t("upload.selectedVideo"), selectedVideoLabel(asset)) : ""}
     </div>
     <section class="asset-summary">
       <strong>${escapeHtml(t("upload.summary"))}</strong>
       <p>${escapeHtml(asset.summary || asset.error_message || processingText(asset.status, asset.error_message))}</p>
     </section>
+    ${renderAiAnalysisHistory(asset.ai_analyses || [])}
     ${renderAssetProcessTimeline(asset, chunks)}
     ${chunks.length ? renderRagChunks(chunks) : ""}
     ${canAsk ? renderDocumentAskPanel() : `<div class="empty-state compact">${t("upload.noRag")}</div>`}
   `;
   renderAssetLlmControls();
+}
+
+function renderAiAnalysisHistory(analyses) {
+  if (!analyses.length) return "";
+  return `
+    <section class="ai-analysis-history">
+      <div>
+        <strong>${escapeHtml(t("upload.analysisHistoryTitle"))}</strong>
+        <p>${escapeHtml(t("upload.analysisHistoryCopy"))}</p>
+      </div>
+      <div class="ai-analysis-list">
+        ${analyses.map((analysis) => `
+          <article>
+            <div class="chunk-source-line">
+              <b>${escapeHtml(analysis.provider)} · ${escapeHtml(analysis.model_name)}</b>
+              <span>${escapeHtml(formatDate(analysis.created_at))}</span>
+            </div>
+            <strong>${escapeHtml(t("upload.analysisQuestion"))}</strong>
+            <p>${escapeHtml(analysis.question)}</p>
+            <pre>${escapeHtml(analysis.answer)}</pre>
+          </article>
+        `).join("")}
+      </div>
+    </section>
+  `;
 }
 
 function assetMeta(label, value) {
@@ -1041,14 +2014,46 @@ function selectedAsrLabel(asset) {
   return `${config.asr_provider || "ASR"} · ${config.asr_model}`;
 }
 
+function selectedVideoLabel(asset) {
+  const config = asset.processor_config || {};
+  if (!config.video_model) return asset.analyzer || "-";
+  return `${config.video_provider || "Video"} · ${config.video_model}`;
+}
+
+function selectedTranslationLabel(asset) {
+  const config = asset.processor_config || {};
+  return `${config.translation_provider || "LLM"} · ${config.translation_model || "-"} → ${translationTargetLabel(config.translation_target)}`;
+}
+
+function asrModelsForMode(mode) {
+  return (state.asrCatalog?.models || []).filter((model) => {
+    return mode === "cloud" ? model.id.startsWith("cloud:") : model.id.startsWith("local:");
+  });
+}
+
+function renderRecordingAsrControls() {
+  if (!els.recordAsrModeSelect || !els.recordAsrModelSelect) return;
+  els.recordAsrModeSelect.value = state.selectedRecordAsrMode;
+  const models = asrModelsForMode(state.selectedRecordAsrMode);
+  els.recordAsrModelSelect.innerHTML = models
+    .map((model) => `<option value="${escapeHtml(model.id)}">${escapeHtml(model.name)}</option>`)
+    .join("");
+  if (!models.some((model) => model.id === state.selectedRecordAsrModelId)) {
+    state.selectedRecordAsrModelId = models[0]?.id || "";
+  }
+  els.recordAsrModelSelect.value = state.selectedRecordAsrModelId;
+  const selected = models.find((model) => model.id === state.selectedRecordAsrModelId);
+  els.recordAsrKeyField.hidden = !selected?.requires_api_key;
+  if (selected) els.recordAsrKeyLabel.textContent = selected.api_key_label || t("upload.asrKeyLabel");
+  renderAsrRecommendation(els.recordAsrRecommendation, selected);
+}
+
 function renderAsrControls() {
   if (!els.audioAsrModeSelect || !els.audioAsrModelSelect) return;
   els.audioAsrModeSelect.value = state.selectedAsrMode;
-  const models = (state.asrCatalog?.models || []).filter((model) => {
-    return state.selectedAsrMode === "cloud" ? model.id.startsWith("cloud:") : model.id.startsWith("local:");
-  });
+  const models = asrModelsForMode(state.selectedAsrMode);
   els.audioAsrModelSelect.innerHTML = models
-    .map((model) => `<option value="${escapeHtml(model.id)}">${escapeHtml(model.provider)} · ${escapeHtml(model.name)}</option>`)
+    .map((model) => `<option value="${escapeHtml(model.id)}">${escapeHtml(model.name)}</option>`)
     .join("");
   if (!models.some((model) => model.id === state.selectedAsrModelId)) {
     state.selectedAsrModelId = models[0]?.id || "";
@@ -1056,6 +2061,160 @@ function renderAsrControls() {
   els.audioAsrModelSelect.value = state.selectedAsrModelId;
   const selected = models.find((model) => model.id === state.selectedAsrModelId);
   els.audioAsrKeyField.hidden = !selected?.requires_api_key;
+  if (selected) els.audioAsrKeyLabel.textContent = selected.api_key_label || t("upload.asrKeyLabel");
+  renderAsrRecommendation(els.audioAsrRecommendation, selected);
+}
+
+function renderTranslationControls(surface) {
+  const isRecord = surface === "record";
+  const toggle = isRecord ? els.recordTranslationToggle : els.audioTranslationToggle;
+  const controls = isRecord ? els.recordTranslationControls : els.audioTranslationControls;
+  const targetSelect = isRecord ? els.recordTranslationTargetSelect : els.audioTranslationTargetSelect;
+  const modeSelect = isRecord ? els.recordTranslationModeSelect : els.audioTranslationModeSelect;
+  const modelSelect = isRecord ? els.recordTranslationModelSelect : els.audioTranslationModelSelect;
+  const keyField = isRecord ? els.recordTranslationKeyField : els.audioTranslationKeyField;
+  const recommendation = isRecord ? els.recordTranslationRecommendation : els.audioTranslationRecommendation;
+  if (!toggle || !controls || !targetSelect || !modeSelect || !modelSelect) return;
+
+  const enabled = isRecord ? state.recordTranslationEnabled : state.audioTranslationEnabled;
+  const mode = isRecord ? state.recordTranslationMode : state.audioTranslationMode;
+  const selectedId = isRecord ? state.recordTranslationModelId : state.audioTranslationModelId;
+  const target = isRecord ? state.recordTranslationTarget : state.audioTranslationTarget;
+  toggle.checked = enabled;
+  controls.hidden = !enabled;
+  targetSelect.value = target;
+  modeSelect.value = mode;
+
+  const models = llmModelsForMode(mode);
+  let currentId = selectedId;
+  if (!models.some((model) => model.id === currentId)) {
+    currentId = defaultLlmModelForMode(mode)?.id || "";
+    if (isRecord) state.recordTranslationModelId = currentId;
+    else state.audioTranslationModelId = currentId;
+  }
+  modelSelect.innerHTML = models
+    .map((model) => `<option value="${escapeHtml(model.id)}">${escapeHtml(model.provider)} · ${escapeHtml(model.name)}</option>`)
+    .join("");
+  modelSelect.value = currentId;
+  const selected = models.find((model) => model.id === currentId);
+  const needsKey = Boolean(selected?.free_tier?.requires_api_key_for_real_call);
+  keyField.hidden = !enabled || !needsKey;
+  renderTranslationRecommendation(recommendation, selected, target);
+}
+
+function renderLinePushControls() {
+  if (!els.recordLinePushToggle || !els.recordLinePushControls) return;
+  const hasGroups = state.lineGroups.length > 0;
+  if (!hasGroups) state.recordLinePushEnabled = false;
+  els.recordLinePushToggle.checked = state.recordLinePushEnabled;
+  els.recordLinePushToggle.disabled = !hasGroups;
+  els.recordLinePushControls.hidden = !state.recordLinePushEnabled;
+  els.recordLineGroupSelect.innerHTML = hasGroups
+    ? state.lineGroups.map((group) => (
+      `<option value="${escapeHtml(group.id)}">${escapeHtml(group.name)} · ${escapeHtml(t("record.lineMessages", { count: group.message_count }))}</option>`
+    )).join("")
+    : `<option value="">${escapeHtml(t("record.lineNoGroups"))}</option>`;
+  els.recordLineGroupSelect.value = state.recordLineGroupId;
+  els.recordLineFullTranscriptToggle.checked = state.recordLineFullTranscript;
+  els.recordLineStatus.textContent = hasGroups
+    ? t(state.recordLineFullTranscript ? "record.lineFullWarning" : "record.lineSummaryOnly")
+    : t("record.lineUnavailable");
+}
+
+function renderTranslationRecommendation(target, model, language) {
+  if (!target || !model) {
+    if (target) target.innerHTML = "";
+    return;
+  }
+  const local = model.execution === "local";
+  target.innerHTML = `
+    <div>
+      <strong>${escapeHtml(model.provider)} · ${escapeHtml(model.name)}</strong>
+      <span>${escapeHtml(translationTargetLabel(language))}</span>
+    </div>
+    <p>${escapeHtml(local ? t("record.translationLocalHint") : t("record.translationCloudHint", { provider: model.provider }))}</p>
+  `;
+}
+
+function translationTargetLabel(target) {
+  const keys = {
+    "zh-Hant": "zhHant",
+    en: "en",
+    "zh-Hans": "zhHans",
+    ja: "ja",
+    ko: "ko",
+    es: "es",
+    fr: "fr",
+    de: "de",
+  };
+  return t(`record.languages.${keys[target] || "en"}`);
+}
+
+function validateTranslationSelection(surface) {
+  const isRecord = surface === "record";
+  const enabled = isRecord ? state.recordTranslationEnabled : state.audioTranslationEnabled;
+  if (!enabled) return;
+  const modelId = isRecord ? state.recordTranslationModelId : state.audioTranslationModelId;
+  const keyInput = isRecord ? els.recordTranslationApiKeyInput : els.audioTranslationApiKeyInput;
+  const model = (state.llmCatalog?.models || []).find((item) => item.id === modelId);
+  if (!model) throw new Error(t("record.translationModelRequired"));
+  if (model.free_tier?.requires_api_key_for_real_call && !keyInput.value.trim()) {
+    throw new Error(t("record.translationKeyRequired", { model: model.name }));
+  }
+}
+
+function renderAsrRecommendation(target, model) {
+  if (!target) return;
+  if (!model) {
+    target.innerHTML = "";
+    return;
+  }
+  const localStatus = (state.localModels?.models || []).find((item) => item.id === model.id);
+  let readiness = t("record.asrCloud");
+  let readinessClass = "cloud";
+  if (model.id.startsWith("local:")) {
+    if (localStatus?.status === "downloading" || localStatus?.status === "cancelling") {
+      readiness = t("record.asrDownloading", { progress: String(localStatus.progress || 0) });
+      readinessClass = "downloading";
+    } else if (localStatus?.installed) {
+      readiness = t("record.asrReady");
+      readinessClass = "ready";
+    } else {
+      readiness = t("record.asrNotReady");
+      readinessClass = "not-ready";
+    }
+  }
+  const recommendation = state.lang === "en" ? model.recommendation_en : model.recommendation;
+  const languages = state.lang === "en" ? model.languages_en : model.languages;
+  const bestFor = state.lang === "en" ? model.recommended_for_en : model.recommended_for;
+  target.innerHTML = `
+    <div class="asr-recommendation-head">
+      <strong>${escapeHtml(model.provider)} · ${escapeHtml(model.name)}</strong>
+      <span class="asr-readiness ${readinessClass}">${escapeHtml(readiness)}</span>
+    </div>
+    <p>${escapeHtml(recommendation || "")}</p>
+    <div class="asr-recommendation-meta">
+      <span><b>${escapeHtml(t("record.asrLanguages"))}</b>${escapeHtml(languages || "-")}</span>
+      <span><b>${escapeHtml(t("record.asrBestFor"))}</b>${escapeHtml(bestFor || "-")}</span>
+    </div>
+  `;
+}
+
+function renderVideoControls() {
+  if (!els.videoModelModeSelect || !els.videoModelSelect) return;
+  els.videoModelModeSelect.value = state.selectedVideoMode;
+  const models = (state.videoCatalog?.models || []).filter((model) => {
+    return state.selectedVideoMode === "cloud" ? model.id.startsWith("cloud:") : model.id.startsWith("local:");
+  });
+  els.videoModelSelect.innerHTML = models
+    .map((model) => `<option value="${escapeHtml(model.id)}">${escapeHtml(model.provider)} · ${escapeHtml(model.name)}</option>`)
+    .join("");
+  if (!models.some((model) => model.id === state.selectedVideoModelId)) {
+    state.selectedVideoModelId = models[0]?.id || "";
+  }
+  els.videoModelSelect.value = state.selectedVideoModelId;
+  const selected = models.find((model) => model.id === state.selectedVideoModelId);
+  els.videoApiKeyField.hidden = !selected?.requires_api_key;
 }
 
 function renderLocalModelManager() {
@@ -1071,13 +2230,15 @@ function renderLocalModelManager() {
       const model = item.model || {};
       const progress = Number(item.progress || 0);
       const statusText = localModelStatusLabel(item.status);
-      const action = localModelAction(item);
       return `
         <article class="local-model-row">
           <div class="local-model-main">
             <div class="local-model-title-line">
               <strong>${escapeHtml(model.provider || "Local")} · ${escapeHtml(model.name || item.id)}</strong>
-              <span class="badge ${escapeHtml(item.status)}">${escapeHtml(statusText)}</span>
+              <div class="model-manager-actions">
+                ${model.custom_model ? `<span class="custom-badge">${escapeHtml(t("models.customBadge"))}</span>` : ""}
+                <span class="badge ${escapeHtml(item.status)}">${escapeHtml(statusText)}</span>
+              </div>
             </div>
             <div class="model-progress-track" aria-label="${escapeHtml(t("upload.modelProgress"))}">
               <span style="width: ${Math.max(0, Math.min(100, progress))}%"></span>
@@ -1086,12 +2247,14 @@ function renderLocalModelManager() {
               <span>${escapeHtml(t("upload.modelSize"))}: ${escapeHtml(formatModelBytes(item.downloaded_bytes, item.total_bytes))}</span>
               <span>${escapeHtml(item.runtime_installed ? t("upload.runtimeReady") : t("upload.runtimeMissing"))}</span>
               ${item.path ? `<span>${escapeHtml(t("upload.modelPath"))}: ${escapeHtml(item.path)}</span>` : ""}
+              ${model.custom_model ? `<span>${escapeHtml(localModelStatusLabel(item.validation_status))}</span>` : ""}
               ${item.setup_hint || item.setup_hint_key ? `<span>${escapeHtml(t("upload.modelSetupHint"))}: ${escapeHtml(localModelSetupHint(item))}</span>` : ""}
               ${item.error ? `<span class="error-line">${escapeHtml(item.error)}</span>` : ""}
+              ${item.validation_error && item.validation_error !== item.error ? `<span class="error-line">${escapeHtml(item.validation_error)}</span>` : ""}
             </div>
           </div>
           <div class="local-model-actions">
-            ${renderLocalModelActionButton(item, action)}
+            ${renderLocalModelActions(item)}
           </div>
         </article>
       `;
@@ -1133,6 +2296,19 @@ function renderLocalModelActionButton(item, action) {
   return `<button class="secondary-button compact-button" type="button" disabled>${escapeHtml(t("upload.noPanelDownload"))}</button>`;
 }
 
+function renderLocalModelActions(item) {
+  const custom = Boolean(item.model?.custom_model);
+  const canManage = state.user?.role === "admin";
+  const action = localModelAction(item);
+  const buttons = [];
+  if (action || !custom) buttons.push(renderLocalModelActionButton(item, action));
+  if (custom && canManage && item.status !== "downloading" && item.status !== "cancelling") {
+    buttons.push(`<button class="secondary-button compact-button" type="button" data-model-action="test" data-model-id="${escapeHtml(item.id)}">${escapeHtml(t("models.test"))}</button>`);
+    buttons.push(`<button class="danger-button compact-button" type="button" data-model-action="remove" data-model-id="${escapeHtml(item.id)}">${escapeHtml(t("models.remove"))}</button>`);
+  }
+  return buttons.join("");
+}
+
 function formatModelBytes(downloaded, total) {
   const left = formatBytes(downloaded || 0);
   return total ? `${left} / ${formatBytes(total)}` : left;
@@ -1152,6 +2328,14 @@ function scheduleLocalModelPolling() {
 }
 
 async function runLocalModelAction(modelId, action) {
+  if (action === "test") {
+    await testCustomModel(modelId);
+    return;
+  }
+  if (action === "remove") {
+    await removeCustomModel(modelId);
+    return;
+  }
   const endpoint = action === "retry" ? "retry" : action;
   try {
     await api(`/api/local-models/${encodeURIComponent(modelId)}/${endpoint}`, {
@@ -1161,6 +2345,87 @@ async function runLocalModelAction(modelId, action) {
     await loadLocalModels();
   } catch (error) {
     showToast(error.message, t("upload.modelActionFailed"));
+  }
+}
+
+function openCustomModelModal() {
+  els.customModelForm.reset();
+  els.customModelType.value = "whisper_cpp";
+  els.customModelApiBase.value = "http://127.0.0.1:8080";
+  els.customModelContext.value = "4096";
+  els.customModelError.textContent = "";
+  renderCustomModelFields();
+  els.customModelModal.hidden = false;
+  els.customModelName.focus();
+}
+
+function closeCustomModelModal() {
+  els.customModelModal.hidden = true;
+  els.customModelError.textContent = "";
+}
+
+function renderCustomModelFields() {
+  const isEndpoint = els.customModelType.value === "openai_compatible_llm";
+  els.customFileModelFields.hidden = isEndpoint;
+  els.customEndpointModelFields.hidden = !isEndpoint;
+  els.customModelFile.required = !isEndpoint;
+  els.customModelApiBase.required = isEndpoint;
+  els.customModelAlias.required = isEndpoint;
+  if (!isEndpoint) {
+    els.customModelFile.placeholder = els.customModelType.value === "yolo" ? "custom-yolo.pt" : t("models.filePlaceholder");
+  }
+}
+
+async function createCustomModel(event) {
+  event.preventDefault();
+  els.customModelError.textContent = "";
+  const isEndpoint = els.customModelType.value === "openai_compatible_llm";
+  const payload = {
+    model_type: els.customModelType.value,
+    name: els.customModelName.value.trim(),
+    slug: els.customModelSlug.value.trim(),
+    recommendation: els.customModelRecommendation.value.trim(),
+  };
+  if (isEndpoint) {
+    payload.api_base = els.customModelApiBase.value.trim();
+    payload.model_alias = els.customModelAlias.value.trim();
+    payload.max_input_tokens = Number(els.customModelContext.value);
+    payload.supports_tokenize = els.customModelSupportsTokenize.checked;
+  } else {
+    payload.model_file = els.customModelFile.value.trim();
+    payload.download_url = els.customModelDownloadUrl.value.trim();
+    payload.expected_size_mb = els.customModelExpectedSize.value ? Number(els.customModelExpectedSize.value) : null;
+    payload.sha256 = els.customModelSha256.value.trim();
+  }
+  try {
+    await api("/api/admin/models", { method: "POST", body: JSON.stringify(payload) });
+    closeCustomModelModal();
+    await loadLocalModels();
+    showToast(t("models.saved"), t("models.title"));
+  } catch (error) {
+    els.customModelError.textContent = error.message;
+  }
+}
+
+async function testCustomModel(modelId) {
+  try {
+    const result = await api(`/api/admin/models/${encodeURIComponent(modelId)}/test`, { method: "POST", body: "{}" });
+    await Promise.all([loadLocalModels(), loadAsrCatalog(), loadVideoCatalog(), loadLlmCatalog()]);
+    showToast(result.ok ? t("models.testReady") : t("models.testIncomplete"), t("models.title"));
+  } catch (error) {
+    await loadLocalModels();
+    showToast(error.message, t("models.actionFailed"));
+  }
+}
+
+async function removeCustomModel(modelId) {
+  if (!window.confirm(t("models.removeConfirm"))) return;
+  try {
+    await api(`/api/admin/models/${encodeURIComponent(modelId)}`, { method: "DELETE", body: "{}" });
+    await Promise.all([loadLocalModels(), loadAsrCatalog(), loadVideoCatalog(), loadLlmCatalog()]);
+    showToast(t("models.removed"), t("models.title"));
+  } catch (error) {
+    showToast(error.message, t("models.actionFailed"));
   }
 }
 
@@ -1232,23 +2497,45 @@ function assetProcessSteps(asset, chunks) {
     ];
   }
 
+  if (asset.category === "image") {
+    return [
+      ...baseSteps,
+      step(timeline.imageDecodeTitle, timeline.imageDecodeEngine, timeline.imageDecodeCopy, failed ? "blocked" : "done", failed ? blocked : done),
+      step(timeline.imageOcrTitle, timeline.imageOcrEngine, timeline.imageOcrCopy, hasOcr ? "done" : failed ? "blocked" : processing ? "active" : "pending", hasOcr ? done : failed ? blocked : processing ? active : pending),
+      step(timeline.ragTitle, timeline.ragEngine, timeline.ragCopy, asset.chunk_count > 0 ? "done" : failed ? "blocked" : "pending", asset.chunk_count > 0 ? done : failed ? blocked : pending),
+      step(timeline.llmTitle, timeline.llmEngine, timeline.llmCopy, asset.chunk_count > 0 ? "pending" : "blocked", asset.chunk_count > 0 ? pending : blocked),
+    ];
+  }
+
   if (asset.category === "audio") {
     const config = asset.processor_config || {};
     const asrEngine = config.asr_model ? `${config.asr_provider || "ASR"} · ${config.asr_model}` : timeline.audioEngine;
+    const hasTranslation = chunkTypes.has("audio_translation");
+    const translationEngine = config.translation_model
+      ? `${config.translation_provider || "LLM"} · ${config.translation_model} → ${translationTargetLabel(config.translation_target)}`
+      : timeline.translationEngine;
+    const translationSteps = config.translation_enabled
+      ? [step(timeline.translationTitle, translationEngine, timeline.translationCopy, hasTranslation ? "done" : completed || failed ? "blocked" : "pending", hasTranslation ? done : completed || failed ? blocked : pending)]
+      : [];
     return [
       ...baseSteps,
       step(timeline.audioNormalizeTitle, timeline.audioNormalizeEngine, timeline.audioNormalizeCopy, "pending", configured),
       step(timeline.vadTitle, timeline.vadEngine, timeline.vadCopy, "pending", configured),
       step(timeline.audioTitle, asrEngine, timeline.audioCopy, needsModel ? "blocked" : processing ? "active" : completed ? "done" : failed ? "blocked" : "pending", needsModel ? blocked : processing ? active : completed ? done : failed ? blocked : pending),
+      ...translationSteps,
       step(timeline.audioRagTitle, timeline.audioRagEngine, timeline.audioRagCopy, asset.chunk_count > 0 ? "done" : needsModel || failed ? "blocked" : "pending", asset.chunk_count > 0 ? done : needsModel || failed ? blocked : pending),
       step(timeline.llmTitle, timeline.llmEngine, timeline.llmCopy, asset.chunk_count > 0 ? "pending" : "blocked", asset.chunk_count > 0 ? pending : blocked),
     ];
   }
 
   if (asset.category === "video") {
+    const config = asset.processor_config || {};
+    const videoEngine = config.video_model ? `${config.video_provider || "Video"} · ${config.video_model}` : timeline.videoEngine;
     return [
       ...baseSteps,
-      step(timeline.videoTitle, timeline.videoEngine, timeline.videoCopy, needsModel ? "blocked" : processing ? "active" : completed ? "done" : failed ? "blocked" : "pending", needsModel ? blocked : processing ? active : completed ? done : failed ? blocked : pending),
+      step(timeline.videoTitle, videoEngine, timeline.videoCopy, needsModel ? "blocked" : processing ? "active" : completed ? "done" : failed ? "blocked" : "pending", needsModel ? blocked : processing ? active : completed ? done : failed ? blocked : pending),
+      step(timeline.videoRagTitle, timeline.videoRagEngine, timeline.videoRagCopy, asset.chunk_count > 0 ? "done" : needsModel || failed ? "blocked" : "pending", asset.chunk_count > 0 ? done : needsModel || failed ? blocked : pending),
+      step(timeline.llmTitle, timeline.llmEngine, timeline.llmCopy, asset.chunk_count > 0 ? "pending" : "blocked", asset.chunk_count > 0 ? pending : blocked),
     ];
   }
 
@@ -1292,6 +2579,10 @@ function renderDocumentAskPanel() {
         <h3>${escapeHtml(t("upload.questionTitle"))}</h3>
         <p>${escapeHtml(t("upload.questionCopy"))}</p>
       </div>
+      <div class="model-mode-switch compact" role="group" aria-label="${escapeHtml(t("aiwork.executionLabel"))}">
+        <button class="${state.assetSelectedLlmMode === "local" ? "active" : ""}" type="button" data-asset-llm-mode="local" aria-pressed="${state.assetSelectedLlmMode === "local"}">${escapeHtml(t("aiwork.localModels"))}</button>
+        <button class="${state.assetSelectedLlmMode === "cloud" ? "active" : ""}" type="button" data-asset-llm-mode="cloud" aria-pressed="${state.assetSelectedLlmMode === "cloud"}">${escapeHtml(t("aiwork.cloudModels"))}</button>
+      </div>
       <div class="llm-form-grid compact">
         <label>
           <span>${escapeHtml(t("aiwork.providerLabel"))}</span>
@@ -1324,20 +2615,37 @@ function renderAssetLlmControls() {
     return;
   }
 
+  document.querySelectorAll("[data-asset-llm-mode]").forEach((button) => {
+    const active = button.dataset.assetLlmMode === state.assetSelectedLlmMode;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+  const modeModels = llmModelsForMode(state.assetSelectedLlmMode);
+  const providers = [...new Set(modeModels.map((model) => model.provider))];
   providerSelect.innerHTML = [
     `<option value="">${t("aiwork.allProviders")}</option>`,
-    ...state.llmCatalog.providers.map((provider) => `<option value="${escapeHtml(provider.name)}">${escapeHtml(provider.name)}</option>`),
+    ...providers.map((provider) => `<option value="${escapeHtml(provider)}">${escapeHtml(provider)}</option>`),
   ].join("");
   providerSelect.value = state.assetSelectedProvider;
 
   const models = state.assetSelectedProvider
-    ? state.llmCatalog.models.filter((model) => model.provider === state.assetSelectedProvider)
-    : state.llmCatalog.models;
+    ? modeModels.filter((model) => model.provider === state.assetSelectedProvider)
+    : modeModels;
   modelSelect.innerHTML = [
     `<option value="">${t("aiwork.selectModel")}</option>`,
     ...models.map((model) => `<option value="${escapeHtml(model.id)}">${escapeHtml(model.provider)} · ${escapeHtml(model.name)}</option>`),
   ].join("");
   modelSelect.value = state.assetSelectedLlmId;
+}
+
+async function selectAssetLlmMode(mode) {
+  state.assetSelectedLlmMode = mode;
+  const fallback = defaultLlmModelForMode(mode);
+  state.assetSelectedProvider = fallback?.provider || "";
+  state.assetSelectedLlmId = fallback?.id || "";
+  state.assetSelectedPricing = null;
+  renderAssetLlmControls();
+  if (fallback) await selectAssetLlmModel(fallback.id);
 }
 
 async function selectAssetLlmModel(modelId) {
@@ -1346,7 +2654,7 @@ async function selectAssetLlmModel(modelId) {
   if (!modelId) return;
   state.assetSelectedPricing = await api(`/api/llm/pricing/${encodeURIComponent(modelId)}`);
   const model = state.assetSelectedPricing.model;
-  const hasKey = Boolean(state.apiKeys[providerKeyId(model.provider)]);
+  const hasKey = modelHasApiAccess(model);
   if (model.free_tier.requires_api_key_for_real_call && !hasKey) {
     openKeyModalForPricing(state.assetSelectedPricing);
   }
@@ -1359,12 +2667,32 @@ async function uploadNasAsset(event) {
     showToast(t("upload.uploadRequired"), t("toast.nasReceived"));
     return;
   }
+  const isAudio = file.type.startsWith("audio/") || /\.(wav|mp3|m4a|webm|ogg|flac|aac)$/i.test(file.name);
+  const selectedAsr = (state.asrCatalog?.models || []).find((model) => model.id === state.selectedAsrModelId);
+  if (isAudio && selectedAsr?.requires_api_key && !els.audioAsrApiKeyInput.value.trim()) {
+    showToast(t("record.asrKeyRequired", { model: selectedAsr.name }), t("upload.asrTitle"));
+    return;
+  }
+  if (isAudio) {
+    try {
+      validateTranslationSelection("audio");
+    } catch (error) {
+      showToast(error.message, t("upload.translationTitle"));
+      return;
+    }
+  }
 
   const formData = new FormData();
   formData.append("file", file);
   formData.append("title", els.nasAssetTitleInput.value.trim());
   formData.append("audio_model_id", state.selectedAsrModelId);
   formData.append("audio_api_key", els.audioAsrApiKeyInput.value.trim());
+  formData.append("audio_translation_enabled", String(state.audioTranslationEnabled));
+  formData.append("audio_translation_target", state.audioTranslationTarget);
+  formData.append("audio_translation_model_id", state.audioTranslationModelId);
+  formData.append("audio_translation_api_key", els.audioTranslationApiKeyInput.value.trim());
+  formData.append("video_model_id", state.selectedVideoModelId);
+  formData.append("video_api_key", els.videoApiKeyInput.value.trim());
   const response = await fetch("/api/nas-assets/upload", {
     method: "POST",
     credentials: "include",
@@ -1372,12 +2700,17 @@ async function uploadNasAsset(event) {
   });
 
   if (!response.ok) {
-    showToast(t("upload.uploadFailed"), t("toast.savedFailed"));
+    const error = await response.json().catch(() => ({ detail: t("upload.uploadFailed") }));
+    showToast(error.detail || t("upload.uploadFailed"), t("toast.savedFailed"));
     return;
   }
 
   const asset = await response.json();
   els.nasUploadForm.reset();
+  state.audioTranslationEnabled = false;
+  renderAsrControls();
+  renderTranslationControls("audio");
+  renderVideoControls();
   state.selectedAssetId = asset.id;
   showNasUploadDialog(asset);
   await loadNasAssets();
@@ -1413,7 +2746,7 @@ async function askSelectedAsset() {
     await selectAssetLlmModel(state.assetSelectedLlmId);
   }
   const model = state.assetSelectedPricing?.model;
-  const hasKey = model ? Boolean(state.apiKeys[providerKeyId(model.provider)]) : false;
+  const hasKey = modelHasApiAccess(model);
   const canUseFreeQuota = Boolean(model?.free_tier.available && !model.free_tier.requires_api_key_for_real_call);
   if (model && !hasKey && !canUseFreeQuota) {
     showToast(t("upload.modelNeedsKey"), model.provider);
@@ -1433,9 +2766,10 @@ async function askSelectedAsset() {
     answerBox.hidden = false;
     answerBox.classList.remove("error");
     answerBox.innerHTML = `
-      <strong>${escapeHtml(t("upload.answerTitle"))} · ${escapeHtml(result.model)}</strong>
+      <strong>${escapeHtml(t("upload.answerTitle"))} · ${escapeHtml(result.model)}${renderCacheHitLabel(result.cache)}</strong>
+      ${renderNasPersistenceNotice(result.nas_persistence)}
       <pre>${escapeHtml(result.answer)}</pre>
-      ${renderAnswerSources(result.contexts || [])}
+      ${renderAnswerSources(result.contexts || [], result.retrieval || {})}
     `;
     await loadLlmCalls();
   } catch (error) {
@@ -1446,11 +2780,27 @@ async function askSelectedAsset() {
   }
 }
 
-function renderAnswerSources(contexts) {
+function renderNasPersistenceNotice(persistence) {
+  if (!persistence?.saved) return "";
+  let message = persistence.created ? t("upload.analysisSaved") : t("upload.analysisAlreadySaved");
+  if (persistence.embedding_status === "pending") message = t("upload.analysisEmbeddingQueued");
+  return `<div class="nas-persistence-notice">${escapeHtml(message)}</div>`;
+}
+
+function renderCacheHitLabel(cache) {
+  if (cache?.bypassed) return ` · ${escapeHtml(t("aiwork.cacheBypassed"))}`;
+  if (!cache?.hit) return "";
+  const match = cache.match_type === "exact" ? t("upload.cacheExact") : t("upload.cacheSemantic");
+  const similarity = cache.similarity !== undefined ? ` ${cache.similarity}` : "";
+  return ` · ${escapeHtml(t("upload.cacheHit"))} (${escapeHtml(match)}${escapeHtml(similarity)})`;
+}
+
+function renderAnswerSources(contexts, retrieval) {
   if (!contexts.length) return "";
+  const retrievalLabel = retrieval.method === "hybrid" ? t("upload.retrievalHybrid") : t("upload.retrievalKeyword");
   return `
     <div class="answer-source-panel">
-      <strong>${escapeHtml(t("upload.answerSources"))}</strong>
+      <strong>${escapeHtml(t("upload.answerSources"))} · ${escapeHtml(retrievalLabel)}${retrieval.embedding_model ? ` · ${escapeHtml(retrieval.embedding_model)}` : ""}</strong>
       <div class="answer-source-list">
         ${contexts
           .map(
@@ -1460,6 +2810,9 @@ function renderAnswerSources(contexts) {
                   <b>#${escapeHtml(chunk.chunk_index)}</b>
                   ${chunk.page_number ? `<span>${escapeHtml(t("upload.page"))} ${escapeHtml(chunk.page_number)}</span>` : ""}
                   ${chunk.chunk_type ? `<span>${escapeHtml(t("upload.type"))} ${escapeHtml(chunk.chunk_type)}</span>` : ""}
+                  ${chunk.retrieval_score !== undefined ? `<span>${escapeHtml(t("upload.retrievalScore"))} ${escapeHtml(chunk.retrieval_score)}</span>` : ""}
+                  ${chunk.semantic_score !== null && chunk.semantic_score !== undefined ? `<span>${escapeHtml(t("upload.semanticScore"))} ${escapeHtml(chunk.semantic_score)}</span>` : ""}
+                  ${chunk.keyword_score !== undefined ? `<span>${escapeHtml(t("upload.keywordScore"))} ${escapeHtml(chunk.keyword_score)}</span>` : ""}
                 </div>
                 <p>${escapeHtml(chunk.content.slice(0, 220))}</p>
                 ${chunk.image_url ? `<img src="${escapeHtml(chunk.image_url)}" alt="${escapeHtml(t("upload.pagePreview"))}" loading="lazy" />` : ""}
@@ -1480,7 +2833,16 @@ function renderLlmControls() {
     return;
   }
 
-  const providers = state.llmCatalog.providers;
+  els.llmModeButtons.forEach((button) => {
+    const active = button.dataset.llmMode === state.selectedLlmMode;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+  const modeModels = llmModelsForMode(state.selectedLlmMode);
+  const providers = [...new Set(modeModels.map((model) => model.provider))].map((name) => ({
+    name,
+    model_count: modeModels.filter((model) => model.provider === name).length,
+  }));
   els.llmProviderSelect.innerHTML = [
     `<option value="">${t("aiwork.allProviders")}</option>`,
     ...providers.map((provider) => {
@@ -1499,15 +2861,41 @@ function renderLlmControls() {
   ].join("");
   els.llmModelSelect.value = state.selectedLlmId;
 
-  els.providerSummary.innerHTML = providers
+  els.providerSummary.innerHTML = state.llmCatalog.providers
     .map((provider) => `<span>${escapeHtml(provider.name)} · ${provider.model_count}</span>`)
     .join("");
 }
 
-function filteredLlmModels() {
+function llmModelsForMode(mode) {
   if (!state.llmCatalog) return [];
-  if (!state.selectedProvider) return state.llmCatalog.models;
-  return state.llmCatalog.models.filter((model) => model.provider === state.selectedProvider);
+  return state.llmCatalog.models.filter((model) => model.execution === mode);
+}
+
+function defaultLlmModelForMode(mode) {
+  const models = llmModelsForMode(mode);
+  const preferredId = mode === "local" ? "local:qwen3-4b" : "free:openai-fast";
+  return models.find((model) => model.id === preferredId) || models[0] || null;
+}
+
+function filteredLlmModels() {
+  const models = llmModelsForMode(state.selectedLlmMode);
+  if (!state.selectedProvider) return models;
+  return models.filter((model) => model.provider === state.selectedProvider);
+}
+
+async function selectLlmMode(mode) {
+  state.selectedLlmMode = mode;
+  const fallback = defaultLlmModelForMode(mode);
+  state.selectedProvider = fallback?.provider || "";
+  state.selectedLlmId = fallback?.id || "";
+  state.selectedPricing = null;
+  renderLlmControls();
+  if (fallback) {
+    await selectLlmModel(fallback.id);
+  } else {
+    renderPricingPanel();
+    renderKeyStatus();
+  }
 }
 
 async function selectLlmModel(modelId) {
@@ -1524,7 +2912,7 @@ async function selectLlmModel(modelId) {
   renderKeyStatus();
   renderModelUsePanel();
   const model = state.selectedPricing.model;
-  const hasKey = Boolean(state.apiKeys[providerKeyId(model.provider)]);
+  const hasKey = modelHasApiAccess(model);
   if (model.free_tier.requires_api_key_for_real_call && !hasKey) {
     openKeyModal();
   }
@@ -1560,7 +2948,7 @@ function renderPricingPanel() {
         <span>${escapeHtml(freeTierDescription(model))}</span>
         ${model.free_tier.requires_api_key_for_real_call ? `<small>${t("aiwork.realCallNeedsKey")}</small>` : ""}
       </div>
-      <p>${escapeHtml(model.note)}</p>
+      <p>${escapeHtml(modelNote(model))}</p>
       <a href="${escapeHtml(model.source_url)}" target="_blank" rel="noreferrer">${t("aiwork.source")}</a>
     </div>
   `;
@@ -1583,6 +2971,10 @@ function freeTierDescription(model) {
   return descriptions[model.provider] || descriptions.default;
 }
 
+function modelNote(model) {
+  return state.lang === "zh-Hant" ? model.note_zh_hant || model.note : model.note;
+}
+
 function freeTierLabel(model) {
   if (!model.free_tier.available) return t("aiwork.freeQuotaUnavailable");
   if (model.free_tier.requires_api_key_for_real_call) return t("aiwork.freeQuotaListed");
@@ -1598,9 +2990,20 @@ function renderKeyStatus() {
     return;
   }
 
+  if (!model.free_tier.requires_api_key_for_real_call) {
+    els.openKeyModalButton.disabled = true;
+    els.keyStatus.textContent = t("aiwork.keyNotRequired");
+    els.keyStatus.classList.add("ready");
+    renderModelUsePanel();
+    return;
+  }
+
   const providerKey = providerKeyId(model.provider);
   if (state.apiKeys[providerKey]) {
     els.keyStatus.textContent = t("aiwork.keyReady", { provider: model.provider });
+    els.keyStatus.classList.add("ready");
+  } else if (model.server_key_configured) {
+    els.keyStatus.textContent = t("aiwork.companyKeyReady");
     els.keyStatus.classList.add("ready");
   } else {
     els.keyStatus.textContent = t("aiwork.keyNotSet");
@@ -1612,22 +3015,30 @@ function renderKeyStatus() {
 function renderModelUsePanel() {
   const model = state.selectedPricing?.model;
   if (!model) {
-    els.modelUsePanel.hidden = true;
+    els.modelUsePanel.hidden = false;
+    els.modelUseTitle.textContent = t("aiwork.useSelectModel");
+    els.modelUseMode.textContent = t("aiwork.useWaiting");
+    els.modelUseMode.classList.remove("ready");
+    els.runModelButton.disabled = true;
+    els.forceRunModelButton.disabled = true;
     els.modelResponseBox.hidden = true;
     return;
   }
 
-  const hasKey = Boolean(state.apiKeys[providerKeyId(model.provider)]);
+  const hasKey = modelHasApiAccess(model);
   const canUseFreeQuota = Boolean(model.free_tier.available && !model.free_tier.requires_api_key_for_real_call);
   els.modelUsePanel.hidden = false;
   els.modelUseTitle.textContent = t("aiwork.useTitle", { model: model.name });
-  els.modelUseMode.textContent = hasKey
+  els.modelUseMode.textContent = model.provider === "Local NAS"
+    ? t("aiwork.useLocalNas")
+    : hasKey
     ? t("aiwork.useWithKey")
     : canUseFreeQuota
       ? t("aiwork.useWithFreeQuota")
       : t("aiwork.useNeedsKey");
   els.modelUseMode.classList.toggle("ready", hasKey || canUseFreeQuota);
   els.runModelButton.disabled = !hasKey && !canUseFreeQuota;
+  els.forceRunModelButton.disabled = !hasKey && !canUseFreeQuota;
 }
 
 function renderLlmCallHistory() {
@@ -1722,7 +3133,65 @@ function saveApiKeyForSession() {
   showToast(t("keyModal.saved"), model.provider);
 }
 
-async function runSelectedModel() {
+function hideLlmSuggestions() {
+  state.llmSuggestions = [];
+  state.activeLlmSuggestion = -1;
+  els.llmPromptSuggestions.hidden = true;
+  els.llmPromptSuggestions.innerHTML = "";
+  els.llmPromptInput.setAttribute("aria-expanded", "false");
+}
+
+function renderLlmSuggestions() {
+  if (!state.llmSuggestions.length) {
+    els.llmPromptSuggestions.hidden = true;
+    els.llmPromptInput.setAttribute("aria-expanded", "false");
+    return;
+  }
+  els.llmPromptSuggestions.innerHTML = state.llmSuggestions
+    .map((suggestion, index) => {
+      const active = index === state.activeLlmSuggestion;
+      const sourceLabel = suggestion.cached ? t("aiwork.suggestionCached") : t("aiwork.suggestionHistory");
+      return `
+        <button class="prompt-suggestion${active ? " active" : ""}" type="button" role="option"
+          aria-selected="${active}" data-suggestion-index="${index}">
+          <span>${escapeHtml(suggestion.prompt)}</span>
+          <small>${escapeHtml(sourceLabel)}</small>
+        </button>
+      `;
+    })
+    .join("");
+  els.llmPromptSuggestions.hidden = false;
+  els.llmPromptInput.setAttribute("aria-expanded", "true");
+}
+
+async function loadLlmSuggestions() {
+  const query = els.llmPromptInput.value.trim();
+  const modelId = state.selectedPricing?.model?.id;
+  const requestId = ++state.llmSuggestionRequestId;
+  if (query.length < 2 || !modelId) {
+    hideLlmSuggestions();
+    return;
+  }
+  try {
+    const result = await api(`/api/llm/suggestions?model_id=${encodeURIComponent(modelId)}&q=${encodeURIComponent(query)}`);
+    if (requestId !== state.llmSuggestionRequestId || query !== els.llmPromptInput.value.trim()) return;
+    state.llmSuggestions = result.suggestions || [];
+    state.activeLlmSuggestion = -1;
+    renderLlmSuggestions();
+  } catch {
+    if (requestId === state.llmSuggestionRequestId) hideLlmSuggestions();
+  }
+}
+
+function selectLlmSuggestion(index) {
+  const suggestion = state.llmSuggestions[index];
+  if (!suggestion) return;
+  els.llmPromptInput.value = suggestion.prompt;
+  hideLlmSuggestions();
+  els.llmPromptInput.focus();
+}
+
+async function runSelectedModel(forceRefresh = false) {
   const model = state.selectedPricing?.model;
   if (!model) return;
 
@@ -1732,7 +3201,7 @@ async function runSelectedModel() {
     return;
   }
 
-  const hasApiKey = Boolean(state.apiKeys[providerKeyId(model.provider)]);
+  const hasApiKey = modelHasApiAccess(model);
   const canUseFreeQuota = Boolean(model.free_tier.available && !model.free_tier.requires_api_key_for_real_call);
   if (!hasApiKey && !canUseFreeQuota) {
     showToast(t("aiwork.noAccess"), model.provider);
@@ -1740,7 +3209,9 @@ async function runSelectedModel() {
     return;
   }
 
+  hideLlmSuggestions();
   els.runModelButton.disabled = true;
+  els.forceRunModelButton.disabled = true;
   try {
     const result = await api("/api/llm/run", {
       method: "POST",
@@ -1748,12 +3219,13 @@ async function runSelectedModel() {
         model_id: model.id,
         prompt,
         api_key: state.apiKeys[providerKeyId(model.provider)] || "",
+        force_refresh: forceRefresh,
       }),
     });
     els.modelResponseBox.hidden = false;
     els.modelResponseBox.classList.remove("error");
     els.modelResponseBox.innerHTML = `
-      <strong>${t("aiwork.responseTitle")} · ${escapeHtml(result.model)}</strong>
+      <strong>${t("aiwork.responseTitle")} · ${escapeHtml(result.model)}${renderCacheHitLabel(result.cache)}</strong>
       <div class="llm-usage-grid inline">
         ${usageChip(t("aiwork.usageInput"), result.usage?.input_tokens)}
         ${usageChip(t("aiwork.usageOutput"), result.usage?.output_tokens)}
@@ -1782,6 +3254,11 @@ function providerKeyId(provider) {
   return provider.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-");
 }
 
+function modelHasApiAccess(model) {
+  if (!model) return false;
+  return Boolean(model.server_key_configured || state.apiKeys[providerKeyId(model.provider)]);
+}
+
 function renderMetrics() {
   els.totalMeetings.textContent = state.meetings.length;
   els.processingMeetings.textContent = state.meetings.filter((meeting) => meeting.status === "processing").length;
@@ -1804,7 +3281,7 @@ function renderMeetingList() {
             <strong>${escapeHtml(meeting.title)}</strong>
             <span class="badge ${meeting.status}">${statusLabel(meeting.status)}</span>
           </div>
-          <p>${sourceLabel(meeting.source)} · ${created}</p>
+          <p>${sourceLabel(meeting.source)} · ${created}${meeting.asr_model ? ` · ${escapeHtml(meeting.asr_model)}` : ""}</p>
           <p>${escapeHtml(excerpt)}</p>
         </button>
       `;
@@ -1824,9 +3301,55 @@ async function selectMeeting(id) {
       <span>${created}</span>
       <span>${escapeHtml(meeting.original_filename)}</span>
       <span class="badge ${meeting.status}">${statusLabel(meeting.status)}</span>
+      ${meeting.asr_model ? `<span>${escapeHtml(meeting.asr_provider || "ASR")} · ${escapeHtml(meeting.asr_model)}</span>` : ""}
+      ${meeting.translation_enabled ? `<span>${escapeHtml(meeting.translation_provider || "LLM")} · ${escapeHtml(meeting.translation_model || "-")} → ${escapeHtml(translationTargetLabel(meeting.translation_target))}</span>` : ""}
+      ${meeting.line_push_enabled ? `<span>LINE · ${escapeHtml(meeting.line_group_name || meeting.line_group_id)} · ${escapeHtml(statusLabel(meeting.line_push_status))}</span>` : ""}
     </div>
     <audio controls src="/api/meetings/${meeting.id}/audio"></audio>
-    <div class="transcript-box">${escapeHtml(meeting.transcript || processingText(meeting.status, meeting.error_message))}</div>
+    <section class="meeting-text-section">
+      <strong>${escapeHtml(t("meetings.transcriptTitle"))}</strong>
+      <div class="transcript-box">${escapeHtml(meeting.transcript || processingText(meeting.status, meeting.error_message))}</div>
+    </section>
+    ${renderMeetingTranslation(meeting)}
+    ${renderMeetingLinePush(meeting)}
+  `;
+}
+
+function renderMeetingTranslation(meeting) {
+  if (!meeting.translation_enabled) return "";
+  let content = meeting.translation;
+  if (!content && meeting.translation_status === "failed") {
+    content = t("meetings.translationFailed", { error: meeting.translation_error || t("aiwork.unknown") });
+  }
+  if (!content) content = t("meetings.translationPending");
+  return `
+    <section class="meeting-text-section translation-result-section">
+      <div class="meeting-text-heading">
+        <strong>${escapeHtml(t("meetings.translationTitle"))} · ${escapeHtml(translationTargetLabel(meeting.translation_target))}</strong>
+        <span class="badge ${escapeHtml(meeting.translation_status || "processing")}">${escapeHtml(statusLabel(meeting.translation_status === "disabled" ? "completed" : meeting.translation_status || "processing"))}</span>
+      </div>
+      <div class="transcript-box">${escapeHtml(content)}</div>
+    </section>
+  `;
+}
+
+function renderMeetingLinePush(meeting) {
+  if (!meeting.line_push_enabled) return "";
+  let content = meeting.line_summary;
+  if (!content && meeting.line_push_status === "failed") {
+    content = t("record.lineError", { error: meeting.line_push_error || t("aiwork.unknown") });
+  }
+  if (!content) content = t("record.lineWaiting");
+  const mode = meeting.line_push_full_transcript ? t("record.lineFullMode") : t("record.lineSummaryMode");
+  return `
+    <section class="meeting-text-section line-summary-section">
+      <div class="meeting-text-heading">
+        <strong>${escapeHtml(t("record.lineSummaryTitle"))} · ${escapeHtml(meeting.line_group_name || meeting.line_group_id)}</strong>
+        <span class="badge ${escapeHtml(meeting.line_push_status || "pending")}">${escapeHtml(statusLabel(meeting.line_push_status || "pending"))}</span>
+      </div>
+      <small>${escapeHtml(mode)}</small>
+      <div class="transcript-box">${escapeHtml(content)}</div>
+    </section>
   `;
 }
 
@@ -1869,6 +3392,18 @@ function closeWebSocket() {
 }
 
 async function startRecording() {
+  const availabilityError = recordingAvailabilityError();
+  if (availabilityError) throw new Error(availabilityError);
+  const model = (state.asrCatalog?.models || []).find((item) => item.id === state.selectedRecordAsrModelId);
+  if (!model) throw new Error(t("record.asrModelRequired"));
+  if (model.requires_api_key && !els.recordAsrApiKeyInput.value.trim()) {
+    throw new Error(t("record.asrKeyRequired", { model: model.name }));
+  }
+  validateTranslationSelection("record");
+  if (state.recordLinePushEnabled && !state.recordLineGroupId) {
+    throw new Error(t("record.lineGroupRequired"));
+  }
+
   const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
   const mimeType = MediaRecorder.isTypeSupported("audio/webm") ? "audio/webm" : "";
   state.mediaRecorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
@@ -1887,6 +3422,20 @@ async function startRecording() {
   state.mediaRecorder.start();
   updateRecordingUi("recording");
   startTimer();
+}
+
+function recordingAvailabilityError() {
+  if (!window.isSecureContext) return t("record.secureRequired");
+  if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+    return t("record.mediaUnavailable");
+  }
+  return "";
+}
+
+function updateRecordingAvailability() {
+  const availabilityError = recordingAvailabilityError();
+  els.recordHint.textContent = availabilityError ? t("record.secureHint") : t("record.hint");
+  els.recordHint.classList.toggle("error-text", Boolean(availabilityError));
 }
 
 function pauseRecording() {
@@ -1922,6 +3471,17 @@ async function uploadRecording() {
   const formData = new FormData();
   const timestamp = new Date().toISOString().slice(0, 19).replaceAll(":", "-");
   formData.append("title", els.meetingTitleInput.value.trim() || `${t("record.defaultTitle")} ${timestamp}`);
+  formData.append("asr_model_id", state.selectedRecordAsrModelId);
+  formData.append("asr_api_key", els.recordAsrApiKeyInput.value.trim());
+  formData.append("translation_enabled", String(state.recordTranslationEnabled));
+  formData.append("translation_target", state.recordTranslationTarget);
+  formData.append("translation_model_id", state.recordTranslationModelId);
+  formData.append("translation_api_key", els.recordTranslationApiKeyInput.value.trim());
+  const lineGroup = state.lineGroups.find((group) => group.id === state.recordLineGroupId);
+  formData.append("line_push_enabled", String(state.recordLinePushEnabled));
+  formData.append("line_group_id", state.recordLineGroupId);
+  formData.append("line_group_name", lineGroup?.name || "");
+  formData.append("line_push_full_transcript", String(state.recordLineFullTranscript));
   formData.append("audio", blob, `browser-recording-${timestamp}.webm`);
 
   const response = await fetch("/api/meetings/upload", {
@@ -1931,8 +3491,9 @@ async function uploadRecording() {
   });
 
   if (!response.ok) {
+    const error = await response.json().catch(() => ({ detail: t("record.uploadFailed") }));
     updateRecordingUi("idle");
-    showToast(t("record.uploadFailed"), t("toast.savedFailed"));
+    showToast(error.detail || t("record.uploadFailed"), t("toast.savedFailed"));
     return;
   }
 
@@ -1986,6 +3547,7 @@ function notificationTitle(type) {
   return {
     meeting_detected: t("toast.meetingDetected"),
     meeting_completed: t("toast.meetingCompleted"),
+    meeting_needs_model: t("toast.meetingFailed"),
     meeting_failed: t("toast.meetingFailed"),
     nas_asset_uploaded: t("toast.nasReceived"),
     nas_asset_processed: t("toast.nasProcessed"),
@@ -1998,6 +3560,7 @@ function notificationMessage(payload) {
   if (payload.type === "nas_asset_uploaded") return t("toast.assetUploaded", { title });
   if (payload.type === "nas_asset_processed" || payload.type === "nas_asset_failed") return t("toast.assetProcessed", { title });
   if (payload.type === "meeting_completed") return t("toast.completed", { title });
+  if (payload.type === "meeting_needs_model") return payload.message || t("toast.failed", { title });
   if (payload.type === "meeting_failed") return t("toast.failed", { title });
   if (payload.meeting?.source === "web_upload") return t("toast.uploaded", { title });
   return t("toast.detected", { title });
@@ -2012,7 +3575,7 @@ function sourceLabel(source) {
 }
 
 function processingText(status, error) {
-  if (status === "failed") return error || t("meetings.failedText");
+  if (status === "failed" || status === "needs_model") return error || t("meetings.failedText");
   return t("meetings.processingText");
 }
 
@@ -2081,6 +3644,82 @@ els.stopRecord.addEventListener("click", stopRecording);
 els.meetingSearch.addEventListener("input", debounce(loadMeetings, 220));
 els.llmCallSearch.addEventListener("input", debounce(loadLlmCalls, 220));
 els.nasAssetSearch.addEventListener("input", debounce(loadNasAssets, 220));
+els.accountSearch.addEventListener("input", renderAccountList);
+els.refreshLineAdmin.addEventListener("click", () => loadLineAdmin().catch((error) => showToast(error.message, t("lineAdmin.serviceUnavailable"))));
+els.lineAdminList.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-line-action='save']");
+  if (button && !button.disabled) saveLineSourcePolicy(button);
+});
+els.accountCreateForm.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  els.accountFormError.textContent = "";
+  try {
+    await api("/api/admin/users", {
+      method: "POST",
+      body: JSON.stringify({
+        username: els.newAccountUsername.value,
+        password: els.newAccountPassword.value,
+        role: els.newAccountRole.value,
+      }),
+    });
+    els.accountCreateForm.reset();
+    showToast(t("accounts.createdSuccess"), t("nav.accounts"));
+    await loadAccounts();
+  } catch (error) {
+    els.accountFormError.textContent = accountErrorMessage(error.message);
+  }
+});
+els.accountList.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-account-action]");
+  if (button && !button.disabled) handleAccountAction(button);
+});
+els.closePasswordReset.addEventListener("click", closePasswordReset);
+els.cancelPasswordReset.addEventListener("click", closePasswordReset);
+els.confirmPasswordReset.addEventListener("click", resetSelectedAccountPassword);
+els.passwordResetModal.addEventListener("click", (event) => {
+  if (event.target === els.passwordResetModal) closePasswordReset();
+});
+els.passwordResetInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") resetSelectedAccountPassword();
+});
+els.recordAsrModeSelect.addEventListener("change", () => {
+  state.selectedRecordAsrMode = els.recordAsrModeSelect.value;
+  state.selectedRecordAsrModelId = "";
+  renderRecordingAsrControls();
+});
+els.recordAsrModelSelect.addEventListener("change", () => {
+  state.selectedRecordAsrModelId = els.recordAsrModelSelect.value;
+  renderRecordingAsrControls();
+});
+els.recordTranslationToggle.addEventListener("change", () => {
+  state.recordTranslationEnabled = els.recordTranslationToggle.checked;
+  renderTranslationControls("record");
+});
+els.recordTranslationTargetSelect.addEventListener("change", () => {
+  state.recordTranslationTarget = els.recordTranslationTargetSelect.value;
+  renderTranslationControls("record");
+});
+els.recordTranslationModeSelect.addEventListener("change", () => {
+  state.recordTranslationMode = els.recordTranslationModeSelect.value;
+  state.recordTranslationModelId = defaultLlmModelForMode(state.recordTranslationMode)?.id || "";
+  renderTranslationControls("record");
+});
+els.recordTranslationModelSelect.addEventListener("change", () => {
+  state.recordTranslationModelId = els.recordTranslationModelSelect.value;
+  renderTranslationControls("record");
+});
+els.recordLinePushToggle.addEventListener("change", () => {
+  state.recordLinePushEnabled = els.recordLinePushToggle.checked;
+  renderLinePushControls();
+});
+els.recordLineGroupSelect.addEventListener("change", () => {
+  state.recordLineGroupId = els.recordLineGroupSelect.value;
+  renderLinePushControls();
+});
+els.recordLineFullTranscriptToggle.addEventListener("change", () => {
+  state.recordLineFullTranscript = els.recordLineFullTranscriptToggle.checked;
+  renderLinePushControls();
+});
 els.audioAsrModeSelect.addEventListener("change", () => {
   state.selectedAsrMode = els.audioAsrModeSelect.value;
   state.selectedAsrModelId = "";
@@ -2090,7 +3729,41 @@ els.audioAsrModelSelect.addEventListener("change", () => {
   state.selectedAsrModelId = els.audioAsrModelSelect.value;
   renderAsrControls();
 });
+els.audioTranslationToggle.addEventListener("change", () => {
+  state.audioTranslationEnabled = els.audioTranslationToggle.checked;
+  renderTranslationControls("audio");
+});
+els.audioTranslationTargetSelect.addEventListener("change", () => {
+  state.audioTranslationTarget = els.audioTranslationTargetSelect.value;
+  renderTranslationControls("audio");
+});
+els.audioTranslationModeSelect.addEventListener("change", () => {
+  state.audioTranslationMode = els.audioTranslationModeSelect.value;
+  state.audioTranslationModelId = defaultLlmModelForMode(state.audioTranslationMode)?.id || "";
+  renderTranslationControls("audio");
+});
+els.audioTranslationModelSelect.addEventListener("change", () => {
+  state.audioTranslationModelId = els.audioTranslationModelSelect.value;
+  renderTranslationControls("audio");
+});
+els.videoModelModeSelect.addEventListener("change", () => {
+  state.selectedVideoMode = els.videoModelModeSelect.value;
+  state.selectedVideoModelId = "";
+  renderVideoControls();
+});
+els.videoModelSelect.addEventListener("change", () => {
+  state.selectedVideoModelId = els.videoModelSelect.value;
+  renderVideoControls();
+});
 els.refreshLocalModelsButton.addEventListener("click", () => loadLocalModels().catch((error) => showToast(error.message, t("upload.modelActionFailed"))));
+els.addCustomModelButton.addEventListener("click", openCustomModelModal);
+els.closeCustomModelModal.addEventListener("click", closeCustomModelModal);
+els.cancelCustomModel.addEventListener("click", closeCustomModelModal);
+els.customModelType.addEventListener("change", renderCustomModelFields);
+els.customModelForm.addEventListener("submit", createCustomModel);
+els.customModelModal.addEventListener("click", (event) => {
+  if (event.target === els.customModelModal) closeCustomModelModal();
+});
 els.localModelList.addEventListener("click", (event) => {
   const button = event.target.closest("[data-model-action]");
   if (!button || button.disabled) return;
@@ -2117,11 +3790,23 @@ els.nasAssetDetail.addEventListener("change", (event) => {
   }
 });
 els.nasAssetDetail.addEventListener("click", (event) => {
+  const modeButton = event.target.closest("[data-asset-llm-mode]");
+  if (modeButton) {
+    selectAssetLlmMode(modeButton.dataset.assetLlmMode).catch((error) => showToast(error.message, t("errors.requestFailed")));
+    return;
+  }
   if (event.target.id === "askAssetButton") {
     askSelectedAsset().catch((error) => showToast(error.message, t("errors.requestFailed")));
   }
 });
+els.llmModeButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    hideLlmSuggestions();
+    selectLlmMode(button.dataset.llmMode).catch((error) => showToast(error.message, t("errors.requestFailed")));
+  });
+});
 els.llmProviderSelect.addEventListener("change", () => {
+  hideLlmSuggestions();
   state.selectedProvider = els.llmProviderSelect.value;
   state.selectedLlmId = "";
   state.selectedPricing = null;
@@ -2130,6 +3815,7 @@ els.llmProviderSelect.addEventListener("change", () => {
   renderKeyStatus();
 });
 els.llmModelSelect.addEventListener("change", () => {
+  hideLlmSuggestions();
   selectLlmModel(els.llmModelSelect.value).catch((error) => showToast(error.message, t("errors.requestFailed")));
 });
 els.openKeyModalButton.addEventListener("click", openKeyModal);
@@ -2137,6 +3823,42 @@ els.closeKeyModal.addEventListener("click", closeKeyModal);
 els.cancelKeyButton.addEventListener("click", closeKeyModal);
 els.saveKeyButton.addEventListener("click", saveApiKeyForSession);
 els.runModelButton.addEventListener("click", () => runSelectedModel().catch((error) => showToast(error.message, t("errors.requestFailed"))));
+els.forceRunModelButton.addEventListener("click", () => runSelectedModel(true).catch((error) => showToast(error.message, t("errors.requestFailed"))));
+els.llmPromptInput.addEventListener("input", debounce(loadLlmSuggestions, 220));
+els.llmPromptInput.addEventListener("focus", () => loadLlmSuggestions());
+els.llmPromptInput.addEventListener("keydown", (event) => {
+  if (!els.llmPromptSuggestions.hidden && event.key === "ArrowDown") {
+    event.preventDefault();
+    state.activeLlmSuggestion = Math.min(state.activeLlmSuggestion + 1, state.llmSuggestions.length - 1);
+    renderLlmSuggestions();
+    return;
+  }
+  if (!els.llmPromptSuggestions.hidden && event.key === "ArrowUp") {
+    event.preventDefault();
+    state.activeLlmSuggestion = Math.max(state.activeLlmSuggestion - 1, 0);
+    renderLlmSuggestions();
+    return;
+  }
+  if (event.key === "Escape") {
+    hideLlmSuggestions();
+    return;
+  }
+  if (event.key === "Enter" && !event.isComposing) {
+    event.preventDefault();
+    if (state.activeLlmSuggestion >= 0) {
+      selectLlmSuggestion(state.activeLlmSuggestion);
+      return;
+    }
+    runSelectedModel().catch((error) => showToast(error.message, t("errors.requestFailed")));
+  }
+});
+els.llmPromptSuggestions.addEventListener("click", (event) => {
+  const option = event.target.closest("[data-suggestion-index]");
+  if (option) selectLlmSuggestion(Number(option.dataset.suggestionIndex));
+});
+document.addEventListener("click", (event) => {
+  if (!event.target.closest(".prompt-input-wrap")) hideLlmSuggestions();
+});
 els.apiKeyModal.addEventListener("click", (event) => {
   if (event.target === els.apiKeyModal) closeKeyModal();
 });
@@ -2158,6 +3880,14 @@ function debounce(fn, delay) {
     window.clearTimeout(timer);
     timer = window.setTimeout(() => fn(...args), delay);
   };
+}
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js", { scope: "/" }).catch((error) => {
+      console.warn("PWA service worker registration failed", error);
+    });
+  });
 }
 
 bootstrap();
