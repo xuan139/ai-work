@@ -11,7 +11,7 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png" />
     <link rel="apple-touch-icon" href="/static/icons/icon-192.png" />
-    <link rel="stylesheet" href="/static/styles.css?v=line-enterprise-admin-v1" />
+    <link rel="stylesheet" href="/static/styles.css?v=system-prompt-v5" />
   </head>
   <body>
     <div id="toastHost" class="toast-host" aria-live="polite" aria-atomic="true"></div>
@@ -53,14 +53,21 @@
           </div>
         </div>
         <nav class="nav-list" aria-label="主導覽" data-i18n-attr="aria-label:sidebar.navLabel">
+          <button class="nav-item" type="button" data-view="aiwork">AI Work</button>
           <button class="nav-item active" type="button" data-view="dashboard" data-i18n="nav.dashboard">總覽</button>
           <button class="nav-item" type="button" data-view="record" data-i18n="nav.record">會議記錄</button>
           <button class="nav-item" type="button" data-view="upload" data-i18n="nav.upload">NAS 上傳</button>
-          <button class="nav-item" type="button" data-view="models" data-i18n="nav.models">模型管理</button>
-          <button class="nav-item" type="button" data-view="meetings" data-i18n="nav.meetings">資料庫查詢</button>
-          <button class="nav-item" type="button" data-view="aiwork">AI Work</button>
-          <button id="lineAdminNav" class="nav-item" type="button" data-view="lineAdmin" data-i18n="nav.lineAdmin" hidden>LINE 企業管理</button>
-          <button id="accountNav" class="nav-item" type="button" data-view="accounts" data-i18n="nav.accounts" hidden>帳號管理</button>
+          <button class="nav-item" type="button" data-view="network" data-i18n="nav.network">網路資料</button>
+          <button class="nav-item" type="button" data-view="meetings" data-i18n="nav.meetings" hidden>資料庫查詢</button>
+          <button id="settingsNav" class="nav-item nav-parent" type="button" aria-expanded="false" aria-controls="managementNavGroup">
+            <span data-i18n="nav.settings">設定與管理</span>
+          </button>
+          <div id="managementNavGroup" class="nav-submenu" hidden>
+            <button id="modelNav" class="nav-item nav-subitem" type="button" data-view="models" data-i18n="nav.models">模型管理</button>
+            <button id="mcpNav" class="nav-item nav-subitem" type="button" data-view="mcp" data-i18n="nav.mcp" hidden>MCP 管理</button>
+            <button id="lineAdminNav" class="nav-item nav-subitem" type="button" data-view="lineAdmin" data-i18n="nav.lineAdmin" hidden>LINE 企業管理</button>
+            <button id="accountNav" class="nav-item nav-subitem" type="button" data-view="accounts" data-i18n="nav.accounts" hidden>帳號管理</button>
+          </div>
         </nav>
         <div class="nas-panel">
           <span class="status-dot"></span>
@@ -95,20 +102,38 @@
               <p data-i18n="dashboard.copy">第一版聚焦會議資產進入系統後的完整鏈路：瀏覽器錄音上傳、NAS 檔案進入提醒、後台處理狀態，以及可搜尋的歷史會議記錄。</p>
             </div>
             <div class="metric-grid">
-              <article>
+              <button type="button" data-dashboard-meeting-status="all">
                 <span id="totalMeetings">0</span>
                 <strong data-i18n="metrics.total">會議記錄</strong>
-              </article>
-              <article>
+              </button>
+              <button type="button" data-dashboard-meeting-status="processing">
                 <span id="processingMeetings">0</span>
                 <strong data-i18n="metrics.processing">處理中</strong>
-              </article>
-              <article>
+              </button>
+              <button type="button" data-dashboard-meeting-status="completed">
                 <span id="completedMeetings">0</span>
                 <strong data-i18n="metrics.completed">已完成</strong>
-              </article>
+              </button>
             </div>
           </div>
+          <section class="dashboard-assets-panel">
+            <div class="dashboard-assets-head">
+              <div>
+                <p class="eyebrow" data-i18n="dashboardAssets.eyebrow">NAS 資產庫</p>
+                <h3 data-i18n="dashboardAssets.title">所有已上傳檔案</h3>
+                <p data-i18n="dashboardAssets.copy">依檔案大小顯示 audio、video、文件與圖片；點擊即可查看分析結果與重新處理。</p>
+              </div>
+              <button class="secondary-button" type="button" data-jump="upload" data-i18n="dashboardAssets.upload">上傳新檔案</button>
+            </div>
+            <div class="asset-filter-tabs" role="group" aria-label="資產類型" data-i18n-attr="aria-label:dashboardAssets.filterLabel">
+              <button class="active" type="button" data-dashboard-asset-filter="all" data-i18n="dashboardAssets.all">全部</button>
+              <button type="button" data-dashboard-asset-filter="audio" data-i18n="dashboardAssets.audio">Audio</button>
+              <button type="button" data-dashboard-asset-filter="video" data-i18n="dashboardAssets.video">Video</button>
+              <button type="button" data-dashboard-asset-filter="document" data-i18n="dashboardAssets.documents">文件</button>
+              <button type="button" data-dashboard-asset-filter="image" data-i18n="dashboardAssets.images">圖片</button>
+            </div>
+            <div id="dashboardAssetGrid" class="dashboard-asset-grid"></div>
+          </section>
           <section class="nas-feature-band">
             <div class="section-heading">
               <p class="eyebrow" data-i18n="nasFeatures.eyebrow">NAS Demo</p>
@@ -282,6 +307,7 @@
         </section>
 
         <section id="uploadSection" class="view-section" hidden>
+          <section id="nasAssetDetail" class="nas-asset-detail" hidden></section>
           <div class="upload-layout">
             <section class="nas-upload-panel">
               <div class="section-heading">
@@ -392,7 +418,14 @@
                   </label>
                   <p class="hint-text" data-i18n="upload.videoHint">本地 YOLO 會在 NAS 主機抽幀與偵測物件；雲端模型需要 API Key，Key 只用於本次上傳，不寫入資料庫。</p>
                 </section>
-                <button class="primary-button" type="submit" data-i18n="upload.submit">上傳到 NAS</button>
+                <button id="nasUploadSubmit" class="primary-button" type="submit" data-i18n="upload.submit">上傳到 NAS</button>
+                <div id="nasUploadProgress" class="upload-progress" hidden aria-live="polite">
+                  <div class="upload-progress-head">
+                    <strong id="nasUploadProgressText">正在上傳 0%</strong>
+                    <span data-i18n="upload.largeFileHint">大型 audio/video 上傳完成後會由 NAS 自動切片，交給背景 Worker 逐段處理。</span>
+                  </div>
+                  <progress id="nasUploadProgressBar" max="100" value="0">0%</progress>
+                </div>
               </form>
               <div class="nas-storage-map">
                 <div>
@@ -428,9 +461,58 @@
               <div id="nasAssetList" class="nas-asset-list"></div>
             </section>
           </div>
-          <section id="nasAssetDetail" class="nas-asset-detail">
-            <div class="empty-state" data-i18n="upload.emptyDetail">選擇一個 NAS 資產查看處理結果</div>
-          </section>
+        </section>
+
+        <section id="networkSection" class="view-section" hidden>
+          <div class="network-layout">
+            <section class="network-import-panel">
+              <div class="section-heading">
+                <p class="eyebrow" data-i18n="network.eyebrow">NAS 網路收件</p>
+                <h3 data-i18n="network.title">下載 YouTube 內容</h3>
+                <p data-i18n="network.copy">貼上單一 YouTube 影片網址，內容會由 NAS 背景下載並保存原始檔，再交給既有音訊轉寫或影片分析流程。</p>
+              </div>
+              <form id="networkImportForm" class="network-import-form">
+                <label>
+                  <span data-i18n="network.urlLabel">YouTube 網址</span>
+                  <input id="networkUrlInput" type="url" inputmode="url" required placeholder="https://www.youtube.com/watch?v=..." data-i18n-attr="placeholder:network.urlPlaceholder" />
+                </label>
+                <label>
+                  <span data-i18n="network.titleLabel">NAS 顯示名稱（選填）</span>
+                  <input id="networkTitleInput" maxlength="180" placeholder="留空時使用 YouTube 影片標題" data-i18n-attr="placeholder:network.titlePlaceholder" />
+                </label>
+                <label>
+                  <span data-i18n="network.mediaLabel">保存格式與後續流程</span>
+                  <select id="networkMediaType">
+                    <option value="video" data-i18n="network.videoOption">影片 · 保存 MP4 並交給 YOLO 分析</option>
+                    <option value="audio" data-i18n="network.audioOption">音訊 · 轉為 M4A 並交給 Whisper 轉寫</option>
+                  </select>
+                </label>
+                <label class="checkbox-control network-rights-check">
+                  <input id="networkAuthorized" type="checkbox" required />
+                  <span data-i18n="network.rightsConfirm">我確認有權下載、保存及處理此內容</span>
+                </label>
+                <button id="networkImportSubmit" class="primary-button" type="submit" data-i18n="network.submit">下載到 NAS</button>
+              </form>
+              <div class="network-pipeline" aria-label="網路資料處理流程" data-i18n-attr="aria-label:network.pipelineLabel">
+                <div><span>01</span><strong data-i18n="network.stepDownload">NAS 背景下載</strong></div>
+                <div><span>02</span><strong data-i18n="network.stepArchive">原始內容歸檔</strong></div>
+                <div><span>03</span><strong data-i18n="network.stepAnalyze">Whisper / YOLO 分析</strong></div>
+                <div><span>04</span><strong data-i18n="network.stepRag">建立 RAG 索引</strong></div>
+              </div>
+              <p class="network-policy" data-i18n="network.policy">僅支援公開、非直播的單一 YouTube 影片。請遵守著作權、YouTube 服務條款及公司資料政策。</p>
+            </section>
+
+            <section class="network-jobs-panel">
+              <div class="network-jobs-head">
+                <div>
+                  <p class="eyebrow" data-i18n="network.jobsEyebrow">下載與處理記錄</p>
+                  <h3 data-i18n="network.jobsTitle">網路資料佇列</h3>
+                </div>
+                <button id="refreshNetworkAssets" class="secondary-button compact-button" type="button" data-i18n="network.refresh">刷新</button>
+              </div>
+              <div id="networkAssetList" class="network-asset-list"></div>
+            </section>
+          </div>
         </section>
 
         <section id="modelsSection" class="view-section model-management-view" hidden>
@@ -512,6 +594,15 @@
                     <span id="keyStatus" class="key-status" data-i18n="aiwork.keyNotSet">尚未設定 API Key</span>
                   </div>
 
+                  <div class="system-llm-setting">
+                    <div>
+                      <span data-i18n="aiwork.systemModelLabel">系統目前模型</span>
+                      <strong id="currentSystemModelName">載入中...</strong>
+                      <small id="currentSystemModelMeta"></small>
+                    </div>
+                    <button id="setCurrentLlmButton" class="secondary-button" type="button" data-i18n="aiwork.setSystemModel" hidden>設為系統目前模型</button>
+                  </div>
+
                 </section>
 
                 <section id="pricingPanel" class="pricing-panel">
@@ -530,13 +621,36 @@
               </div>
               <div class="prompt-field">
                 <div class="prompt-field-heading">
-                  <label for="llmPromptInput" data-i18n="aiwork.promptLabel">輸入內容</label>
+                  <label for="llmPromptInput" data-i18n="aiwork.promptLabel">使用者 Prompt</label>
                   <small data-i18n="aiwork.promptSearchHint">先輸入關鍵字，再查詢</small>
                 </div>
                 <div class="prompt-input-wrap">
                   <input id="llmPromptInput" type="text" placeholder="請輸入要交給模型處理的內容" data-i18n-attr="placeholder:aiwork.promptPlaceholder;aria-label:aiwork.promptLabel" autocomplete="off" aria-autocomplete="list" aria-controls="llmPromptSuggestions" aria-expanded="false" />
                   <div id="llmPromptSuggestions" class="prompt-suggestions" role="listbox" aria-label="相似歷史問題" data-i18n-attr="aria-label:aiwork.suggestionsLabel" hidden></div>
                 </div>
+              </div>
+              <div class="prompt-field system-prompt-field">
+                <div class="prompt-field-heading">
+                  <label for="llmSystemPromptInput" data-i18n="aiwork.systemPromptLabel">系統 Prompt（選填）</label>
+                  <small data-i18n="aiwork.systemPromptHint">設定角色、語氣與輸出格式</small>
+                </div>
+                <textarea id="llmSystemPromptInput" rows="2" maxlength="4000" placeholder="例如：你是企業知識助理，請以繁體中文條列回答。" data-i18n-attr="placeholder:aiwork.systemPromptPlaceholder;aria-label:aiwork.systemPromptLabel"></textarea>
+              </div>
+              <div class="mcp-run-controls">
+                <label class="mcp-run-toggle">
+                  <input id="useMcpToggle" type="checkbox" />
+                  <span>
+                    <strong data-i18n="aiwork.useMcp">使用 MCP 工具</strong>
+                    <small data-i18n="aiwork.useMcpHint">先由目前 LLM 選擇唯讀工具，取得資料後再產生最終答案</small>
+                  </span>
+                </label>
+                <label class="mcp-server-select">
+                  <span data-i18n="aiwork.mcpServer">MCP Server</span>
+                  <select id="aiworkMcpServerSelect" disabled>
+                    <option value="auto" data-i18n="aiwork.mcpAuto">自動選擇</option>
+                  </select>
+                </label>
+                <span id="aiworkMcpStatus" class="mcp-run-status"></span>
               </div>
               <div class="button-row">
                 <button id="runModelButton" class="primary-button" type="button" data-i18n="aiwork.runModel">送出</button>
@@ -568,6 +682,41 @@
               <div id="llmCallHistory" class="llm-call-history"></div>
             </section>
           </div>
+        </section>
+
+        <section id="mcpSection" class="view-section" hidden>
+          <div class="mcp-hero">
+            <div>
+              <p class="eyebrow" data-i18n="mcp.eyebrow">NAS 工具連接器</p>
+              <h1 data-i18n="mcp.title">MCP 管理</h1>
+              <p data-i18n="mcp.copy">集中管理可供公司 LLM 使用的 MCP Server、連線狀態、工具清單與權限入口；認證內容只由 NAS 環境變數提供。</p>
+            </div>
+            <div class="mcp-metrics" aria-label="MCP 摘要" data-i18n-attr="aria-label:mcp.metricsLabel">
+              <article><span id="mcpServerTotal">0</span><strong data-i18n="mcp.total">連接器</strong></article>
+              <article><span id="mcpConnectedTotal">0</span><strong data-i18n="mcp.connected">已連線</strong></article>
+              <article><span id="mcpEnabledTotal">0</span><strong data-i18n="mcp.enabled">已啟用</strong></article>
+              <article><span id="mcpToolTotal">0</span><strong data-i18n="mcp.tools">工具</strong></article>
+            </div>
+          </div>
+
+          <section class="mcp-directory-panel">
+            <div class="mcp-directory-heading">
+              <div>
+                <p class="eyebrow" data-i18n="mcp.directoryEyebrow">公司 MCP Registry</p>
+                <h3 data-i18n="mcp.directoryTitle">Server 與工具清單</h3>
+              </div>
+              <div class="mcp-directory-actions">
+                <button id="refreshMcpServers" class="secondary-button" type="button" data-i18n="mcp.refresh">重新整理</button>
+                <button id="addMcpServer" class="primary-button" type="button" data-i18n="mcp.add">新增 MCP</button>
+              </div>
+            </div>
+            <label class="search-box mcp-search-box">
+              <span data-i18n="mcp.search">搜尋</span>
+              <input id="mcpSearchInput" placeholder="搜尋名稱、Endpoint 或服務" data-i18n-attr="placeholder:mcp.searchPlaceholder" />
+            </label>
+            <p class="mcp-security-note" data-i18n="mcp.securityNote">官方 Endpoint 已預先列入安全清單；OAuth 服務仍需完成企業授權或設定 Access Token。SSE 與 stdio 第一階段只保存設定。</p>
+            <div id="mcpServerList" class="mcp-server-list"></div>
+          </section>
         </section>
 
         <section id="lineAdminSection" class="view-section" hidden>
@@ -725,6 +874,78 @@
       </section>
     </div>
 
+    <div id="mcpServerModal" class="modal-backdrop" hidden>
+      <section class="modal-panel mcp-server-modal" role="dialog" aria-modal="true" aria-labelledby="mcpServerModalTitle">
+        <div class="modal-header">
+          <div>
+            <p class="eyebrow" data-i18n="mcp.modalEyebrow">MCP Registry</p>
+            <h3 id="mcpServerModalTitle" data-i18n="mcp.modalAddTitle">新增 MCP Server</h3>
+          </div>
+          <button id="closeMcpServerModal" class="icon-button" type="button" aria-label="關閉" data-i18n-attr="aria-label:keyModal.close">×</button>
+        </div>
+        <form id="mcpServerForm" class="mcp-server-form">
+          <div class="mcp-form-grid">
+            <label>
+              <span data-i18n="mcp.name">顯示名稱</span>
+              <input id="mcpServerName" required minlength="2" maxlength="100" placeholder="例如：Odoo Production" data-i18n-attr="placeholder:mcp.namePlaceholder" />
+            </label>
+            <label>
+              <span data-i18n="mcp.slug">識別碼</span>
+              <input id="mcpServerSlug" required minlength="2" maxlength="64" pattern="[a-z0-9][a-z0-9-]{1,63}" placeholder="odoo-production" />
+            </label>
+            <label>
+              <span data-i18n="mcp.transport">Transport</span>
+              <select id="mcpServerTransport">
+                <option value="streamable_http">Streamable HTTP</option>
+                <option value="sse">SSE</option>
+                <option value="stdio">stdio</option>
+              </select>
+            </label>
+            <label>
+              <span data-i18n="mcp.endpoint">Endpoint／設定參考</span>
+              <input id="mcpServerEndpoint" maxlength="500" placeholder="http://127.0.0.1:9000/mcp" data-i18n-attr="placeholder:mcp.endpointPlaceholder" />
+            </label>
+            <label>
+              <span data-i18n="mcp.authEnv">認證環境變數</span>
+              <input id="mcpServerAuthEnv" maxlength="128" pattern="[A-Z][A-Z0-9_]{1,127}" placeholder="ODOO_MCP_TOKEN" />
+            </label>
+            <label>
+              <span data-i18n="mcp.authType">認證類型</span>
+              <select id="mcpServerAuthType">
+                <option value="none" data-i18n="mcp.authTypes.none">無</option>
+                <option value="bearer" data-i18n="mcp.authTypes.bearer">Bearer Token</option>
+                <option value="oauth2" data-i18n="mcp.authTypes.oauth2">OAuth 2.0</option>
+                <option value="managed" data-i18n="mcp.authTypes.managed">供應商管理流程</option>
+                <option value="custom" data-i18n="mcp.authTypes.custom">自訂</option>
+              </select>
+            </label>
+            <label>
+              <span data-i18n="mcp.sourceUrl">官方文件來源</span>
+              <input id="mcpServerSourceUrl" type="url" maxlength="500" placeholder="https://docs.example.com/mcp" />
+            </label>
+            <label class="checkbox-field mcp-enabled-field">
+              <input id="mcpServerEnabled" type="checkbox" />
+              <span data-i18n="mcp.enableServer">允許公司 LLM 使用</span>
+            </label>
+          </div>
+          <label>
+            <span data-i18n="mcp.descriptionZh">繁體中文說明</span>
+            <textarea id="mcpServerDescription" rows="2" maxlength="500"></textarea>
+          </label>
+          <label>
+            <span data-i18n="mcp.descriptionEn">English description</span>
+            <textarea id="mcpServerDescriptionEn" rows="2" maxlength="500"></textarea>
+          </label>
+          <p class="hint-text" data-i18n="mcp.authHint">只保存環境變數名稱；Token 或密碼必須由伺服器 .env 提供，不會寫入資料庫。</p>
+          <p id="mcpServerFormError" class="error-text" role="alert"></p>
+          <div class="modal-actions">
+            <button id="cancelMcpServer" class="secondary-button" type="button" data-i18n="keyModal.cancel">取消</button>
+            <button class="primary-button" type="submit" data-i18n="mcp.save">儲存 MCP</button>
+          </div>
+        </form>
+      </section>
+    </div>
+
     <div id="customModelModal" class="modal-backdrop" hidden>
       <section class="modal-panel custom-model-modal" role="dialog" aria-modal="true" aria-labelledby="customModelModalTitle">
         <div class="modal-header">
@@ -811,6 +1032,6 @@
       </section>
     </div>
 
-    <script src="/static/app.js?v=line-enterprise-admin-v1"></script>
+    <script src="/static/app.js?v=system-prompt-v5"></script>
   </body>
 </html>

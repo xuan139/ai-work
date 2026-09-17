@@ -18,9 +18,12 @@ const messages = {
       dashboard: "總覽",
       record: "會議記錄",
       upload: "NAS 上傳",
+      network: "網路資料",
       models: "模型管理",
       meetings: "資料庫查詢",
       aiwork: "AI Work",
+      settings: "設定與管理",
+      mcp: "MCP 管理",
       lineAdmin: "LINE 企業管理",
       accounts: "帳號管理",
     },
@@ -33,6 +36,35 @@ const messages = {
     },
     auth: {
       logout: "登出",
+    },
+    network: {
+      eyebrow: "NAS 網路收件",
+      title: "下載 YouTube 內容",
+      copy: "貼上單一 YouTube 影片網址，內容會由 NAS 背景下載並保存原始檔，再交給既有音訊轉寫或影片分析流程。",
+      urlLabel: "YouTube 網址",
+      urlPlaceholder: "https://www.youtube.com/watch?v=...",
+      titleLabel: "NAS 顯示名稱（選填）",
+      titlePlaceholder: "留空時使用 YouTube 影片標題",
+      mediaLabel: "保存格式與後續流程",
+      videoOption: "影片 · 保存 MP4 並交給 YOLO 分析",
+      audioOption: "音訊 · 轉為 M4A 並交給 Whisper 轉寫",
+      rightsConfirm: "我確認有權下載、保存及處理此內容",
+      submit: "下載到 NAS",
+      submitting: "正在建立下載任務...",
+      pipelineLabel: "網路資料處理流程",
+      stepDownload: "NAS 背景下載",
+      stepArchive: "原始內容歸檔",
+      stepAnalyze: "Whisper / YOLO 分析",
+      stepRag: "建立 RAG 索引",
+      policy: "僅支援公開、非直播的單一 YouTube 影片。請遵守著作權、YouTube 服務條款及公司資料政策。",
+      jobsEyebrow: "下載與處理記錄",
+      jobsTitle: "網路資料佇列",
+      refresh: "刷新",
+      empty: "尚無網路資料下載記錄",
+      openAsset: "查看 NAS 資產",
+      source: "YouTube 來源",
+      queued: "YouTube 下載任務已建立",
+      failed: "建立下載任務失敗",
     },
     accounts: {
       eyebrow: "NAS 存取控制",
@@ -112,7 +144,7 @@ const messages = {
       approve: "允許使用公司 AI",
       pdfSummary: "PDF 上傳後自動摘要",
       ragQueries: "允許 @Claire 查詢群組資料",
-      model: "公司模型",
+      model: "系統目前模型",
       localModel: "NAS 本地",
       companyApi: "公司 API",
       callLimit: "每月呼叫上限",
@@ -123,10 +155,118 @@ const messages = {
       saveFailed: "無法更新 LINE 群組政策",
       personalBlocked: "個人聊天室固定禁止使用公司 NAS、RAG 與公司 API Key。",
     },
+    odoo: {
+      eyebrow: "企業流程連接器",
+      title: "Odoo MCP",
+      copy: "讓 LLM 在權限控管下呼叫 Odoo MCP 工具，查詢企業流程與營運資料；目前僅提供介面占位，尚未建立實際連線。",
+      statusLabel: "Odoo MCP 狀態",
+      notConnected: "尚未連線",
+      placeholderStatus: "MCP Server、驗證與工具清單待設定",
+      flowEyebrow: "預定呼叫流程",
+      flowTitle: "LLM 如何存取 Odoo",
+      stage: "規劃中",
+      steps: {
+        requestTitle: "LLM 接收企業問題",
+        requestCopy: "使用者以自然語言提出財務、銷售、庫存或營運查詢。",
+        policyTitle: "身分與權限檢查",
+        policyCopy: "NAS 依登入者、部門與工具白名單判斷可讀取的 Odoo 資料範圍。",
+        mcpTitle: "呼叫 Odoo MCP 工具",
+        mcpCopy: "核准後由 MCP Server 將模型請求轉換為受控的 Odoo API 操作。",
+        auditTitle: "回覆與 NAS 稽核",
+        auditCopy: "LLM 整理結果，並在 NAS 保存呼叫者、工具、輸入、輸出與時間。",
+      },
+      promptLabel: "LLM 指令",
+      promptPlaceholder: "例如：整理本月銷售額與未收款客戶",
+      runDisabled: "設定 MCP 後啟用",
+      notice: "此頁目前不會向 Odoo、MCP Server 或任何模型送出資料。",
+    },
+    mcp: {
+      eyebrow: "NAS 工具連接器",
+      title: "MCP 管理",
+      copy: "集中管理可供公司 LLM 使用的 MCP Server、連線狀態、工具清單與權限入口；認證內容只由 NAS 環境變數提供。",
+      metricsLabel: "MCP 摘要",
+      total: "連接器",
+      connected: "已連線",
+      enabled: "已啟用",
+      tools: "工具",
+      directoryEyebrow: "公司 MCP Registry",
+      directoryTitle: "Server 與工具清單",
+      refresh: "重新整理",
+      add: "新增 MCP",
+      search: "搜尋",
+      searchPlaceholder: "搜尋名稱、Endpoint 或服務",
+      securityNote: "官方 Endpoint 已預先列入安全清單；OAuth 服務仍需完成企業授權或設定 Access Token。SSE 與 stdio 第一階段只保存設定。",
+      empty: "尚未登錄 MCP Server",
+      enterpriseTitle: "企業管理與協作",
+      enterpriseCopy: "優先管理 NAS、Odoo、Google Workspace、Monday.com 與日常企業協作服務。",
+      technicalTitle: "技術整合",
+      technicalCopy: "開發、資料庫與雲端基礎設施連接器，預設收合以精簡管理畫面。",
+      connectorCount: "{count} 個連接器",
+      status: { connected: "已連線", failed: "連線失敗", unchecked: "待測試", unconfigured: "未設定" },
+      transport: "Transport",
+      endpoint: "Endpoint／設定參考",
+      endpointPlaceholder: "http://127.0.0.1:9000/mcp",
+      auth: "認證",
+      requestHeaders: "固定 Headers",
+      authType: "認證類型",
+      authTypes: { none: "無", bearer: "Bearer Token", oauth2: "OAuth 2.0", managed: "供應商管理流程", custom: "自訂" },
+      authReady: "環境變數已設定",
+      authMissing: "環境變數未設定",
+      authNone: "不使用認證",
+      protocol: "Protocol",
+      lastChecked: "最後同步",
+      neverChecked: "尚未同步",
+      enabledForLlm: "允許公司 LLM 使用",
+      disabledForLlm: "未開放給公司 LLM",
+      edit: "編輯",
+      sync: "測試並同步工具",
+      syncing: "正在連線...",
+      syncSuccess: "MCP 工具清單已同步",
+      syncFailed: "MCP 連線或同步失敗",
+      copyEndpoint: "複製 Endpoint",
+      endpointCopied: "Endpoint 已複製",
+      officialSource: "官方文件",
+      noTools: "尚無已同步工具",
+      toolInput: "輸入 Schema",
+      modalEyebrow: "MCP Registry",
+      modalAddTitle: "新增 MCP Server",
+      modalEditTitle: "編輯 MCP Server",
+      name: "顯示名稱",
+      namePlaceholder: "例如：Odoo Production",
+      slug: "識別碼",
+      authEnv: "認證環境變數",
+      sourceUrl: "官方文件來源",
+      enableServer: "允許公司 LLM 使用",
+      descriptionZh: "繁體中文說明",
+      descriptionEn: "English description",
+      authHint: "只保存環境變數名稱；Token 或密碼必須由伺服器 .env 提供，不會寫入資料庫。",
+      save: "儲存 MCP",
+      saved: "MCP 設定已儲存",
+      duplicate: "MCP 識別碼已存在",
+    },
     dashboard: {
       eyebrow: "NAS Demo 範圍",
       title: "NAS 檔案發現、語音歸檔、會議轉寫查詢",
       copy: "第一版聚焦 NAS 會議資產進入系統後的完整鏈路：瀏覽器錄音或共享資料夾檔案進站、NAS inbox 即時提醒、後台搬移與處理狀態，以及可搜尋的歷史會議記錄。",
+    },
+    dashboardAssets: {
+      eyebrow: "NAS 資產庫",
+      title: "所有已上傳檔案",
+      copy: "依檔案大小顯示 audio、video、文件與圖片；點擊即可查看分析結果與重新處理。",
+      filterLabel: "資產類型",
+      all: "全部",
+      audio: "Audio",
+      video: "Video",
+      documents: "文件",
+      images: "圖片",
+      upload: "上傳新檔案",
+      largest: "最大檔案",
+      open: "查看詳情",
+      transcript: "逐字稿預覽",
+      transcriptDetail: "逐字稿詳情",
+      transcriptProcessing: "逐字稿正在背景處理中。",
+      transcriptUnavailable: "此音訊尚無逐字稿。",
+      empty: "此分類尚無 NAS 資產",
     },
     nasFeatures: {
       eyebrow: "NAS Demo",
@@ -184,7 +324,7 @@ const messages = {
       asrKeyRequired: "{model} 需要 API Key，請先輸入後再開始錄音。",
       asrModelRequired: "請先選擇語音處理模型。",
       translationTitle: "步驟 2：逐字稿翻譯",
-      translationCopy: "可選擇目標語言與本地或雲端 LLM；原文與譯文會分開保存。",
+      translationCopy: "選擇目標語言後，由系統目前 LLM 統一翻譯；原文與譯文會分開保存。",
       translationEnable: "啟用翻譯",
       translationTarget: "目標語言",
       translationMode: "翻譯位置",
@@ -263,7 +403,7 @@ const messages = {
       asrKeyPlaceholder: "只用於本次 audio 上傳",
       asrHint: "本地模型適合 NAS 私有化；雲端模型需要 API Key，Key 只用於本次上傳，不寫入資料庫。",
       translationTitle: "步驟 2：逐字稿翻譯",
-      translationCopy: "只套用於 audio；可指定目標語言與翻譯 LLM。",
+      translationCopy: "只套用於 audio；可指定目標語言，翻譯使用系統目前 LLM。",
       videoTitle: "影片分析模型",
       videoCopy: "上傳 video 時可選本地或雲端模型；其他檔案會自動略過此設定。",
       videoModeLabel: "執行位置",
@@ -308,6 +448,17 @@ const messages = {
         openai_endpoint_setup: "需要可回應 /v1/chat/completions 的 NAS loopback 服務",
       },
       submit: "上傳到 NAS",
+      uploading: "正在上傳 {progress}%",
+      largeFileHint: "大型 audio/video 上傳完成後會由 NAS 自動切片，交給背景 Worker 逐段處理。",
+      connectionFailed: "上傳連線中斷，請檢查網路後重試",
+      reprocess: "重新處理",
+      reprocessing: "正在加入佇列...",
+      reprocessConfirm: "將沿用此資產原先的分析流程與模型重新處理原始檔。現有結果會保留到新結果完成，是否繼續？",
+      reprocessQueued: "原始檔已重新加入 NAS 媒體 Worker 佇列",
+      openccTraditional: "OpenCC 簡轉繁",
+      openccRunning: "正在轉換...",
+      openccConfirm: "將現有逐字稿、翻譯與 RAG 片段統一轉為繁體中文，並重建向量索引。是否繼續？",
+      actionFailed: "資產操作失敗",
       nasVolumeLabel: "NAS Volume",
       shareProtocolLabel: "共享協議",
       snapshotLabel: "快照策略",
@@ -331,6 +482,33 @@ const messages = {
       selectedAsr: "選用 ASR",
       selectedTranslation: "選用翻譯",
       selectedVideo: "選用 Video",
+      sourceAudioTitle: "原始音訊",
+      sourceAudioCopy: "直接播放保存在 NAS 的完整原始檔。",
+      sourceVideoTitle: "原始影片",
+      sourceVideoCopy: "直接播放保存在 NAS 的 YouTube 下載影片或上傳影片。",
+      downloadSource: "下載原始檔",
+      downloadSegment: "下載此片段",
+      wholeFile: "完整檔案",
+      audioSegmentsTitle: "音訊切片",
+      audioSegmentsCopy: "大型音訊可逐段播放與下載；未切分的音訊會以完整檔案作為單一片段。",
+      transcribeSegment: "單獨轉寫",
+      retranscribeSegment: "重新轉寫",
+      segmentTranscriptionQueued: "等待 Whisper Worker",
+      segmentTranscriptionProcessing: "Whisper 轉寫中",
+      segmentTranscriptionCompleted: "片段逐字稿已保存",
+      segmentTranscriptionFailed: "片段轉寫失敗",
+      segmentTranscript: "片段逐字稿",
+      segmentTranscriptionQueuedToast: "此片段已加入 Whisper 轉寫佇列",
+      videoSegmentsTitle: "影片切片",
+      videoSegmentsCopy: "大型影片可逐段下載；未切分的影片會以完整檔案作為單一片段。",
+      audioSegment: "第 {number} 段",
+      audioSegmentRange: "{start} 至 {end}",
+      noAudioSegments: "目前沒有播放切片。短音訊可直接播放原始檔；大型音訊完成重新處理後會在此顯示切片。",
+      transcriptTitle: "完整逐字稿",
+      downloadTranscript: "下載完整逐字稿",
+      downloadSegmentTranscript: "下載此段逐字稿",
+      transcriptMeta: "{chunks} 個逐字稿片段 · {characters} 字",
+      transcriptEmpty: "此音訊尚未產生逐字稿。",
       category: "類型",
       analyzer: "分析器",
       fileSize: "大小",
@@ -412,7 +590,7 @@ const messages = {
         audioCopy: "依使用者選擇調用本地 whisper.cpp、faster-whisper、SenseVoiceSmall、Paraformer，或雲端語音轉文字服務。",
         translationTitle: "逐字稿翻譯",
         translationEngine: "Selected Translation LLM",
-        translationCopy: "依使用者指定的目標語言，調用 NAS 本地 Qwen 或所選雲端 LLM；原文與譯文分開入庫。",
+        translationCopy: "依使用者指定的目標語言調用系統目前 LLM；原文與譯文分開入庫。",
         audioRagTitle: "逐字稿 RAG 建庫",
         audioRagEngine: "Transcript Chunker + Qwen3 Embedding",
         audioRagCopy: "ASR 結果切成 audio_transcript chunks 並建立向量，後續可用 LLM 查詢會議內容。",
@@ -498,6 +676,16 @@ const messages = {
       keyNotRequired: "本地模型不需要 API Key",
       keyReady: "{provider} API Key 已套用到本次工作階段",
       companyKeyReady: "公司 API Key 已由 NAS 伺服器安全配置",
+      systemModelLabel: "系統目前模型",
+      systemModelDefault: "NAS 預設值",
+      systemModelUpdated: "由 {user} 於 {time} 設定",
+      systemModelAdminHint: "管理員可從上方選擇模型，再套用到 AI Work、文件 RAG、逐字稿翻譯及 LINE。",
+      systemModelUserHint: "此模型由公司管理員統一設定，所有 LLM 工作共用。",
+      setSystemModel: "設為系統目前模型",
+      settingSystemModel: "正在套用...",
+      systemModelSaved: "系統目前模型已更新",
+      selectBeforeSet: "請先選擇要套用的模型",
+      saveBeforeRun: "請先將所選模型設為系統目前模型",
       emptyPricing: "選擇模型後顯示費用資訊",
       sourcesEyebrow: "Pricing Sources",
       sourcesTitle: "費用資料來源",
@@ -521,15 +709,28 @@ const messages = {
       setupTitle: "模型設定與費用",
       collapseSetup: "收合",
       expandSetup: "展開",
-      promptLabel: "輸入內容",
+      promptLabel: "使用者 Prompt",
       promptPlaceholder: "請輸入要交給模型處理的內容",
       promptSearchHint: "先輸入關鍵字，再查詢",
+      systemPromptLabel: "系統 Prompt（選填）",
+      systemPromptPlaceholder: "例如：你是企業知識助理，請以繁體中文條列回答。",
+      systemPromptHint: "設定角色、語氣與輸出格式",
       suggestionsLabel: "相似歷史問題",
       suggestionCached: "NAS 快取",
       suggestionHistory: "歷史問題",
       runModel: "送出",
       forceRunModel: "強制送出",
       forceRunHint: "忽略快取並實際呼叫模型，可能產生費用",
+      useMcp: "使用 MCP 工具",
+      useMcpHint: "先由目前 LLM 選擇唯讀工具，取得資料後再產生最終答案",
+      mcpServer: "MCP Server",
+      mcpAuto: "自動選擇",
+      mcpReady: "{servers} 個 Server、{tools} 個唯讀工具可用",
+      mcpUnavailable: "目前沒有已連線的唯讀 MCP 工具",
+      mcpTrace: "MCP 執行軌跡",
+      mcpNotUsed: "LLM 判斷本次問題不需要工具",
+      mcpArguments: "工具參數",
+      mcpResult: "工具結果",
       useTitle: "使用 {model}",
       useSelectModel: "請先選擇模型",
       useWaiting: "等待選擇模型",
@@ -584,6 +785,7 @@ const messages = {
       saved: "API Key 已套用",
     },
     status: {
+      downloading: "下載中",
       processing: "處理中",
       pending: "等待中",
       completed: "已完成",
@@ -628,9 +830,12 @@ const messages = {
       dashboard: "Overview",
       record: "Meeting Recording",
       upload: "NAS Upload",
+      network: "Online Sources",
       models: "Model Management",
       meetings: "Knowledge Search",
       aiwork: "AI Work",
+      settings: "Settings & Management",
+      mcp: "MCP Management",
       lineAdmin: "LINE Enterprise",
       accounts: "Account Management",
     },
@@ -643,6 +848,35 @@ const messages = {
     },
     auth: {
       logout: "Sign Out",
+    },
+    network: {
+      eyebrow: "NAS Online Intake",
+      title: "Download YouTube Content",
+      copy: "Paste a single YouTube video URL. The NAS downloads and archives the source in the background, then routes it through the existing transcription or video analysis pipeline.",
+      urlLabel: "YouTube URL",
+      urlPlaceholder: "https://www.youtube.com/watch?v=...",
+      titleLabel: "NAS display name (optional)",
+      titlePlaceholder: "Leave blank to use the YouTube video title",
+      mediaLabel: "Storage format and processing",
+      videoOption: "Video · save as MP4 and run YOLO analysis",
+      audioOption: "Audio · convert to M4A and run Whisper transcription",
+      rightsConfirm: "I confirm that I have permission to download, store, and process this content",
+      submit: "Download to NAS",
+      submitting: "Creating download task...",
+      pipelineLabel: "Online source processing flow",
+      stepDownload: "NAS background download",
+      stepArchive: "Source archive",
+      stepAnalyze: "Whisper / YOLO analysis",
+      stepRag: "RAG indexing",
+      policy: "Only public, non-live, single YouTube videos are supported. Follow copyright law, YouTube terms, and company data policy.",
+      jobsEyebrow: "Download and processing records",
+      jobsTitle: "Online Source Queue",
+      refresh: "Refresh",
+      empty: "No online source downloads yet",
+      openAsset: "Open NAS Asset",
+      source: "YouTube source",
+      queued: "YouTube download task created",
+      failed: "Unable to create download task",
     },
     accounts: {
       eyebrow: "NAS Access Control",
@@ -722,7 +956,7 @@ const messages = {
       approve: "Allow Company AI",
       pdfSummary: "Automatically summarize uploaded PDFs",
       ragQueries: "Allow @Claire to query group data",
-      model: "Company Model",
+      model: "Current System Model",
       localModel: "NAS Local",
       companyApi: "Company API",
       callLimit: "Monthly Call Limit",
@@ -733,10 +967,118 @@ const messages = {
       saveFailed: "Unable to update the LINE group policy",
       personalBlocked: "Direct chats are always blocked from company NAS, RAG, and company API keys.",
     },
+    odoo: {
+      eyebrow: "Enterprise Workflow Connector",
+      title: "Odoo MCP",
+      copy: "Allow an LLM to call Odoo MCP tools under access control to query enterprise workflows and operational data. This is currently a placeholder and no live connection has been configured.",
+      statusLabel: "Odoo MCP status",
+      notConnected: "Not connected",
+      placeholderStatus: "MCP server, authentication, and tool catalog are pending",
+      flowEyebrow: "Planned call flow",
+      flowTitle: "How the LLM accesses Odoo",
+      stage: "Planned",
+      steps: {
+        requestTitle: "LLM receives a business question",
+        requestCopy: "The user asks about finance, sales, inventory, or operations in natural language.",
+        policyTitle: "Identity and access check",
+        policyCopy: "The NAS applies user, department, and tool allowlist policies to determine the permitted Odoo data scope.",
+        mcpTitle: "Call an Odoo MCP tool",
+        mcpCopy: "After approval, the MCP server converts the model request into a controlled Odoo API operation.",
+        auditTitle: "Response and NAS audit",
+        auditCopy: "The LLM prepares the response while the NAS records the caller, tool, input, output, and timestamp.",
+      },
+      promptLabel: "LLM instruction",
+      promptPlaceholder: "Example: summarize this month's sales and overdue customers",
+      runDisabled: "Enable after MCP setup",
+      notice: "This page does not currently send data to Odoo, an MCP server, or any model.",
+    },
+    mcp: {
+      eyebrow: "NAS Tool Connectors",
+      title: "MCP Management",
+      copy: "Manage MCP servers, connection health, tool catalogs, and company LLM access. Credentials are referenced only through NAS environment variables.",
+      metricsLabel: "MCP summary",
+      total: "Connectors",
+      connected: "Connected",
+      enabled: "Enabled",
+      tools: "Tools",
+      directoryEyebrow: "Company MCP Registry",
+      directoryTitle: "Servers and Tool Catalogs",
+      refresh: "Refresh",
+      add: "Add MCP",
+      search: "Search",
+      searchPlaceholder: "Search names, endpoints, or services",
+      securityNote: "Official endpoints are pre-approved. OAuth services still require enterprise authorization or an access token. SSE and stdio remain configuration-only in phase one.",
+      empty: "No MCP servers are registered",
+      enterpriseTitle: "Business Management and Collaboration",
+      enterpriseCopy: "Prioritize NAS, Odoo, Google Workspace, Monday.com, and everyday business collaboration services.",
+      technicalTitle: "Technical Integrations",
+      technicalCopy: "Development, database, and cloud-infrastructure connectors are collapsed by default to keep this view focused.",
+      connectorCount: "{count} connectors",
+      status: { connected: "Connected", failed: "Connection Failed", unchecked: "Not Tested", unconfigured: "Not Configured" },
+      transport: "Transport",
+      endpoint: "Endpoint / Configuration Reference",
+      endpointPlaceholder: "http://127.0.0.1:9000/mcp",
+      auth: "Authentication",
+      requestHeaders: "Fixed Headers",
+      authType: "Authentication Type",
+      authTypes: { none: "None", bearer: "Bearer Token", oauth2: "OAuth 2.0", managed: "Provider-managed flow", custom: "Custom" },
+      authReady: "Environment variable configured",
+      authMissing: "Environment variable missing",
+      authNone: "No authentication",
+      protocol: "Protocol",
+      lastChecked: "Last Sync",
+      neverChecked: "Never synchronized",
+      enabledForLlm: "Available to the company LLM",
+      disabledForLlm: "Not available to the company LLM",
+      edit: "Edit",
+      sync: "Test and Sync Tools",
+      syncing: "Connecting...",
+      syncSuccess: "MCP tool catalog synchronized",
+      syncFailed: "MCP connection or synchronization failed",
+      copyEndpoint: "Copy Endpoint",
+      endpointCopied: "Endpoint copied",
+      officialSource: "Official Documentation",
+      noTools: "No synchronized tools",
+      toolInput: "Input Schema",
+      modalEyebrow: "MCP Registry",
+      modalAddTitle: "Add MCP Server",
+      modalEditTitle: "Edit MCP Server",
+      name: "Display Name",
+      namePlaceholder: "Example: Odoo Production",
+      slug: "Identifier",
+      authEnv: "Authentication Environment Variable",
+      sourceUrl: "Official Documentation Source",
+      enableServer: "Allow the company LLM to use this server",
+      descriptionZh: "Traditional Chinese Description",
+      descriptionEn: "English Description",
+      authHint: "Only the environment variable name is stored. Tokens and passwords must be supplied through the server .env and are never written to the database.",
+      save: "Save MCP",
+      saved: "MCP settings saved",
+      duplicate: "MCP identifier already exists",
+    },
     dashboard: {
       eyebrow: "NAS Demo Scope",
       title: "NAS discovery, audio archive, transcript search",
       copy: "The first version focuses on the NAS meeting asset intake flow: browser recording or shared-folder file arrival, NAS inbox alerts, backend move and processing status, and searchable meeting history.",
+    },
+    dashboardAssets: {
+      eyebrow: "NAS Asset Library",
+      title: "All Uploaded Files",
+      copy: "Audio, video, documents, and images are ordered by size. Open a file to review results or reprocess it.",
+      filterLabel: "Asset type",
+      all: "All",
+      audio: "Audio",
+      video: "Video",
+      documents: "Documents",
+      images: "Images",
+      upload: "Upload New File",
+      largest: "Largest file",
+      open: "View Details",
+      transcript: "Transcript Preview",
+      transcriptDetail: "Transcript Details",
+      transcriptProcessing: "The transcript is being processed in the background.",
+      transcriptUnavailable: "No transcript is available for this audio yet.",
+      empty: "No NAS assets in this category",
     },
     nasFeatures: {
       eyebrow: "NAS Demo",
@@ -794,7 +1136,7 @@ const messages = {
       asrKeyRequired: "{model} requires an API key. Enter it before recording.",
       asrModelRequired: "Choose a speech model first.",
       translationTitle: "Step 2: Transcript Translation",
-      translationCopy: "Choose a target language and a local or cloud LLM. The source transcript and translation are stored separately.",
+      translationCopy: "Choose a target language. The current system LLM performs the translation, and both versions are stored separately.",
       translationEnable: "Enable translation",
       translationTarget: "Target language",
       translationMode: "Translation location",
@@ -873,7 +1215,7 @@ const messages = {
       asrKeyPlaceholder: "Only used for this audio upload",
       asrHint: "Local models fit private NAS deployments. Cloud models need an API key, used only for this upload and not written to the database.",
       translationTitle: "Step 2: Transcript Translation",
-      translationCopy: "Applies to audio only. Choose the target language and translation LLM.",
+      translationCopy: "Applies to audio only. Choose the target language; translation uses the current system LLM.",
       videoTitle: "Video Analysis Model",
       videoCopy: "For video uploads, choose a local or cloud model. Other file types ignore this setting.",
       videoModeLabel: "Execution Location",
@@ -918,6 +1260,17 @@ const messages = {
         openai_endpoint_setup: "Requires a NAS loopback service that responds to /v1/chat/completions",
       },
       submit: "Upload to NAS",
+      uploading: "Uploading {progress}%",
+      largeFileHint: "After upload, large audio/video files are segmented by the NAS and processed by the background worker.",
+      connectionFailed: "The upload connection was interrupted. Check the network and try again.",
+      reprocess: "Reprocess",
+      reprocessing: "Adding to queue...",
+      reprocessConfirm: "Reprocess the source file with its original analysis pipeline and model settings? Existing results remain available until the new result completes.",
+      reprocessQueued: "The source file was added to the NAS media worker queue again.",
+      openccTraditional: "OpenCC to Traditional",
+      openccRunning: "Converting...",
+      openccConfirm: "Convert the current transcript, translation, and RAG chunks to Traditional Chinese and rebuild vector indexes?",
+      actionFailed: "Asset action failed",
       nasVolumeLabel: "NAS Volume",
       shareProtocolLabel: "Share Protocols",
       snapshotLabel: "Snapshot Policy",
@@ -941,6 +1294,33 @@ const messages = {
       selectedAsr: "Selected ASR",
       selectedTranslation: "Selected translation",
       selectedVideo: "Selected Video",
+      sourceAudioTitle: "Source Audio",
+      sourceAudioCopy: "Play the complete source file stored on the NAS.",
+      sourceVideoTitle: "Source Video",
+      sourceVideoCopy: "Play the YouTube download or uploaded source video stored on the NAS.",
+      downloadSource: "Download source",
+      downloadSegment: "Download segment",
+      wholeFile: "Complete file",
+      audioSegmentsTitle: "Audio Segments",
+      audioSegmentsCopy: "Play and download large audio by segment. Unsplit audio is shown as one complete-file segment.",
+      transcribeSegment: "Transcribe segment",
+      retranscribeSegment: "Transcribe again",
+      segmentTranscriptionQueued: "Waiting for Whisper worker",
+      segmentTranscriptionProcessing: "Whisper transcription in progress",
+      segmentTranscriptionCompleted: "Segment transcript saved",
+      segmentTranscriptionFailed: "Segment transcription failed",
+      segmentTranscript: "Segment transcript",
+      segmentTranscriptionQueuedToast: "This segment was added to the Whisper queue",
+      videoSegmentsTitle: "Video Segments",
+      videoSegmentsCopy: "Download large video by segment. Unsplit video is shown as one complete-file segment.",
+      audioSegment: "Segment {number}",
+      audioSegmentRange: "{start} to {end}",
+      noAudioSegments: "No playable segments yet. Short audio can use the source player; segments appear here after large audio is reprocessed.",
+      transcriptTitle: "Full Transcript",
+      downloadTranscript: "Download full transcript",
+      downloadSegmentTranscript: "Download segment transcript",
+      transcriptMeta: "{chunks} transcript chunks · {characters} characters",
+      transcriptEmpty: "This audio does not have a transcript yet.",
       category: "Type",
       analyzer: "Analyzer",
       fileSize: "Size",
@@ -1022,7 +1402,7 @@ const messages = {
         audioCopy: "Calls the selected local whisper.cpp, faster-whisper, SenseVoiceSmall, or Paraformer model, or a cloud speech service.",
         translationTitle: "Transcript Translation",
         translationEngine: "Selected Translation LLM",
-        translationCopy: "Uses the chosen local Qwen or cloud LLM for the selected language and stores source and translated text separately.",
+        translationCopy: "Uses the current system LLM for the selected language and stores source and translated text separately.",
         audioRagTitle: "Transcript RAG Index",
         audioRagEngine: "Transcript Chunker + Qwen3 Embedding",
         audioRagCopy: "Splits ASR output into audio_transcript chunks and builds vectors for later LLM queries.",
@@ -1108,6 +1488,16 @@ const messages = {
       keyNotRequired: "No API key required for the local model",
       keyReady: "{provider} API Key is active for this session",
       companyKeyReady: "The company API key is securely configured on the NAS server",
+      systemModelLabel: "Current System Model",
+      systemModelDefault: "NAS default",
+      systemModelUpdated: "Set by {user} at {time}",
+      systemModelAdminHint: "Administrators can choose a model above and apply it to AI Work, document RAG, transcript translation, and LINE.",
+      systemModelUserHint: "The company administrator controls this model. All LLM tasks use it.",
+      setSystemModel: "Set as Current System Model",
+      settingSystemModel: "Applying...",
+      systemModelSaved: "The current system model has been updated",
+      selectBeforeSet: "Select a model to apply first",
+      saveBeforeRun: "Set the selected model as the current system model first",
       emptyPricing: "Select a model to view pricing",
       sourcesEyebrow: "Pricing Sources",
       sourcesTitle: "Pricing Data Sources",
@@ -1134,12 +1524,25 @@ const messages = {
       promptLabel: "Prompt",
       promptPlaceholder: "Enter content to send to the selected model",
       promptSearchHint: "Enter keywords, then search",
+      systemPromptLabel: "System Prompt (Optional)",
+      systemPromptPlaceholder: "Example: You are an enterprise knowledge assistant. Answer with concise bullet points.",
+      systemPromptHint: "Set the role, tone, and output format",
       suggestionsLabel: "Similar Previous Questions",
       suggestionCached: "NAS Cache",
       suggestionHistory: "History",
       runModel: "Send",
       forceRunModel: "Force Send",
       forceRunHint: "Bypass the cache and call the model; charges may apply",
+      useMcp: "Use MCP Tools",
+      useMcpHint: "Let the current LLM select a read-only tool, retrieve data, then generate the final answer",
+      mcpServer: "MCP Server",
+      mcpAuto: "Automatic",
+      mcpReady: "{servers} servers and {tools} read-only tools available",
+      mcpUnavailable: "No connected read-only MCP tools are available",
+      mcpTrace: "MCP Execution Trace",
+      mcpNotUsed: "The LLM determined that this request did not need a tool",
+      mcpArguments: "Tool Arguments",
+      mcpResult: "Tool Result",
       useTitle: "Use {model}",
       useSelectModel: "Select a model to begin",
       useWaiting: "Waiting for model",
@@ -1188,6 +1591,7 @@ const messages = {
       saved: "API Key applied",
     },
     status: {
+      downloading: "Downloading",
       processing: "Processing",
       pending: "Pending",
       completed: "Completed",
@@ -1253,6 +1657,8 @@ const state = {
   selectedLlmMode: "local",
   selectedProvider: "Local NAS",
   selectedLlmId: "local:qwen3-4b",
+  currentLlmId: "local:qwen3-4b",
+  currentLlmModel: null,
   selectedPricing: null,
   apiKeys: {},
   llmCalls: [],
@@ -1260,6 +1666,10 @@ const state = {
   activeLlmSuggestion: -1,
   llmSuggestionRequestId: 0,
   nasAssets: [],
+  networkAssets: [],
+  networkPollTimer: null,
+  assetSegmentPollTimer: null,
+  dashboardAssetFilter: "all",
   selectedAssetId: null,
   selectedAsset: null,
   assetSelectedLlmMode: "local",
@@ -1272,6 +1682,12 @@ const state = {
   lineAdminSources: [],
   lineAdminModels: [],
   lineServiceConnected: false,
+  mcpServers: [],
+  availableMcpServers: [],
+  useMcp: false,
+  selectedMcpServerId: "auto",
+  editingMcpServerId: null,
+  mcpSearchQuery: "",
 };
 
 const els = {
@@ -1283,14 +1699,18 @@ const els = {
   logoutButton: document.querySelector("#logoutButton"),
   viewTitle: document.querySelector("#viewTitle"),
   langOptions: [...document.querySelectorAll(".lang-option")],
-  navItems: [...document.querySelectorAll(".nav-item")],
+  navItems: [...document.querySelectorAll(".nav-item[data-view]")],
+  settingsNav: document.querySelector("#settingsNav"),
+  managementNavGroup: document.querySelector("#managementNavGroup"),
   sections: {
     dashboard: document.querySelector("#dashboardSection"),
     record: document.querySelector("#recordSection"),
     upload: document.querySelector("#uploadSection"),
+    network: document.querySelector("#networkSection"),
     models: document.querySelector("#modelsSection"),
     meetings: document.querySelector("#meetingsSection"),
     aiwork: document.querySelector("#aiworkSection"),
+    mcp: document.querySelector("#mcpSection"),
     lineAdmin: document.querySelector("#lineAdminSection"),
     accounts: document.querySelector("#accountsSection"),
   },
@@ -1337,6 +1757,9 @@ const els = {
   providerSummary: document.querySelector("#providerSummary"),
   openKeyModalButton: document.querySelector("#openKeyModalButton"),
   keyStatus: document.querySelector("#keyStatus"),
+  currentSystemModelName: document.querySelector("#currentSystemModelName"),
+  currentSystemModelMeta: document.querySelector("#currentSystemModelMeta"),
+  setCurrentLlmButton: document.querySelector("#setCurrentLlmButton"),
   apiKeyModal: document.querySelector("#apiKeyModal"),
   closeKeyModal: document.querySelector("#closeKeyModal"),
   cancelKeyButton: document.querySelector("#cancelKeyButton"),
@@ -1347,13 +1770,29 @@ const els = {
   modelUseTitle: document.querySelector("#modelUseTitle"),
   modelUseMode: document.querySelector("#modelUseMode"),
   llmPromptInput: document.querySelector("#llmPromptInput"),
+  llmSystemPromptInput: document.querySelector("#llmSystemPromptInput"),
   llmPromptSuggestions: document.querySelector("#llmPromptSuggestions"),
   runModelButton: document.querySelector("#runModelButton"),
   forceRunModelButton: document.querySelector("#forceRunModelButton"),
+  useMcpToggle: document.querySelector("#useMcpToggle"),
+  aiworkMcpServerSelect: document.querySelector("#aiworkMcpServerSelect"),
+  aiworkMcpStatus: document.querySelector("#aiworkMcpStatus"),
   modelResponseBox: document.querySelector("#modelResponseBox"),
   llmCallSearch: document.querySelector("#llmCallSearch"),
   llmCallHistory: document.querySelector("#llmCallHistory"),
   nasUploadForm: document.querySelector("#nasUploadForm"),
+  networkImportForm: document.querySelector("#networkImportForm"),
+  networkUrlInput: document.querySelector("#networkUrlInput"),
+  networkTitleInput: document.querySelector("#networkTitleInput"),
+  networkMediaType: document.querySelector("#networkMediaType"),
+  networkAuthorized: document.querySelector("#networkAuthorized"),
+  networkImportSubmit: document.querySelector("#networkImportSubmit"),
+  refreshNetworkAssets: document.querySelector("#refreshNetworkAssets"),
+  networkAssetList: document.querySelector("#networkAssetList"),
+  nasUploadSubmit: document.querySelector("#nasUploadSubmit"),
+  nasUploadProgress: document.querySelector("#nasUploadProgress"),
+  nasUploadProgressBar: document.querySelector("#nasUploadProgressBar"),
+  nasUploadProgressText: document.querySelector("#nasUploadProgressText"),
   nasFileInput: document.querySelector("#nasFileInput"),
   nasAssetTitleInput: document.querySelector("#nasAssetTitleInput"),
   audioAsrModeSelect: document.querySelector("#audioAsrModeSelect"),
@@ -1399,12 +1838,15 @@ const els = {
   nasAssetSearch: document.querySelector("#nasAssetSearch"),
   nasAssetList: document.querySelector("#nasAssetList"),
   nasAssetDetail: document.querySelector("#nasAssetDetail"),
+  dashboardAssetGrid: document.querySelector("#dashboardAssetGrid"),
   nasUploadDialog: document.querySelector("#nasUploadDialog"),
   closeNasUploadDialog: document.querySelector("#closeNasUploadDialog"),
   confirmNasUploadDialog: document.querySelector("#confirmNasUploadDialog"),
   nasUploadDialogMessage: document.querySelector("#nasUploadDialogMessage"),
   accountNav: document.querySelector("#accountNav"),
   lineAdminNav: document.querySelector("#lineAdminNav"),
+  mcpNav: document.querySelector("#mcpNav"),
+  modelNav: document.querySelector("#modelNav"),
   lineGroupTotal: document.querySelector("#lineGroupTotal"),
   lineGroupApproved: document.querySelector("#lineGroupApproved"),
   lineMonthlyCalls: document.querySelector("#lineMonthlyCalls"),
@@ -1412,6 +1854,30 @@ const els = {
   refreshLineAdmin: document.querySelector("#refreshLineAdmin"),
   lineServiceNotice: document.querySelector("#lineServiceNotice"),
   lineAdminList: document.querySelector("#lineAdminList"),
+  mcpServerTotal: document.querySelector("#mcpServerTotal"),
+  mcpConnectedTotal: document.querySelector("#mcpConnectedTotal"),
+  mcpEnabledTotal: document.querySelector("#mcpEnabledTotal"),
+  mcpToolTotal: document.querySelector("#mcpToolTotal"),
+  mcpSearchInput: document.querySelector("#mcpSearchInput"),
+  refreshMcpServers: document.querySelector("#refreshMcpServers"),
+  addMcpServer: document.querySelector("#addMcpServer"),
+  mcpServerList: document.querySelector("#mcpServerList"),
+  mcpServerModal: document.querySelector("#mcpServerModal"),
+  mcpServerModalTitle: document.querySelector("#mcpServerModalTitle"),
+  closeMcpServerModal: document.querySelector("#closeMcpServerModal"),
+  cancelMcpServer: document.querySelector("#cancelMcpServer"),
+  mcpServerForm: document.querySelector("#mcpServerForm"),
+  mcpServerName: document.querySelector("#mcpServerName"),
+  mcpServerSlug: document.querySelector("#mcpServerSlug"),
+  mcpServerTransport: document.querySelector("#mcpServerTransport"),
+  mcpServerEndpoint: document.querySelector("#mcpServerEndpoint"),
+  mcpServerAuthEnv: document.querySelector("#mcpServerAuthEnv"),
+  mcpServerAuthType: document.querySelector("#mcpServerAuthType"),
+  mcpServerSourceUrl: document.querySelector("#mcpServerSourceUrl"),
+  mcpServerEnabled: document.querySelector("#mcpServerEnabled"),
+  mcpServerDescription: document.querySelector("#mcpServerDescription"),
+  mcpServerDescriptionEn: document.querySelector("#mcpServerDescriptionEn"),
+  mcpServerFormError: document.querySelector("#mcpServerFormError"),
   accountTotal: document.querySelector("#accountTotal"),
   accountActive: document.querySelector("#accountActive"),
   accountAdmins: document.querySelector("#accountAdmins"),
@@ -1472,8 +1938,11 @@ function applyLanguage(lang) {
   renderPricingPanel();
   renderKeyStatus();
   renderModelUsePanel();
+  renderAiworkMcpControls();
   renderLlmSuggestions();
   renderLlmCallHistory();
+  renderDashboardAssets();
+  renderNetworkAssets();
   renderNasAssetList();
   renderNasAssetDetail();
   renderRecordingAsrControls();
@@ -1483,6 +1952,7 @@ function applyLanguage(lang) {
   renderLinePushControls();
   renderVideoControls();
   renderLocalModelManager();
+  renderMcpServers();
   renderLineAdmin();
   renderAccountList();
   if (state.passwordResetUserId) {
@@ -1506,6 +1976,42 @@ async function api(path, options = {}) {
   return response.json();
 }
 
+function uploadFormData(path, formData, onProgress) {
+  return new Promise((resolve, reject) => {
+    const request = new XMLHttpRequest();
+    request.open("POST", path);
+    request.withCredentials = true;
+    request.timeout = 0;
+    request.upload.addEventListener("progress", (event) => {
+      if (!event.lengthComputable || !onProgress) return;
+      onProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)));
+    });
+    request.addEventListener("load", () => {
+      let payload = {};
+      try {
+        payload = request.responseText ? JSON.parse(request.responseText) : {};
+      } catch {
+        payload = {};
+      }
+      if (request.status >= 200 && request.status < 300) {
+        resolve(payload);
+        return;
+      }
+      reject(new Error(payload.detail || `${t("upload.uploadFailed")} (HTTP ${request.status})`));
+    });
+    request.addEventListener("error", () => reject(new Error(t("upload.connectionFailed"))));
+    request.addEventListener("abort", () => reject(new Error(t("upload.connectionFailed"))));
+    request.send(formData);
+  });
+}
+
+function setNasUploadProgress(progress, visible) {
+  els.nasUploadProgress.hidden = !visible;
+  els.nasUploadProgressBar.value = progress;
+  els.nasUploadProgressBar.textContent = `${progress}%`;
+  els.nasUploadProgressText.textContent = t("upload.uploading", { progress });
+}
+
 async function bootstrap() {
   applyLanguage(state.lang);
   try {
@@ -1519,16 +2025,29 @@ async function bootstrap() {
 function showLogin() {
   els.loginView.hidden = false;
   els.appView.hidden = true;
+  if (state.networkPollTimer) window.clearTimeout(state.networkPollTimer);
+  state.networkPollTimer = null;
   closeWebSocket();
+}
+
+function setManagementMenuExpanded(expanded) {
+  els.managementNavGroup.hidden = !expanded;
+  els.settingsNav.setAttribute("aria-expanded", String(expanded));
+  els.settingsNav.classList.toggle("expanded", expanded);
 }
 
 async function showApp() {
   els.loginView.hidden = true;
   els.appView.hidden = false;
   renderCurrentUser();
-  els.accountNav.hidden = state.user.role !== "admin";
-  els.lineAdminNav.hidden = state.user.role !== "admin";
-  els.addCustomModelButton.hidden = state.user.role !== "admin";
+  const isAdmin = state.user.role === "admin";
+  els.settingsNav.hidden = !isAdmin;
+  els.modelNav.hidden = !isAdmin;
+  els.accountNav.hidden = !isAdmin;
+  els.lineAdminNav.hidden = !isAdmin;
+  els.mcpNav.hidden = !isAdmin;
+  els.addCustomModelButton.hidden = !isAdmin;
+  setManagementMenuExpanded(false);
   switchView("dashboard");
   connectWebSocket();
   await loadMeetings();
@@ -1538,9 +2057,11 @@ async function showApp() {
   await loadLocalModels();
   await loadLineGroups();
   await loadLlmCalls();
+  await loadAvailableMcpServers();
   await loadNasAssets();
   if (state.user.role === "admin") {
     await loadLineAdmin();
+    await loadMcpServers();
     await loadAccounts();
   }
 }
@@ -1550,17 +2071,50 @@ function renderCurrentUser() {
 }
 
 function switchView(name) {
-  if (["lineAdmin", "accounts"].includes(name) && state.user?.role !== "admin") name = "dashboard";
+  if (["models", "mcp", "lineAdmin", "accounts"].includes(name) && state.user?.role !== "admin") name = "dashboard";
+  const isManagementView = ["models", "mcp", "lineAdmin", "accounts"].includes(name);
   Object.entries(els.sections).forEach(([key, section]) => {
     section.hidden = key !== name;
   });
   els.navItems.forEach((item) => item.classList.toggle("active", item.dataset.view === name));
+  els.settingsNav.classList.toggle("active", isManagementView);
+  if (isManagementView) setManagementMenuExpanded(true);
   els.viewTitle.textContent = t(`nav.${name}`);
-  if (name === "meetings") loadMeetings();
-  if (name === "upload") loadNasAssets();
-  if (name === "models") loadLocalModels();
-  if (name === "lineAdmin") loadLineAdmin();
-  if (name === "accounts") loadAccounts();
+}
+
+async function refreshViewData(name) {
+  if (name === "dashboard") return Promise.all([loadMeetings(), loadNasAssets()]);
+  if (name === "record") return Promise.all([loadAsrCatalog(), loadLineGroups()]);
+  if (name === "upload") return loadNasAssets();
+  if (name === "network") return loadNetworkAssets();
+  if (name === "models") return loadLocalModels();
+  if (name === "meetings") return loadMeetings();
+  if (name === "aiwork") return Promise.all([loadLlmCatalog(), loadLlmCalls(), loadAvailableMcpServers()]);
+  if (name === "mcp") return loadMcpServers();
+  if (name === "lineAdmin") return loadLineAdmin();
+  if (name === "accounts") return loadAccounts();
+}
+
+async function navigateFromSidebar(name) {
+  if (name !== "network" && state.networkPollTimer) {
+    window.clearTimeout(state.networkPollTimer);
+    state.networkPollTimer = null;
+  }
+  if (name === "upload") {
+    state.selectedAssetId = null;
+    state.selectedAsset = null;
+    renderNasAssetList();
+    renderNasAssetDetail();
+  }
+  if (name === "meetings") {
+    state.selectedMeetingId = null;
+    renderMeetingList();
+    renderSelectedMeetingEmptyState();
+  }
+
+  switchView(name);
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  await refreshViewData(name);
 }
 
 function currentViewName() {
@@ -1598,6 +2152,248 @@ async function loadLineAdmin() {
   state.lineAdminModels = result.models || [];
   state.lineServiceConnected = Boolean(result.service_connected);
   renderLineAdmin();
+}
+
+async function loadMcpServers() {
+  if (state.user?.role !== "admin") return;
+  const result = await api("/api/admin/mcp/servers");
+  state.mcpServers = result.servers || [];
+  renderMcpServers();
+}
+
+async function loadAvailableMcpServers() {
+  const result = await api("/api/mcp/available");
+  state.availableMcpServers = result.servers || [];
+  if (
+    state.selectedMcpServerId !== "auto"
+    && !state.availableMcpServers.some((server) => String(server.id) === state.selectedMcpServerId)
+  ) {
+    state.selectedMcpServerId = "auto";
+  }
+  renderAiworkMcpControls();
+}
+
+function renderAiworkMcpControls() {
+  if (!els.useMcpToggle) return;
+  const servers = state.availableMcpServers;
+  const toolCount = servers.reduce((sum, server) => sum + Number(server.tool_count || 0), 0);
+  els.useMcpToggle.checked = state.useMcp;
+  els.useMcpToggle.disabled = !servers.length;
+  els.aiworkMcpServerSelect.disabled = !state.useMcp || !servers.length;
+  els.aiworkMcpServerSelect.innerHTML = `
+    <option value="auto">${escapeHtml(t("aiwork.mcpAuto"))}</option>
+    ${servers.map((server) => `
+      <option value="${server.id}">${escapeHtml(server.name)} · ${Number(server.tool_count || 0)}</option>
+    `).join("")}
+  `;
+  els.aiworkMcpServerSelect.value = state.selectedMcpServerId;
+  els.aiworkMcpStatus.textContent = servers.length
+    ? t("aiwork.mcpReady", { servers: servers.length, tools: toolCount })
+    : t("aiwork.mcpUnavailable");
+  els.aiworkMcpStatus.classList.toggle("unavailable", !servers.length);
+}
+
+function renderMcpServers() {
+  if (!els.mcpServerList || state.user?.role !== "admin") return;
+  els.mcpServerTotal.textContent = state.mcpServers.length;
+  els.mcpConnectedTotal.textContent = state.mcpServers.filter((server) => server.status === "connected").length;
+  els.mcpEnabledTotal.textContent = state.mcpServers.filter((server) => server.is_enabled).length;
+  els.mcpToolTotal.textContent = state.mcpServers.reduce((sum, server) => sum + Number(server.tool_count || 0), 0);
+
+  const query = state.mcpSearchQuery.trim().toLowerCase();
+  const visibleServers = query
+    ? state.mcpServers.filter((server) => [
+        server.name, server.slug, server.endpoint, server.description, server.description_en,
+      ].some((value) => String(value || "").toLowerCase().includes(query)))
+    : state.mcpServers;
+
+  if (!visibleServers.length) {
+    els.mcpServerList.innerHTML = `<div class="empty-state compact">${escapeHtml(t("mcp.empty"))}</div>`;
+    return;
+  }
+
+  const businessPriority = [
+    "nas-demo", "odoo", "gmail", "google-drive", "google-docs", "google-sheets",
+    "google-calendar", "google-slides", "google-chat", "google-people", "monday",
+    "linear", "slack", "notion", "atlassian", "stripe",
+  ];
+  const technicalPriority = [
+    "github", "cloudflare", "cloudflare-docs", "vercel", "supabase", "context7",
+    "nas-filesystem", "postgresql",
+  ];
+  const technicalSlugs = new Set(technicalPriority);
+  const sortServers = (servers, priority) => servers.slice().sort((left, right) => {
+    const leftIndex = priority.indexOf(left.slug);
+    const rightIndex = priority.indexOf(right.slug);
+    const leftRank = leftIndex === -1 ? priority.length : leftIndex;
+    const rightRank = rightIndex === -1 ? priority.length : rightIndex;
+    return leftRank - rightRank || left.name.localeCompare(right.name);
+  });
+  const renderServerCard = (server) => {
+    const description = state.lang === "en"
+      ? server.description_en || server.description
+      : server.description || server.description_en;
+    const authState = server.auth_env_var
+      ? server.auth_configured ? t("mcp.authReady") : t("mcp.authMissing")
+      : t("mcp.authNone");
+    const canSync = server.transport === "streamable_http" && Boolean(server.endpoint) && server.is_enabled;
+    const tools = server.tools || [];
+    const endpoint = server.public_endpoint
+      ? new URL(server.public_endpoint, window.location.origin).href
+      : server.endpoint || "";
+    const authType = t(`mcp.authTypes.${server.auth_type || "none"}`);
+    const fixedHeaders = Object.entries(server.headers || {})
+      .map(([name, value]) => `${name}: ${value}`)
+      .join(" · ");
+    return `
+      <article class="mcp-server-card ${escapeHtml(server.status)}" data-mcp-server-id="${server.id}">
+        <div class="mcp-server-head">
+          <div>
+            <span class="mcp-status-badge ${escapeHtml(server.status)}">${escapeHtml(t(`mcp.status.${server.status}`))}</span>
+            <h4>${escapeHtml(server.name)}</h4>
+            <p>${escapeHtml(description || "-")}</p>
+          </div>
+          <div class="mcp-server-actions">
+            <button class="secondary-button compact-button" type="button" data-mcp-action="edit">${escapeHtml(t("mcp.edit"))}</button>
+            <button class="primary-button compact-button" type="button" data-mcp-action="sync" ${canSync ? "" : "disabled"}>${escapeHtml(t("mcp.sync"))}</button>
+          </div>
+        </div>
+        <div class="mcp-server-meta">
+          <span><b>${escapeHtml(t("mcp.transport"))}</b>${escapeHtml(server.transport)}</span>
+          <span class="mcp-endpoint-meta"><b>${escapeHtml(t("mcp.endpoint"))}</b><code>${escapeHtml(endpoint || "-")}</code>${endpoint ? `<button class="text-action" type="button" data-mcp-action="copy" data-mcp-endpoint="${escapeHtml(endpoint)}">${escapeHtml(t("mcp.copyEndpoint"))}</button>` : ""}</span>
+          <span class="${server.auth_env_var && !server.auth_configured ? "warning" : ""}"><b>${escapeHtml(t("mcp.auth"))}</b>${escapeHtml(authType)} · ${escapeHtml(authState)}${server.auth_env_var ? ` · ${escapeHtml(server.auth_env_var)}` : ""}</span>
+          ${fixedHeaders ? `<span><b>${escapeHtml(t("mcp.requestHeaders"))}</b><code>${escapeHtml(fixedHeaders)}</code></span>` : ""}
+          <span><b>${escapeHtml(t("mcp.protocol"))}</b>${escapeHtml(server.protocol_version || "-")}</span>
+          <span><b>${escapeHtml(t("mcp.lastChecked"))}</b>${escapeHtml(server.last_checked_at ? formatDate(server.last_checked_at) : t("mcp.neverChecked"))}</span>
+          <span><b>${escapeHtml(t("mcp.enabled"))}</b>${escapeHtml(t(server.is_enabled ? "mcp.enabledForLlm" : "mcp.disabledForLlm"))}${server.source_url ? `<a class="mcp-source-link" href="${escapeHtml(server.source_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t("mcp.officialSource"))}</a>` : ""}</span>
+        </div>
+        ${server.last_error ? `<p class="mcp-server-error">${escapeHtml(server.last_error)}</p>` : ""}
+        <details class="mcp-tool-catalog" ${tools.length ? "" : "disabled"}>
+          <summary>${escapeHtml(t("mcp.tools"))} · ${tools.length}</summary>
+          ${tools.length ? `<div class="mcp-tool-list">${tools.map((tool) => `
+            <article>
+              <strong>${escapeHtml(tool.title || tool.name)}</strong>
+              <code>${escapeHtml(tool.name)}</code>
+              <p>${escapeHtml(tool.description || "-")}</p>
+            </article>
+          `).join("")}</div>` : `<p>${escapeHtml(t("mcp.noTools"))}</p>`}
+        </details>
+      </article>
+    `;
+  };
+  const businessServers = sortServers(
+    visibleServers.filter((server) => !technicalSlugs.has(server.slug)),
+    businessPriority,
+  );
+  const technicalServers = sortServers(
+    visibleServers.filter((server) => technicalSlugs.has(server.slug)),
+    technicalPriority,
+  );
+  const businessSection = businessServers.length ? `
+    <section class="mcp-server-group enterprise">
+      <div class="mcp-group-heading">
+        <div>
+          <h4>${escapeHtml(t("mcp.enterpriseTitle"))}</h4>
+          <p>${escapeHtml(t("mcp.enterpriseCopy"))}</p>
+        </div>
+        <span>${escapeHtml(t("mcp.connectorCount", { count: businessServers.length }))}</span>
+      </div>
+      <div class="mcp-server-group-list">${businessServers.map(renderServerCard).join("")}</div>
+    </section>
+  ` : "";
+  const technicalSection = technicalServers.length ? `
+    <details class="mcp-server-group technical" ${query ? "open" : ""}>
+      <summary class="mcp-group-heading">
+        <div>
+          <h4>${escapeHtml(t("mcp.technicalTitle"))}</h4>
+          <p>${escapeHtml(t("mcp.technicalCopy"))}</p>
+        </div>
+        <span>${escapeHtml(t("mcp.connectorCount", { count: technicalServers.length }))}</span>
+      </summary>
+      <div class="mcp-server-group-list">${technicalServers.map(renderServerCard).join("")}</div>
+    </details>
+  ` : "";
+  els.mcpServerList.innerHTML = businessSection + technicalSection;
+}
+
+function openMcpServerModal(server = null) {
+  state.editingMcpServerId = server?.id || null;
+  els.mcpServerModalTitle.textContent = t(server ? "mcp.modalEditTitle" : "mcp.modalAddTitle");
+  els.mcpServerName.value = server?.name || "";
+  els.mcpServerSlug.value = server?.slug || "";
+  els.mcpServerTransport.value = server?.transport || "streamable_http";
+  els.mcpServerEndpoint.value = server?.endpoint || "";
+  els.mcpServerAuthEnv.value = server?.auth_env_var || "";
+  els.mcpServerAuthType.value = server?.auth_type || "none";
+  els.mcpServerSourceUrl.value = server?.source_url || "";
+  els.mcpServerEnabled.checked = Boolean(server?.is_enabled);
+  els.mcpServerDescription.value = server?.description || "";
+  els.mcpServerDescriptionEn.value = server?.description_en || "";
+  els.mcpServerFormError.textContent = "";
+  els.mcpServerModal.hidden = false;
+  window.setTimeout(() => els.mcpServerName.focus(), 0);
+}
+
+function closeMcpServerModal() {
+  els.mcpServerModal.hidden = true;
+  state.editingMcpServerId = null;
+  els.mcpServerForm.reset();
+  els.mcpServerFormError.textContent = "";
+}
+
+async function saveMcpServer(event) {
+  event.preventDefault();
+  const payload = {
+    name: els.mcpServerName.value.trim(),
+    slug: els.mcpServerSlug.value.trim().toLowerCase(),
+    transport: els.mcpServerTransport.value,
+    endpoint: els.mcpServerEndpoint.value.trim(),
+    auth_env_var: els.mcpServerAuthEnv.value.trim(),
+    auth_type: els.mcpServerAuthType.value,
+    source_url: els.mcpServerSourceUrl.value.trim(),
+    is_enabled: els.mcpServerEnabled.checked,
+    description: els.mcpServerDescription.value.trim(),
+    description_en: els.mcpServerDescriptionEn.value.trim(),
+  };
+  const editing = state.editingMcpServerId;
+  const submit = els.mcpServerForm.querySelector('button[type="submit"]');
+  submit.disabled = true;
+  els.mcpServerFormError.textContent = "";
+  try {
+    await api(editing ? `/api/admin/mcp/servers/${editing}` : "/api/admin/mcp/servers", {
+      method: editing ? "PATCH" : "POST",
+      body: JSON.stringify(payload),
+    });
+    closeMcpServerModal();
+    showToast(t("mcp.saved"), t("nav.mcp"));
+    await loadMcpServers();
+  } catch (error) {
+    els.mcpServerFormError.textContent = error.message.includes("slug") ? t("mcp.duplicate") : error.message;
+  } finally {
+    submit.disabled = false;
+  }
+}
+
+async function syncMcpServer(button, server) {
+  button.disabled = true;
+  button.textContent = t("mcp.syncing");
+  try {
+    await api(`/api/admin/mcp/servers/${server.id}/sync`, { method: "POST" });
+    showToast(t("mcp.syncSuccess"), server.name);
+  } catch (error) {
+    showToast(error.message, t("mcp.syncFailed"));
+  } finally {
+    await loadMcpServers();
+  }
+}
+
+async function copyMcpEndpoint(endpoint) {
+  try {
+    await navigator.clipboard.writeText(endpoint);
+    showToast(t("mcp.endpointCopied"), t("nav.mcp"));
+  } catch {
+    showToast(endpoint, t("mcp.copyEndpoint"));
+  }
 }
 
 function renderLineAdmin() {
@@ -1854,19 +2650,25 @@ async function handleAccountAction(button) {
 
 async function loadLlmCatalog() {
   state.llmCatalog = await api("/api/llm/models");
-  const selectedModelExists = state.llmCatalog.models.some(
-    (model) => model.id === state.selectedLlmId && model.execution === state.selectedLlmMode
-  );
-  if (!selectedModelExists) {
-    const fallback = defaultLlmModelForMode(state.selectedLlmMode);
-    state.selectedProvider = fallback?.provider || "";
-    state.selectedLlmId = fallback?.id || "";
-  }
+  const current = state.llmCatalog.current_model || defaultLlmModelForMode("local");
+  state.currentLlmModel = current;
+  state.currentLlmId = current?.id || "";
+  state.selectedLlmMode = current?.execution || "local";
+  state.selectedProvider = current?.provider || "";
+  state.selectedLlmId = current?.id || "";
+  state.assetSelectedLlmMode = state.selectedLlmMode;
+  state.assetSelectedProvider = state.selectedProvider;
+  state.assetSelectedLlmId = state.currentLlmId;
+  state.recordTranslationMode = state.selectedLlmMode;
+  state.recordTranslationModelId = state.currentLlmId;
+  state.audioTranslationMode = state.selectedLlmMode;
+  state.audioTranslationModelId = state.currentLlmId;
   renderLlmControls();
   renderTranslationControls("record");
   renderTranslationControls("audio");
   if (state.selectedLlmId) {
     await selectLlmModel(state.selectedLlmId);
+    state.assetSelectedPricing = state.selectedPricing;
   } else {
     renderPricingPanel();
     renderKeyStatus();
@@ -1905,10 +2707,86 @@ async function loadNasAssets() {
   const query = els.nasAssetSearch.value.trim();
   if (query) params.set("q", query);
   state.nasAssets = await api(`/api/nas-assets${params.toString() ? `?${params}` : ""}`);
+  renderDashboardAssets();
   renderNasAssetList();
   if (state.selectedAssetId) {
     const stillExists = state.nasAssets.some((asset) => asset.id === state.selectedAssetId);
     if (stillExists) await selectNasAsset(state.selectedAssetId);
+  }
+}
+
+async function loadNetworkAssets() {
+  state.networkAssets = await api("/api/network-assets");
+  renderNetworkAssets();
+  scheduleNetworkAssetPolling();
+}
+
+function renderNetworkAssets() {
+  if (!els.networkAssetList) return;
+  if (!state.networkAssets.length) {
+    els.networkAssetList.innerHTML = `<div class="empty-state compact">${escapeHtml(t("network.empty"))}</div>`;
+    return;
+  }
+  els.networkAssetList.innerHTML = state.networkAssets
+    .map((asset) => {
+      const canOpen = Number(asset.file_size || 0) > 0 && asset.status !== "downloading";
+      const detail = asset.error_message || asset.summary || t("meetings.processingText");
+      return `
+        <article class="network-asset-row">
+          <div class="network-asset-heading">
+            <div>
+              <strong>${escapeHtml(asset.title)}</strong>
+              <span>${escapeHtml(asset.category.toUpperCase())} · ${escapeHtml(formatDate(asset.created_at))}</span>
+            </div>
+            <span class="badge ${escapeHtml(asset.status)}">${escapeHtml(statusLabel(asset.status))}</span>
+          </div>
+          <p>${escapeHtml(detail)}</p>
+          <div class="network-asset-meta">
+            <a href="${escapeHtml(asset.source_url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(t("network.source"))}</a>
+            <span>${escapeHtml(asset.owner_username || "-")}</span>
+            ${asset.file_size ? `<span>${escapeHtml(formatBytes(asset.file_size))}</span>` : ""}
+          </div>
+          <button class="secondary-button compact-button" type="button" data-network-asset-id="${asset.id}" ${canOpen ? "" : "disabled"}>
+            ${escapeHtml(t("network.openAsset"))}
+          </button>
+        </article>
+      `;
+    })
+    .join("");
+}
+
+function scheduleNetworkAssetPolling() {
+  if (state.networkPollTimer) window.clearTimeout(state.networkPollTimer);
+  state.networkPollTimer = null;
+  const active = state.networkAssets.some((asset) => ["downloading", "processing"].includes(asset.status));
+  if (!active || currentViewName() !== "network") return;
+  state.networkPollTimer = window.setTimeout(() => {
+    loadNetworkAssets().catch(() => {});
+  }, 3000);
+}
+
+async function submitNetworkImport(event) {
+  event.preventDefault();
+  els.networkImportSubmit.disabled = true;
+  els.networkImportSubmit.textContent = t("network.submitting");
+  try {
+    await api("/api/network-assets/youtube", {
+      method: "POST",
+      body: JSON.stringify({
+        url: els.networkUrlInput.value.trim(),
+        title: els.networkTitleInput.value.trim(),
+        media_type: els.networkMediaType.value,
+        authorized: els.networkAuthorized.checked,
+      }),
+    });
+    els.networkImportForm.reset();
+    showToast(t("network.queued"), t("nav.network"));
+    await loadNetworkAssets();
+  } catch (error) {
+    showToast(error.message, t("network.failed"));
+  } finally {
+    els.networkImportSubmit.disabled = false;
+    els.networkImportSubmit.textContent = t("network.submit");
   }
 }
 
@@ -1934,22 +2812,177 @@ function renderNasAssetList() {
     .join("");
 }
 
-async function selectNasAsset(id) {
+async function selectNasAsset(id, { scroll = false } = {}) {
   state.selectedAssetId = id;
   renderNasAssetList();
   state.selectedAsset = await api(`/api/nas-assets/${id}`);
   renderNasAssetDetail();
+  if (scroll) els.nasAssetDetail.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+async function openNasAsset(id, { transcript = false } = {}) {
+  switchView("upload");
+  await selectNasAsset(id, { scroll: !transcript });
+  if (transcript) {
+    document.querySelector("#assetTranscript")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
+
+function dashboardAssetMatches(asset, filter) {
+  if (filter === "all") return true;
+  if (filter === "document") return ["pdf", "docx", "file"].includes(asset.category);
+  return asset.category === filter;
+}
+
+function renderDashboardAssets() {
+  if (!els.dashboardAssetGrid) return;
+  document.querySelectorAll("[data-dashboard-asset-filter]").forEach((button) => {
+    button.classList.toggle("active", button.dataset.dashboardAssetFilter === state.dashboardAssetFilter);
+  });
+  const assets = state.nasAssets
+    .filter((asset) => dashboardAssetMatches(asset, state.dashboardAssetFilter))
+    .sort((left, right) => Number(right.file_size || 0) - Number(left.file_size || 0));
+  if (!assets.length) {
+    els.dashboardAssetGrid.innerHTML = `<div class="empty-state compact">${escapeHtml(t("dashboardAssets.empty"))}</div>`;
+    return;
+  }
+  els.dashboardAssetGrid.innerHTML = assets
+    .map((asset, index) => {
+      const transcript = String(asset.transcript_preview || "").replace(/\s+/g, " ").trim();
+      const transcriptFallback = asset.status === "processing"
+        ? t("dashboardAssets.transcriptProcessing")
+        : t("dashboardAssets.transcriptUnavailable");
+      return `
+      <article class="dashboard-asset-row">
+        <span class="asset-kind">${escapeHtml(asset.category.toUpperCase())}</span>
+        <span class="dashboard-asset-name">
+          <strong>${escapeHtml(asset.title)}</strong>
+          <small>${escapeHtml(asset.original_filename)}</small>
+        </span>
+        <span class="dashboard-asset-size">
+          <b>${escapeHtml(formatBytes(asset.file_size))}</b>
+          ${index === 0 ? `<small>${escapeHtml(t("dashboardAssets.largest"))}</small>` : ""}
+        </span>
+        <span class="badge ${escapeHtml(asset.status)}">${escapeHtml(statusLabel(asset.status))}</span>
+        <button class="dashboard-asset-open" type="button" data-dashboard-asset-id="${asset.id}">
+          ${escapeHtml(t("dashboardAssets.open"))}
+        </button>
+        ${asset.category === "audio" ? `
+          <div class="dashboard-transcript-preview">
+            <strong>${escapeHtml(t("dashboardAssets.transcript"))}</strong>
+            <p class="${transcript ? "" : "is-empty"}">${escapeHtml(transcript || transcriptFallback)}</p>
+            <button class="dashboard-transcript-open" type="button" data-dashboard-transcript-id="${asset.id}">
+              ${escapeHtml(t("dashboardAssets.transcriptDetail"))}
+            </button>
+          </div>
+        ` : ""}
+      </article>
+    `;
+    })
+    .join("");
+}
+
+function apiKeyForProvider(provider) {
+  const normalized = providerKeyId(provider || "");
+  const aliases = {
+    "google-gemini": ["google"],
+    google: ["google-gemini"],
+  };
+  return [normalized, ...(aliases[normalized] || [])]
+    .map((key) => state.apiKeys[key] || "")
+    .find(Boolean) || "";
+}
+
+function reprocessCredentials(asset) {
+  const config = asset.processor_config || {};
+  let audioApiKey = apiKeyForProvider(config.asr_provider);
+  let videoApiKey = apiKeyForProvider(config.video_provider);
+  let translationApiKey = apiKeyForProvider(config.translation_provider);
+
+  if (config.asr_model_id === state.selectedAsrModelId) {
+    audioApiKey ||= els.audioAsrApiKeyInput?.value.trim() || "";
+  }
+  if (config.asr_model_id === state.selectedRecordAsrModelId) {
+    audioApiKey ||= els.recordAsrApiKeyInput?.value.trim() || "";
+  }
+  if (config.video_model_id === state.selectedVideoModelId) {
+    videoApiKey ||= els.videoApiKeyInput?.value.trim() || "";
+  }
+  if (config.translation_model_id === state.audioTranslationModelId) {
+    translationApiKey ||= els.audioTranslationApiKeyInput?.value.trim() || "";
+  }
+  if (config.translation_model_id === state.recordTranslationModelId) {
+    translationApiKey ||= els.recordTranslationApiKeyInput?.value.trim() || "";
+  }
+  return {
+    audio_api_key: audioApiKey,
+    video_api_key: videoApiKey,
+    translation_api_key: translationApiKey,
+  };
+}
+
+async function reprocessSelectedAsset() {
+  const asset = state.selectedAsset;
+  if (!asset || !window.confirm(t("upload.reprocessConfirm"))) return;
+  const button = document.querySelector("#reprocessAssetButton");
+  if (button) {
+    button.disabled = true;
+    button.textContent = t("upload.reprocessing");
+  }
+  try {
+    await api(`/api/nas-assets/${asset.id}/reprocess`, {
+      method: "POST",
+      body: JSON.stringify(reprocessCredentials(asset)),
+    });
+    await loadNasAssets();
+    await loadMeetings();
+    showToast(t("upload.reprocessQueued"), t("upload.assetsTitle"));
+  } finally {
+    if (button?.isConnected) {
+      button.disabled = false;
+      button.textContent = t("upload.reprocess");
+    }
+  }
+}
+
+async function convertSelectedAssetToTraditional() {
+  const asset = state.selectedAsset;
+  if (!asset || !window.confirm(t("upload.openccConfirm"))) return;
+  const button = document.querySelector("#openccAssetButton");
+  if (button) {
+    button.disabled = true;
+    button.textContent = t("upload.openccRunning");
+  }
+  try {
+    const result = await api(`/api/nas-assets/${asset.id}/opencc-traditional`, {
+      method: "POST",
+      body: "{}",
+    });
+    await loadNasAssets();
+    await loadMeetings();
+    showToast(result.message, t("upload.openccTraditional"));
+  } finally {
+    if (button?.isConnected) {
+      button.disabled = false;
+      button.textContent = t("upload.openccTraditional");
+    }
+  }
 }
 
 function renderNasAssetDetail() {
   const asset = state.selectedAsset;
   if (!asset) {
-    els.nasAssetDetail.innerHTML = `<div class="empty-state">${t("upload.emptyDetail")}</div>`;
+    els.nasAssetDetail.hidden = true;
+    els.nasAssetDetail.innerHTML = "";
     return;
   }
 
+  els.nasAssetDetail.hidden = false;
   const chunks = asset.chunks || [];
   const canAsk = ["audio", "video", "pdf", "docx", "image"].includes(asset.category) && asset.chunk_count > 0;
+  const isMedia = ["audio", "video"].includes(asset.category);
+  const canReprocess = ["audio", "video", "pdf", "docx", "image"].includes(asset.category);
+  const mediaBusy = asset.status === "processing";
   els.nasAssetDetail.innerHTML = `
     <div class="asset-detail-header">
       <div>
@@ -1958,6 +2991,12 @@ function renderNasAssetDetail() {
       </div>
       <span class="badge ${escapeHtml(asset.status)}">${statusLabel(asset.status)}</span>
     </div>
+    ${canReprocess ? `
+      <div class="asset-detail-actions">
+        <button id="reprocessAssetButton" class="secondary-button" type="button" ${mediaBusy ? "disabled" : ""}>${escapeHtml(t("upload.reprocess"))}</button>
+        ${isMedia ? `<button id="openccAssetButton" class="opencc-button" type="button" ${mediaBusy ? "disabled" : ""}>${escapeHtml(t("upload.openccTraditional"))}</button>` : ""}
+      </div>
+    ` : ""}
     <div class="asset-meta-grid">
       ${assetMeta(t("upload.owner"), asset.owner_username || `#${asset.user_id}`)}
       ${assetMeta(t("upload.filename"), asset.original_filename)}
@@ -1967,6 +3006,9 @@ function renderNasAssetDetail() {
       ${asset.category === "audio" && asset.processor_config?.translation_enabled ? assetMeta(t("upload.selectedTranslation"), selectedTranslationLabel(asset)) : ""}
       ${asset.category === "video" ? assetMeta(t("upload.selectedVideo"), selectedVideoLabel(asset)) : ""}
     </div>
+    ${asset.category === "audio" ? renderAudioPlayback(asset) : ""}
+    ${asset.category === "video" ? renderVideoPlayback(asset) : ""}
+    ${asset.category === "audio" ? renderAssetTranscript(asset) : ""}
     <section class="asset-summary">
       <strong>${escapeHtml(t("upload.summary"))}</strong>
       <p>${escapeHtml(asset.summary || asset.error_message || processingText(asset.status, asset.error_message))}</p>
@@ -1977,6 +3019,26 @@ function renderNasAssetDetail() {
     ${canAsk ? renderDocumentAskPanel() : `<div class="empty-state compact">${t("upload.noRag")}</div>`}
   `;
   renderAssetLlmControls();
+  scheduleAssetSegmentPolling();
+}
+
+function renderAssetTranscript(asset) {
+  const transcript = String(asset.transcript || "").trim();
+  return `
+    <section id="assetTranscript" class="asset-transcript-section">
+      <div class="asset-transcript-heading">
+        <strong>${escapeHtml(t("upload.transcriptTitle"))}</strong>
+        ${transcript ? `<div class="transcript-heading-actions">
+          <span>${escapeHtml(t("upload.transcriptMeta", {
+            chunks: Number(asset.transcript_chunk_count || 0),
+            characters: transcript.length.toLocaleString(state.lang),
+          }))}</span>
+          ${renderMediaDownloadButton(asset.transcript_download_url, t("upload.downloadTranscript"))}
+        </div>` : ""}
+      </div>
+      <div class="transcript-box ${transcript ? "" : "is-empty"}">${escapeHtml(transcript || t("upload.transcriptEmpty"))}</div>
+    </section>
+  `;
 }
 
 function renderAiAnalysisHistory(analyses) {
@@ -2023,6 +3085,196 @@ function selectedVideoLabel(asset) {
 function selectedTranslationLabel(asset) {
   const config = asset.processor_config || {};
   return `${config.translation_provider || "LLM"} · ${config.translation_model || "-"} → ${translationTargetLabel(config.translation_target)}`;
+}
+
+function renderAudioPlayback(asset) {
+  const segments = asset.audio_segments || [];
+  return `
+    <section class="audio-playback-panel">
+      <div class="audio-playback-heading">
+        <div>
+          <strong>${escapeHtml(t("upload.sourceAudioTitle"))}</strong>
+          <p>${escapeHtml(t("upload.sourceAudioCopy"))}</p>
+        </div>
+        <div class="media-heading-actions">
+          <span>${escapeHtml(formatBytes(asset.file_size))}</span>
+          ${renderMediaDownloadButton(asset.download_url, t("upload.downloadSource"))}
+        </div>
+      </div>
+      <audio class="asset-audio-player" controls preload="metadata" src="${escapeHtml(asset.audio_url)}"></audio>
+      <div class="audio-segment-heading">
+        <strong>${escapeHtml(t("upload.audioSegmentsTitle"))}</strong>
+        <p>${escapeHtml(t("upload.audioSegmentsCopy"))}</p>
+      </div>
+      ${segments.length ? `
+        <div class="audio-segment-list">
+          ${segments.map((segment) => {
+            const start = Number(segment.start_seconds || 0);
+            const duration = Number(segment.duration_seconds || 0);
+            return `
+              <div class="audio-segment-row" data-audio-segment-index="${Number(segment.index)}">
+                <div>
+                  <strong>${escapeHtml(segment.is_source ? t("upload.wholeFile") : t("upload.audioSegment", { number: Number(segment.index) + 1 }))}</strong>
+                  <span>${duration > 0 ? `${escapeHtml(t("upload.audioSegmentRange", {
+                    start: formatMediaTime(start),
+                    end: formatMediaTime(start + duration),
+                  }))} · ` : ""}${escapeHtml(formatBytes(segment.file_size))}</span>
+                </div>
+                <div class="segment-media-control">
+                  <audio controls preload="metadata" src="${escapeHtml(segment.audio_url)}"></audio>
+                  <div class="segment-action-row">
+                    ${renderMediaDownloadButton(segment.download_url, t("upload.downloadSegment"))}
+                    ${renderSegmentTranscriptionButton(segment)}
+                  </div>
+                  <div class="segment-transcription-slot" data-segment-transcription-slot="${Number(segment.index)}">
+                    ${renderSegmentTranscription(segment)}
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join("")}
+        </div>
+      ` : `<p class="audio-segment-empty">${escapeHtml(t("upload.noAudioSegments"))}</p>`}
+    </section>
+  `;
+}
+
+function renderVideoPlayback(asset) {
+  const segments = asset.video_segments || [];
+  return `
+    <section class="video-playback-panel">
+      <div class="audio-playback-heading">
+        <div>
+          <strong>${escapeHtml(t("upload.sourceVideoTitle"))}</strong>
+          <p>${escapeHtml(t("upload.sourceVideoCopy"))}</p>
+        </div>
+        <div class="media-heading-actions">
+          <span>${escapeHtml(formatBytes(asset.file_size))}</span>
+          ${renderMediaDownloadButton(asset.download_url, t("upload.downloadSource"))}
+        </div>
+      </div>
+      <video class="asset-video-player" controls preload="metadata" playsinline src="${escapeHtml(asset.video_url)}"></video>
+      <div class="audio-segment-heading">
+        <strong>${escapeHtml(t("upload.videoSegmentsTitle"))}</strong>
+        <p>${escapeHtml(t("upload.videoSegmentsCopy"))}</p>
+      </div>
+      <div class="audio-segment-list">
+        ${segments.map((segment) => {
+          const start = Number(segment.start_seconds || 0);
+          const duration = Number(segment.duration_seconds || 0);
+          return `
+            <div class="audio-segment-row media-download-row">
+              <div>
+                <strong>${escapeHtml(segment.is_source ? t("upload.wholeFile") : t("upload.audioSegment", { number: Number(segment.index) + 1 }))}</strong>
+                <span>${duration > 0 ? `${escapeHtml(t("upload.audioSegmentRange", {
+                  start: formatMediaTime(start),
+                  end: formatMediaTime(start + duration),
+                }))} · ` : ""}${escapeHtml(formatBytes(segment.file_size))}</span>
+              </div>
+              ${renderMediaDownloadButton(segment.download_url, t("upload.downloadSegment"))}
+            </div>
+          `;
+        }).join("")}
+      </div>
+    </section>
+  `;
+}
+
+function renderSegmentTranscriptionButton(segment) {
+  const status = segment.transcription?.status || "";
+  const active = ["queued", "processing"].includes(status);
+  const label = active
+    ? (status === "queued" ? t("upload.segmentTranscriptionQueued") : t("upload.segmentTranscriptionProcessing"))
+    : (status === "completed" ? t("upload.retranscribeSegment") : t("upload.transcribeSegment"));
+  return `<button class="segment-transcribe-button" type="button" data-transcribe-segment="${Number(segment.index)}" ${active ? "disabled" : ""}>${escapeHtml(label)}</button>`;
+}
+
+function renderSegmentTranscription(segment) {
+  const result = segment.transcription || {};
+  if (!result.status) return "";
+  const progress = Math.max(0, Math.min(100, Number(result.progress || 0)));
+  const statusLabels = {
+    queued: t("upload.segmentTranscriptionQueued"),
+    processing: t("upload.segmentTranscriptionProcessing"),
+    completed: t("upload.segmentTranscriptionCompleted"),
+    failed: t("upload.segmentTranscriptionFailed"),
+  };
+  const active = ["queued", "processing"].includes(result.status);
+  return `
+    <div class="segment-transcription-status ${escapeHtml(result.status)}">
+      <div>
+        <strong>${escapeHtml(statusLabels[result.status] || result.status)}</strong>
+        <div class="segment-transcription-heading-actions">
+          <span>${escapeHtml(result.model_name || result.model_id || "")}</span>
+          ${result.download_url ? renderMediaDownloadButton(result.download_url, t("upload.downloadSegmentTranscript")) : ""}
+        </div>
+      </div>
+      <div class="segment-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress}">
+        <span class="${active ? "active" : ""}" style="width:${progress}%"></span>
+      </div>
+      ${result.transcript ? `<details class="segment-transcript"><summary>${escapeHtml(t("upload.segmentTranscript"))}</summary><p>${escapeHtml(result.transcript)}</p></details>` : ""}
+      ${result.error_message ? `<p class="segment-transcription-error">${escapeHtml(result.error_message)}</p>` : ""}
+    </div>
+  `;
+}
+
+async function transcribeAudioSegment(segmentIndex) {
+  const asset = state.selectedAsset;
+  if (!asset || asset.category !== "audio") return;
+  const credentials = reprocessCredentials(asset);
+  await api(`/api/nas-assets/${asset.id}/audio-segments/${segmentIndex}/transcribe`, {
+    method: "POST",
+    body: JSON.stringify({
+      model_id: asset.processor_config?.asr_model_id || "",
+      api_key: credentials.audio_api_key || "",
+    }),
+  });
+  showToast(t("upload.segmentTranscriptionQueuedToast"), t("upload.audioSegmentsTitle"));
+  await refreshAssetSegmentTranscriptions();
+}
+
+async function refreshAssetSegmentTranscriptions() {
+  if (!state.selectedAssetId) return;
+  const selectedId = state.selectedAssetId;
+  const asset = await api(`/api/nas-assets/${selectedId}`);
+  if (state.selectedAssetId !== selectedId) return;
+  state.selectedAsset = asset;
+  (asset.audio_segments || []).forEach((segment) => {
+    const row = els.nasAssetDetail.querySelector(`[data-audio-segment-index="${Number(segment.index)}"]`);
+    if (!row) return;
+    const slot = row.querySelector("[data-segment-transcription-slot]");
+    const button = row.querySelector("[data-transcribe-segment]");
+    if (slot) slot.innerHTML = renderSegmentTranscription(segment);
+    if (button) button.outerHTML = renderSegmentTranscriptionButton(segment);
+  });
+  scheduleAssetSegmentPolling();
+}
+
+function scheduleAssetSegmentPolling() {
+  if (state.assetSegmentPollTimer) window.clearTimeout(state.assetSegmentPollTimer);
+  state.assetSegmentPollTimer = null;
+  const active = (state.selectedAsset?.audio_segments || []).some((segment) =>
+    ["queued", "processing"].includes(segment.transcription?.status)
+  );
+  if (!active || currentViewName() !== "upload") return;
+  state.assetSegmentPollTimer = window.setTimeout(() => {
+    refreshAssetSegmentTranscriptions().catch(() => {});
+  }, 2000);
+}
+
+function renderMediaDownloadButton(url, label) {
+  if (!url) return "";
+  return `<a class="media-download-button" href="${escapeHtml(url)}" download>${escapeHtml(label)}</a>`;
+}
+
+function formatMediaTime(seconds) {
+  const value = Math.max(0, Math.round(Number(seconds) || 0));
+  const hours = Math.floor(value / 3600);
+  const minutes = Math.floor((value % 3600) / 60);
+  const remainder = value % 60;
+  return hours
+    ? `${hours}:${String(minutes).padStart(2, "0")}:${String(remainder).padStart(2, "0")}`
+    : `${minutes}:${String(remainder).padStart(2, "0")}`;
 }
 
 function asrModelsForMode(mode) {
@@ -2084,6 +3336,8 @@ function renderTranslationControls(surface) {
   controls.hidden = !enabled;
   targetSelect.value = target;
   modeSelect.value = mode;
+  modeSelect.disabled = true;
+  modelSelect.disabled = true;
 
   const models = llmModelsForMode(mode);
   let currentId = selectedId;
@@ -2097,7 +3351,7 @@ function renderTranslationControls(surface) {
     .join("");
   modelSelect.value = currentId;
   const selected = models.find((model) => model.id === currentId);
-  const needsKey = Boolean(selected?.free_tier?.requires_api_key_for_real_call);
+  const needsKey = Boolean(selected?.free_tier?.requires_api_key_for_real_call && !selected?.server_key_configured);
   keyField.hidden = !enabled || !needsKey;
   renderTranslationRecommendation(recommendation, selected, target);
 }
@@ -2158,7 +3412,7 @@ function validateTranslationSelection(surface) {
   const keyInput = isRecord ? els.recordTranslationApiKeyInput : els.audioTranslationApiKeyInput;
   const model = (state.llmCatalog?.models || []).find((item) => item.id === modelId);
   if (!model) throw new Error(t("record.translationModelRequired"));
-  if (model.free_tier?.requires_api_key_for_real_call && !keyInput.value.trim()) {
+  if (model.free_tier?.requires_api_key_for_real_call && !model.server_key_configured && !keyInput.value.trim()) {
     throw new Error(t("record.translationKeyRequired", { model: model.name }));
   }
 }
@@ -2579,19 +3833,9 @@ function renderDocumentAskPanel() {
         <h3>${escapeHtml(t("upload.questionTitle"))}</h3>
         <p>${escapeHtml(t("upload.questionCopy"))}</p>
       </div>
-      <div class="model-mode-switch compact" role="group" aria-label="${escapeHtml(t("aiwork.executionLabel"))}">
-        <button class="${state.assetSelectedLlmMode === "local" ? "active" : ""}" type="button" data-asset-llm-mode="local" aria-pressed="${state.assetSelectedLlmMode === "local"}">${escapeHtml(t("aiwork.localModels"))}</button>
-        <button class="${state.assetSelectedLlmMode === "cloud" ? "active" : ""}" type="button" data-asset-llm-mode="cloud" aria-pressed="${state.assetSelectedLlmMode === "cloud"}">${escapeHtml(t("aiwork.cloudModels"))}</button>
-      </div>
-      <div class="llm-form-grid compact">
-        <label>
-          <span>${escapeHtml(t("aiwork.providerLabel"))}</span>
-          <select id="assetLlmProviderSelect"></select>
-        </label>
-        <label>
-          <span>${escapeHtml(t("aiwork.modelLabel"))}</span>
-          <select id="assetLlmModelSelect"></select>
-        </label>
+      <div class="asset-system-model">
+        <span>${escapeHtml(t("aiwork.systemModelLabel"))}</span>
+        <strong>${escapeHtml(state.currentLlmModel?.provider || "-")} · ${escapeHtml(state.currentLlmModel?.name || "-")}</strong>
       </div>
       <label class="prompt-field">
         <span>${escapeHtml(t("aiwork.promptLabel"))}</span>
@@ -2693,19 +3937,21 @@ async function uploadNasAsset(event) {
   formData.append("audio_translation_api_key", els.audioTranslationApiKeyInput.value.trim());
   formData.append("video_model_id", state.selectedVideoModelId);
   formData.append("video_api_key", els.videoApiKeyInput.value.trim());
-  const response = await fetch("/api/nas-assets/upload", {
-    method: "POST",
-    credentials: "include",
-    body: formData,
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: t("upload.uploadFailed") }));
-    showToast(error.detail || t("upload.uploadFailed"), t("toast.savedFailed"));
+  els.nasUploadSubmit.disabled = true;
+  setNasUploadProgress(0, true);
+  let asset;
+  try {
+    asset = await uploadFormData("/api/nas-assets/upload", formData, (progress) => {
+      setNasUploadProgress(progress, true);
+    });
+  } catch (error) {
+    showToast(error.message || t("upload.uploadFailed"), t("toast.savedFailed"));
+    setNasUploadProgress(0, false);
+    els.nasUploadSubmit.disabled = false;
     return;
   }
-
-  const asset = await response.json();
+  setNasUploadProgress(100, false);
+  els.nasUploadSubmit.disabled = false;
   els.nasUploadForm.reset();
   state.audioTranslationEnabled = false;
   renderAsrControls();
@@ -2837,6 +4083,7 @@ function renderLlmControls() {
     const active = button.dataset.llmMode === state.selectedLlmMode;
     button.classList.toggle("active", active);
     button.setAttribute("aria-pressed", String(active));
+    button.disabled = state.user?.role !== "admin";
   });
   const modeModels = llmModelsForMode(state.selectedLlmMode);
   const providers = [...new Set(modeModels.map((model) => model.provider))].map((name) => ({
@@ -2852,7 +4099,8 @@ function renderLlmControls() {
   els.llmProviderSelect.value = state.selectedProvider;
 
   const models = filteredLlmModels();
-  els.llmModelSelect.disabled = models.length === 0;
+  els.llmProviderSelect.disabled = state.user?.role !== "admin";
+  els.llmModelSelect.disabled = models.length === 0 || state.user?.role !== "admin";
   els.llmModelSelect.innerHTML = [
     `<option value="">${t("aiwork.selectModel")}</option>`,
     ...models.map((model) => {
@@ -2864,6 +4112,44 @@ function renderLlmControls() {
   els.providerSummary.innerHTML = state.llmCatalog.providers
     .map((provider) => `<span>${escapeHtml(provider.name)} · ${provider.model_count}</span>`)
     .join("");
+  renderSystemLlmSetting();
+}
+
+function renderSystemLlmSetting() {
+  if (!els.currentSystemModelName) return;
+  const model = state.currentLlmModel;
+  els.currentSystemModelName.textContent = model ? `${model.provider} · ${model.name}` : "-";
+  const updatedBy = state.llmCatalog?.current_model_updated_by;
+  const updatedAt = state.llmCatalog?.current_model_updated_at;
+  els.currentSystemModelMeta.textContent = updatedBy && updatedAt
+    ? t("aiwork.systemModelUpdated", { user: updatedBy, time: formatDate(updatedAt) })
+    : t("aiwork.systemModelDefault");
+  els.currentSystemModelMeta.title = state.user?.role === "admin"
+    ? t("aiwork.systemModelAdminHint")
+    : t("aiwork.systemModelUserHint");
+  const isAdmin = state.user?.role === "admin";
+  els.setCurrentLlmButton.hidden = !isAdmin;
+  els.setCurrentLlmButton.disabled = !state.selectedLlmId || state.selectedLlmId === state.currentLlmId;
+  els.setCurrentLlmButton.textContent = t("aiwork.setSystemModel");
+}
+
+async function saveCurrentLlmModel() {
+  if (!state.selectedLlmId) {
+    showToast(t("aiwork.selectBeforeSet"), t("aiwork.systemModelLabel"));
+    return;
+  }
+  els.setCurrentLlmButton.disabled = true;
+  els.setCurrentLlmButton.textContent = t("aiwork.settingSystemModel");
+  try {
+    await api("/api/admin/llm/current-model", {
+      method: "PUT",
+      body: JSON.stringify({ model_id: state.selectedLlmId }),
+    });
+    showToast(t("aiwork.systemModelSaved"), t("aiwork.systemModelLabel"));
+    await loadLlmCatalog();
+  } finally {
+    renderSystemLlmSetting();
+  }
 }
 
 function llmModelsForMode(mode) {
@@ -2904,6 +4190,7 @@ async function selectLlmModel(modelId) {
   renderPricingPanel();
   renderKeyStatus();
   renderModelUsePanel();
+  renderSystemLlmSetting();
   if (!modelId) return;
 
   const pricing = await api(`/api/llm/pricing/${encodeURIComponent(modelId)}`);
@@ -2911,6 +4198,7 @@ async function selectLlmModel(modelId) {
   renderPricingPanel();
   renderKeyStatus();
   renderModelUsePanel();
+  renderSystemLlmSetting();
   const model = state.selectedPricing.model;
   const hasKey = modelHasApiAccess(model);
   if (model.free_tier.requires_api_key_for_real_call && !hasKey) {
@@ -3025,20 +4313,23 @@ function renderModelUsePanel() {
     return;
   }
 
+  const isCurrent = model.id === state.currentLlmId;
   const hasKey = modelHasApiAccess(model);
   const canUseFreeQuota = Boolean(model.free_tier.available && !model.free_tier.requires_api_key_for_real_call);
   els.modelUsePanel.hidden = false;
   els.modelUseTitle.textContent = t("aiwork.useTitle", { model: model.name });
-  els.modelUseMode.textContent = model.provider === "Local NAS"
+  els.modelUseMode.textContent = !isCurrent
+    ? t("aiwork.saveBeforeRun")
+    : model.provider === "Local NAS"
     ? t("aiwork.useLocalNas")
     : hasKey
     ? t("aiwork.useWithKey")
     : canUseFreeQuota
       ? t("aiwork.useWithFreeQuota")
       : t("aiwork.useNeedsKey");
-  els.modelUseMode.classList.toggle("ready", hasKey || canUseFreeQuota);
-  els.runModelButton.disabled = !hasKey && !canUseFreeQuota;
-  els.forceRunModelButton.disabled = !hasKey && !canUseFreeQuota;
+  els.modelUseMode.classList.toggle("ready", isCurrent && (hasKey || canUseFreeQuota));
+  els.runModelButton.disabled = !isCurrent || (!hasKey && !canUseFreeQuota);
+  els.forceRunModelButton.disabled = !isCurrent || (!hasKey && !canUseFreeQuota);
 }
 
 function renderLlmCallHistory() {
@@ -3191,6 +4482,27 @@ function selectLlmSuggestion(index) {
   els.llmPromptInput.focus();
 }
 
+function renderMcpExecutionTrace(mcp) {
+  if (!mcp?.enabled) return "";
+  if (!mcp.used) {
+    return `
+      <details class="mcp-execution-trace">
+        <summary>${escapeHtml(t("aiwork.mcpTrace"))} · ${escapeHtml(t("aiwork.mcpNotUsed"))}</summary>
+        <p>${escapeHtml(mcp.reason || t("aiwork.mcpNotUsed"))}</p>
+      </details>
+    `;
+  }
+  return `
+    <details class="mcp-execution-trace">
+      <summary>${escapeHtml(t("aiwork.mcpTrace"))} · ${escapeHtml(mcp.server)} / ${escapeHtml(mcp.tool)}</summary>
+      <strong>${escapeHtml(t("aiwork.mcpArguments"))}</strong>
+      <pre>${escapeHtml(JSON.stringify(mcp.arguments || {}, null, 2))}</pre>
+      <strong>${escapeHtml(t("aiwork.mcpResult"))}</strong>
+      <pre>${escapeHtml(JSON.stringify(mcp.result || {}, null, 2))}</pre>
+    </details>
+  `;
+}
+
 async function runSelectedModel(forceRefresh = false) {
   const model = state.selectedPricing?.model;
   if (!model) return;
@@ -3218,8 +4530,11 @@ async function runSelectedModel(forceRefresh = false) {
       body: JSON.stringify({
         model_id: model.id,
         prompt,
+        system_prompt: els.llmSystemPromptInput.value.trim(),
         api_key: state.apiKeys[providerKeyId(model.provider)] || "",
         force_refresh: forceRefresh,
+        use_mcp: state.useMcp,
+        mcp_server_id: state.selectedMcpServerId,
       }),
     });
     els.modelResponseBox.hidden = false;
@@ -3234,6 +4549,7 @@ async function runSelectedModel(forceRefresh = false) {
         ${usageChip(t("aiwork.remainingBalance"), result.usage?.remaining_balance)}
       </div>
       <pre>${escapeHtml(result.answer)}</pre>
+      ${renderMcpExecutionTrace(result.mcp)}
     `;
     await loadLlmCalls();
   } catch (error) {
@@ -3263,6 +4579,14 @@ function renderMetrics() {
   els.totalMeetings.textContent = state.meetings.length;
   els.processingMeetings.textContent = state.meetings.filter((meeting) => meeting.status === "processing").length;
   els.completedMeetings.textContent = state.meetings.filter((meeting) => meeting.status === "completed").length;
+}
+
+function openDashboardMeetings(status) {
+  switchView("meetings");
+  const meeting = status === "all"
+    ? state.meetings[0]
+    : state.meetings.find((item) => item.status === status);
+  if (meeting) selectMeeting(meeting.id);
 }
 
 function renderMeetingList() {
@@ -3305,6 +4629,7 @@ async function selectMeeting(id) {
       ${meeting.translation_enabled ? `<span>${escapeHtml(meeting.translation_provider || "LLM")} · ${escapeHtml(meeting.translation_model || "-")} → ${escapeHtml(translationTargetLabel(meeting.translation_target))}</span>` : ""}
       ${meeting.line_push_enabled ? `<span>LINE · ${escapeHtml(meeting.line_group_name || meeting.line_group_id)} · ${escapeHtml(statusLabel(meeting.line_push_status))}</span>` : ""}
     </div>
+    ${meeting.nas_asset_id ? `<div class="meeting-asset-actions"><button class="secondary-button" type="button" data-open-nas-asset="${meeting.nas_asset_id}">${escapeHtml(t("dashboardAssets.open"))}</button></div>` : ""}
     <audio controls src="/api/meetings/${meeting.id}/audio"></audio>
     <section class="meeting-text-section">
       <strong>${escapeHtml(t("meetings.transcriptTitle"))}</strong>
@@ -3371,6 +4696,7 @@ function connectWebSocket() {
     showToast(message, title);
     if (payload.type.startsWith("nas_asset_")) {
       await loadNasAssets();
+      if (currentViewName() === "network") await loadNetworkAssets();
       return;
     }
     await loadMeetings();
@@ -3484,16 +4810,11 @@ async function uploadRecording() {
   formData.append("line_push_full_transcript", String(state.recordLineFullTranscript));
   formData.append("audio", blob, `browser-recording-${timestamp}.webm`);
 
-  const response = await fetch("/api/meetings/upload", {
-    method: "POST",
-    credentials: "include",
-    body: formData,
-  });
-
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: t("record.uploadFailed") }));
+  try {
+    await uploadFormData("/api/meetings/upload", formData);
+  } catch (error) {
     updateRecordingUi("idle");
-    showToast(error.detail || t("record.uploadFailed"), t("toast.savedFailed"));
+    showToast(error.message || t("record.uploadFailed"), t("toast.savedFailed"));
     return;
   }
 
@@ -3634,9 +4955,45 @@ els.logoutButton.addEventListener("click", async () => {
 els.langOptions.forEach((button) => {
   button.addEventListener("click", () => applyLanguage(button.dataset.lang));
 });
-els.navItems.forEach((item) => item.addEventListener("click", () => switchView(item.dataset.view)));
+els.navItems.forEach((item) => item.addEventListener("click", () => {
+  navigateFromSidebar(item.dataset.view).catch((error) => showToast(error.message, t("errors.requestFailed")));
+}));
+els.settingsNav.addEventListener("click", () => {
+  setManagementMenuExpanded(els.settingsNav.getAttribute("aria-expanded") !== "true");
+});
+els.networkImportForm.addEventListener("submit", submitNetworkImport);
+els.refreshNetworkAssets.addEventListener("click", () => {
+  loadNetworkAssets().catch((error) => showToast(error.message, t("errors.requestFailed")));
+});
+els.networkAssetList.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-network-asset-id]");
+  if (button && !button.disabled) {
+    openNasAsset(Number(button.dataset.networkAssetId)).catch((error) => showToast(error.message, t("upload.actionFailed")));
+  }
+});
 document.querySelectorAll("[data-jump]").forEach((item) => {
-  item.addEventListener("click", () => switchView(item.dataset.jump));
+  item.addEventListener("click", () => {
+    navigateFromSidebar(item.dataset.jump).catch((error) => showToast(error.message, t("errors.requestFailed")));
+  });
+});
+document.querySelectorAll("[data-dashboard-meeting-status]").forEach((item) => {
+  item.addEventListener("click", () => openDashboardMeetings(item.dataset.dashboardMeetingStatus));
+});
+document.querySelectorAll("[data-dashboard-asset-filter]").forEach((item) => {
+  item.addEventListener("click", () => {
+    state.dashboardAssetFilter = item.dataset.dashboardAssetFilter;
+    renderDashboardAssets();
+  });
+});
+els.dashboardAssetGrid.addEventListener("click", (event) => {
+  const transcriptButton = event.target.closest("[data-dashboard-transcript-id]");
+  if (transcriptButton) {
+    openNasAsset(Number(transcriptButton.dataset.dashboardTranscriptId), { transcript: true })
+      .catch((error) => showToast(error.message, t("upload.actionFailed")));
+    return;
+  }
+  const row = event.target.closest("[data-dashboard-asset-id]");
+  if (row) openNasAsset(Number(row.dataset.dashboardAssetId)).catch((error) => showToast(error.message, t("upload.actionFailed")));
 });
 els.startRecord.addEventListener("click", () => startRecording().catch((error) => showToast(error.message, t("record.unavailable"))));
 els.pauseRecord.addEventListener("click", pauseRecording);
@@ -3769,14 +5126,39 @@ els.localModelList.addEventListener("click", (event) => {
   if (!button || button.disabled) return;
   runLocalModelAction(button.dataset.modelId, button.dataset.modelAction);
 });
+els.refreshMcpServers.addEventListener("click", () => loadMcpServers().catch((error) => showToast(error.message, t("mcp.syncFailed"))));
+els.mcpSearchInput.addEventListener("input", () => {
+  state.mcpSearchQuery = els.mcpSearchInput.value;
+  renderMcpServers();
+});
+els.addMcpServer.addEventListener("click", () => openMcpServerModal());
+els.closeMcpServerModal.addEventListener("click", closeMcpServerModal);
+els.cancelMcpServer.addEventListener("click", closeMcpServerModal);
+els.mcpServerForm.addEventListener("submit", saveMcpServer);
+els.mcpServerModal.addEventListener("click", (event) => {
+  if (event.target === els.mcpServerModal) closeMcpServerModal();
+});
+els.mcpServerList.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-mcp-action]");
+  const card = button?.closest("[data-mcp-server-id]");
+  const server = state.mcpServers.find((item) => item.id === Number(card?.dataset.mcpServerId));
+  if (!button || !server) return;
+  if (button.dataset.mcpAction === "copy") copyMcpEndpoint(button.dataset.mcpEndpoint || "");
+  if (button.dataset.mcpAction === "edit") openMcpServerModal(server);
+  if (button.dataset.mcpAction === "sync") syncMcpServer(button, server);
+});
 els.nasUploadForm.addEventListener("submit", (event) => uploadNasAsset(event).catch((error) => showToast(error.message, t("upload.uploadFailed"))));
 els.meetingList.addEventListener("click", (event) => {
   const row = event.target.closest("[data-meeting-id]");
   if (row) selectMeeting(Number(row.dataset.meetingId));
 });
+els.meetingDetail.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-open-nas-asset]");
+  if (button) openNasAsset(Number(button.dataset.openNasAsset)).catch((error) => showToast(error.message, t("upload.actionFailed")));
+});
 els.nasAssetList.addEventListener("click", (event) => {
   const row = event.target.closest("[data-asset-id]");
-  if (row) selectNasAsset(Number(row.dataset.assetId));
+  if (row) selectNasAsset(Number(row.dataset.assetId), { scroll: true });
 });
 els.nasAssetDetail.addEventListener("change", (event) => {
   if (event.target.id === "assetLlmProviderSelect") {
@@ -3790,6 +5172,20 @@ els.nasAssetDetail.addEventListener("change", (event) => {
   }
 });
 els.nasAssetDetail.addEventListener("click", (event) => {
+  if (event.target.id === "reprocessAssetButton") {
+    reprocessSelectedAsset().catch((error) => showToast(error.message, t("upload.actionFailed")));
+    return;
+  }
+  if (event.target.id === "openccAssetButton") {
+    convertSelectedAssetToTraditional().catch((error) => showToast(error.message, t("upload.actionFailed")));
+    return;
+  }
+  const segmentButton = event.target.closest("[data-transcribe-segment]");
+  if (segmentButton) {
+    transcribeAudioSegment(Number(segmentButton.dataset.transcribeSegment))
+      .catch((error) => showToast(error.message, t("upload.segmentTranscriptionFailed")));
+    return;
+  }
   const modeButton = event.target.closest("[data-asset-llm-mode]");
   if (modeButton) {
     selectAssetLlmMode(modeButton.dataset.assetLlmMode).catch((error) => showToast(error.message, t("errors.requestFailed")));
@@ -3822,8 +5218,16 @@ els.openKeyModalButton.addEventListener("click", openKeyModal);
 els.closeKeyModal.addEventListener("click", closeKeyModal);
 els.cancelKeyButton.addEventListener("click", closeKeyModal);
 els.saveKeyButton.addEventListener("click", saveApiKeyForSession);
+els.setCurrentLlmButton.addEventListener("click", () => saveCurrentLlmModel().catch((error) => showToast(error.message, t("errors.requestFailed"))));
 els.runModelButton.addEventListener("click", () => runSelectedModel().catch((error) => showToast(error.message, t("errors.requestFailed"))));
 els.forceRunModelButton.addEventListener("click", () => runSelectedModel(true).catch((error) => showToast(error.message, t("errors.requestFailed"))));
+els.useMcpToggle.addEventListener("change", () => {
+  state.useMcp = els.useMcpToggle.checked;
+  renderAiworkMcpControls();
+});
+els.aiworkMcpServerSelect.addEventListener("change", () => {
+  state.selectedMcpServerId = els.aiworkMcpServerSelect.value;
+});
 els.llmPromptInput.addEventListener("input", debounce(loadLlmSuggestions, 220));
 els.llmPromptInput.addEventListener("focus", () => loadLlmSuggestions());
 els.llmPromptInput.addEventListener("keydown", (event) => {
@@ -3865,7 +5269,7 @@ els.apiKeyModal.addEventListener("click", (event) => {
 els.closeNasUploadDialog.addEventListener("click", closeNasUploadDialog);
 els.confirmNasUploadDialog.addEventListener("click", () => {
   closeNasUploadDialog();
-  switchView("upload");
+  navigateFromSidebar("upload").catch((error) => showToast(error.message, t("errors.requestFailed")));
 });
 els.nasUploadDialog.addEventListener("click", (event) => {
   if (event.target === els.nasUploadDialog) closeNasUploadDialog();

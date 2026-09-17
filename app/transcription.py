@@ -4,7 +4,7 @@ from typing import Any
 
 from app.asr_catalog import get_asr_model
 from app.asr_runtime import AsrRuntimeError
-from app.asr_service import run_asr_with_audit
+from app.asr_service import run_segmented_asr_with_audit
 from app.db import (
     get_meeting,
     get_nas_asset,
@@ -32,17 +32,31 @@ async def process_meeting_transcription(
 
     model = get_asr_model(meeting.get("asr_model_id"))
     audio_path = Path(meeting["audio_path"])
+
+    def report_progress(completed: int, total: int) -> None:
+        asset_id = meeting.get("nas_asset_id")
+        if asset_id and total > 1:
+            update_nas_asset(
+                asset_id,
+                status="processing",
+                analyzer=model["name"],
+                summary=f"大型會議音訊已切分為 {total} 段，媒體 Worker 正在轉寫第 {completed}/{total} 段。",
+            )
+
     try:
-        result = await run_asr_with_audit(
+        result = await run_segmented_asr_with_audit(
             path=audio_path,
             model_id=model["id"],
             api_key=api_key,
             user_id=meeting["user_id"],
+            progress=report_progress,
+            segment_archive_asset_id=meeting.get("nas_asset_id"),
         )
         chunks = build_transcript_chunks(result["text"], audio_path, model, result)
         translation_text = None
         translation_error = None
         translation_metadata = None
+        translation_model = None
         if meeting.get("translation_enabled"):
             try:
                 translated = await translate_transcript_with_audit(
@@ -54,6 +68,7 @@ async def process_meeting_transcription(
                 )
                 translation_text = translated["text"]
                 translation_metadata = translated["metadata"]
+                translation_model = translated["model"]
                 chunks.extend(
                     build_translation_chunks(
                         translation_text,
@@ -66,7 +81,15 @@ async def process_meeting_transcription(
             except LlmRuntimeError as exc:
                 translation_error = str(exc)
         embedded = await attach_embeddings(chunks, meeting["user_id"])
-        await update_linked_asset(meeting, model, chunks, embedded, translation_text, translation_error)
+        await update_linked_asset(
+            meeting,
+            model,
+            chunks,
+            embedded,
+            translation_text,
+            translation_error,
+            segment_count=(result.get("metadata") or {}).get("segment_count", 1),
+        )
         updated = update_meeting_status(
             meeting_id,
             status="completed",
@@ -84,6 +107,9 @@ async def process_meeting_transcription(
                     if translation_metadata
                     else None
                 ),
+                translation_model_id=translation_model["id"] if translation_model else None,
+                translation_provider=translation_model["provider"] if translation_model else None,
+                translation_model=translation_model["name"] if translation_model else None,
                 )
         await push_completed_meeting_to_line(meeting_id)
         updated = get_meeting(meeting_id)
@@ -131,6 +157,7 @@ async def update_linked_asset(
     embedded: bool,
     translation_text: str | None,
     translation_error: str | None,
+    segment_count: int = 1,
 ) -> None:
     asset_id = meeting.get("nas_asset_id")
     if not asset_id:
@@ -141,7 +168,8 @@ async def update_linked_asset(
         status="completed",
         analyzer=model["name"],
         summary=(
-            f"已使用 {model['name']} 完成會議語音轉文字，建立逐字稿 RAG chunks：{len(chunks)} 段；"
+            f"已使用 {model['name']} 完成會議語音轉文字；媒體切片 {segment_count} 段，"
+            f"建立逐字稿 RAG chunks：{len(chunks)} 段；"
             f"{translation_asset_summary(meeting, translation_text, translation_error)}"
             f"{'Qwen3 Embedding 向量已寫入' if embedded else '向量服務暫時不可用，已排入背景補建'}。"
         ),
@@ -169,7 +197,6 @@ async def fail_linked_asset(meeting: dict[str, Any], model: dict[str, Any], stat
         analyzer=model["name"],
         summary=f"已選擇 {model['name']}。{error}",
         error_message=error if status == "failed" else None,
-        chunk_count=0,
     )
     if asset:
         await manager.broadcast(

@@ -21,6 +21,14 @@ class AsrRuntimeError(RuntimeError):
     pass
 
 
+def environment_timeout(name: str, default: int) -> int:
+    try:
+        value = int(os.environ.get(name, str(default)))
+    except ValueError:
+        return default
+    return value if value > 0 else default
+
+
 def transcribe_audio(path: Path, model_id: str | None, api_key: str | None = None) -> dict[str, Any]:
     model = get_asr_model(model_id)
     if model["id"].startswith("cloud:openai-"):
@@ -247,7 +255,13 @@ def transcribe_with_whisper_cpp(path: Path, model: dict[str, Any]) -> dict[str, 
         use_gpu = os.environ.get("WHISPER_CPP_USE_GPU", "0").strip().lower() in {"1", "true", "yes", "on"}
         if not use_gpu:
             command.insert(1, "-ng")
-        completed = subprocess.run(command, capture_output=True, text=True, timeout=600, check=False)
+        completed = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            timeout=environment_timeout("ASR_PROCESS_TIMEOUT_SECONDS", 14400),
+            check=False,
+        )
         if completed.returncode != 0:
             raise AsrRuntimeError(f"whisper.cpp transcription failed: {completed.stderr or completed.stdout}")
         text_path = output_prefix.with_suffix(".txt")
@@ -277,7 +291,7 @@ def prepare_whisper_cpp_input(path: Path, temp_dir: Path) -> Path:
         [ffmpeg, "-y", "-i", str(path), "-ar", "16000", "-ac", "1", "-c:a", "pcm_s16le", str(converted_path)],
         capture_output=True,
         text=True,
-        timeout=300,
+        timeout=environment_timeout("ASR_FFMPEG_TIMEOUT_SECONDS", 3600),
         check=False,
     )
     if completed.returncode != 0 or not converted_path.is_file():

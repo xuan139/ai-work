@@ -4,3 +4,5 @@ python-multipart==0.0.20
 pypdf
 PyMuPDF
 python-docx
+opencc-python-reimplemented==0.1.7
+yt-dlp

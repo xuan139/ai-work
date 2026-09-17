@@ -4,8 +4,8 @@ import json
 from typing import Any
 
 from app.db import create_llm_call
-from app.llm_catalog import get_model
-from app.llm_runtime import LlmRuntimeError, run_llm
+from app.llm_runtime import LlmRuntimeError, company_api_key_for_model, run_llm
+from app.system_llm import current_llm_model
 
 
 TARGET_LANGUAGES = {
@@ -28,9 +28,8 @@ async def translate_transcript_with_audit(
     api_key: str | None,
     user_id: int,
 ) -> dict[str, Any]:
-    model = get_model(model_id)
-    if not model:
-        raise LlmRuntimeError("Translation model not found")
+    model = current_llm_model()
+    api_key = api_key or company_api_key_for_model(model)
     target_name = TARGET_LANGUAGES.get(target)
     if not target_name:
         raise LlmRuntimeError("Translation target language is not supported")
@@ -66,6 +65,9 @@ async def translate_transcript_with_audit(
         "metadata": {
             "target": target,
             "target_name": target_name,
+            "model_id": model["id"],
+            "provider": model["provider"],
+            "model": model["name"],
             "segment_count": len(parts),
             "call_ids": call_ids,
             "usage": totals,

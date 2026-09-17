@@ -6,6 +6,178 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 DB_PATH = DATA_DIR / "app.db"
 
+MCP_CATALOG_TEMPLATES = (
+    {
+        "slug": "nas-demo", "name": "NAS Demo MCP", "transport": "streamable_http",
+        "endpoint": "http://127.0.0.1:8000/mcp/nas", "auth_type": "none", "auth_env_var": None,
+        "description": "AI Work 內建唯讀 NAS 示範工具，可查詢系統狀態、共享資料夾、示範檔案與近期活動。",
+        "description_en": "Built-in read-only NAS demo tools for system status, shares, demo files, and recent activity.",
+        "source_url": None, "is_enabled": True,
+    },
+    {
+        "slug": "gmail", "name": "Gmail", "transport": "streamable_http",
+        "endpoint": "https://gmailmcp.googleapis.com/mcp/v1", "auth_type": "oauth2", "auth_env_var": "GMAIL_MCP_TOKEN",
+        "description": "Gmail 官方遠端 MCP（Developer Preview），支援搜尋郵件、讀取討論串、建立草稿與標籤管理。",
+        "description_en": "Official Gmail remote MCP (Developer Preview) for search, threads, drafts, and labels.",
+        "source_url": "https://developers.google.com/workspace/gmail/api/guides/configure-mcp-server", "is_enabled": False,
+    },
+    {
+        "slug": "google-drive", "name": "Google Drive", "transport": "streamable_http",
+        "endpoint": "https://drivemcp.googleapis.com/mcp/v1", "auth_type": "oauth2", "auth_env_var": "GOOGLE_DRIVE_MCP_TOKEN",
+        "description": "Google Drive 官方遠端 MCP（Developer Preview），支援搜尋、讀取、建立與下載檔案。",
+        "description_en": "Official Google Drive remote MCP (Developer Preview) for file search, reading, creation, and download.",
+        "source_url": "https://developers.google.com/workspace/drive/api/guides/configure-mcp-server", "is_enabled": False,
+    },
+    {
+        "slug": "google-docs", "name": "Google Docs", "transport": "streamable_http",
+        "endpoint": "https://docsmcp.googleapis.com/mcp/v1", "auth_type": "oauth2", "auth_env_var": "GOOGLE_DOCS_MCP_TOKEN",
+        "description": "Google Docs 官方遠端 MCP（Developer Preview），用於企業文件讀取與編輯流程。",
+        "description_en": "Official Google Docs remote MCP (Developer Preview) for document reading and editing workflows.",
+        "source_url": "https://developers.google.com/workspace/guides/configure-mcp-servers", "is_enabled": False,
+    },
+    {
+        "slug": "google-sheets", "name": "Google Sheets", "transport": "streamable_http",
+        "endpoint": "https://sheetsmcp.googleapis.com/mcp/v1", "auth_type": "oauth2", "auth_env_var": "GOOGLE_SHEETS_MCP_TOKEN",
+        "description": "Google Sheets 官方遠端 MCP（Developer Preview），用於試算表查詢與更新。",
+        "description_en": "Official Google Sheets remote MCP (Developer Preview) for spreadsheet queries and updates.",
+        "source_url": "https://developers.google.com/workspace/guides/configure-mcp-servers", "is_enabled": False,
+    },
+    {
+        "slug": "google-slides", "name": "Google Slides", "transport": "streamable_http",
+        "endpoint": "https://slidesmcp.googleapis.com/mcp/v1", "auth_type": "oauth2", "auth_env_var": "GOOGLE_SLIDES_MCP_TOKEN",
+        "description": "Google Slides 官方遠端 MCP（Developer Preview），用於簡報內容讀取與製作。",
+        "description_en": "Official Google Slides remote MCP (Developer Preview) for presentation access and authoring.",
+        "source_url": "https://developers.google.com/workspace/guides/configure-mcp-servers", "is_enabled": False,
+    },
+    {
+        "slug": "google-calendar", "name": "Google Calendar", "transport": "streamable_http",
+        "endpoint": "https://calendarmcp.googleapis.com/mcp/v1", "auth_type": "oauth2", "auth_env_var": "GOOGLE_CALENDAR_MCP_TOKEN",
+        "description": "Google Calendar 官方遠端 MCP（Developer Preview），支援行事曆搜尋、建立與更新事件。",
+        "description_en": "Official Google Calendar remote MCP (Developer Preview) for calendar search and event management.",
+        "source_url": "https://developers.google.com/workspace/calendar/api/guides/configure-mcp-server", "is_enabled": False,
+    },
+    {
+        "slug": "google-chat", "name": "Google Chat", "transport": "streamable_http",
+        "endpoint": "https://chatmcp.googleapis.com/mcp/v1", "auth_type": "oauth2", "auth_env_var": "GOOGLE_CHAT_MCP_TOKEN",
+        "description": "Google Chat 官方遠端 MCP（Developer Preview），用於企業訊息與空間協作。",
+        "description_en": "Official Google Chat remote MCP (Developer Preview) for company messaging and spaces.",
+        "source_url": "https://developers.google.com/workspace/guides/configure-mcp-servers", "is_enabled": False,
+    },
+    {
+        "slug": "google-people", "name": "Google People", "transport": "streamable_http",
+        "endpoint": "https://people.googleapis.com/mcp/v1", "auth_type": "oauth2", "auth_env_var": "GOOGLE_PEOPLE_MCP_TOKEN",
+        "description": "Google People 官方遠端 MCP（Developer Preview），用於聯絡人與組織人員資料。",
+        "description_en": "Official Google People remote MCP (Developer Preview) for contacts and people data.",
+        "source_url": "https://developers.google.com/workspace/guides/configure-mcp-servers", "is_enabled": False,
+    },
+    {
+        "slug": "slack", "name": "Slack", "transport": "streamable_http",
+        "endpoint": None, "auth_type": "managed", "auth_env_var": None,
+        "description": "Slack 官方 MCP 採合作夥伴與企業 OAuth 安裝流程，目前沒有公開通用 Endpoint；請由 Slack 管理介面完成連接。",
+        "description_en": "Slack MCP uses partner and enterprise OAuth installation. No universal public endpoint is currently published.",
+        "source_url": "https://slack.com/help/articles/48855576908307-Guide-to-the-Slack-MCP-server", "is_enabled": False,
+    },
+    {
+        "slug": "github", "name": "GitHub", "transport": "streamable_http",
+        "endpoint": "https://api.githubcopilot.com/mcp/", "auth_type": "oauth2", "auth_env_var": "GITHUB_MCP_TOKEN",
+        "description": "GitHub 官方遠端 MCP，可查詢程式碼、Issue、Pull Request 與儲存庫資訊。",
+        "description_en": "Official GitHub remote MCP for code, issues, pull requests, and repository information.",
+        "source_url": "https://docs.github.com/en/copilot/how-tos/provide-context/use-mcp-in-your-ide/extend-copilot-chat-with-mcp", "is_enabled": False,
+    },
+    {
+        "slug": "notion", "name": "Notion", "transport": "streamable_http",
+        "endpoint": "https://mcp.notion.com/mcp", "auth_type": "oauth2", "auth_env_var": "NOTION_MCP_TOKEN",
+        "description": "Notion 遠端 MCP，用於搜尋與處理工作區頁面、資料庫及企業知識。",
+        "description_en": "Notion remote MCP for workspace pages, databases, search, and company knowledge.",
+        "source_url": "https://developers.notion.com/docs/mcp", "is_enabled": False,
+    },
+    {
+        "slug": "stripe", "name": "Stripe", "transport": "streamable_http",
+        "endpoint": "https://mcp.stripe.com", "auth_type": "bearer", "auth_env_var": "STRIPE_MCP_TOKEN",
+        "description": "Stripe 遠端 MCP，用於受控查詢付款、客戶、訂閱與帳務資料。",
+        "description_en": "Stripe remote MCP for controlled access to payments, customers, subscriptions, and billing data.",
+        "source_url": "https://docs.stripe.com/mcp", "is_enabled": False,
+    },
+    {
+        "slug": "atlassian", "name": "Atlassian", "transport": "streamable_http",
+        "endpoint": "https://mcp.atlassian.com/v2/mcp", "auth_type": "oauth2", "auth_env_var": "ATLASSIAN_MCP_TOKEN",
+        "description": "Atlassian 官方遠端 MCP v2，可連接 Jira、Confluence、Bitbucket 與 Loom。",
+        "description_en": "Official Atlassian remote MCP v2 for Jira, Confluence, Bitbucket, and Loom.",
+        "source_url": "https://support.atlassian.com/atlassian-ai-gateway/docs/get-started-with-the-atlassian-remote-mcp-server/", "is_enabled": False,
+    },
+    {
+        "slug": "monday", "name": "Monday.com", "transport": "streamable_http",
+        "endpoint": "https://mcp.monday.com/mcp", "auth_type": "bearer", "auth_env_var": "MONDAY_MCP_TOKEN",
+        "headers_json": '{"Api-Version":"2026-07"}',
+        "description": "Monday.com 官方 Hosted MCP，以 Bearer Token 連接工作區，供公司 LLM 查詢已授權的工作管理資料。",
+        "description_en": "Official Monday.com Hosted MCP using a bearer token for authorized work-management data.",
+        "source_url": "https://developer.monday.com/api-reference/docs/integrate-with-monday-mcp", "is_enabled": False,
+    },
+    {
+        "slug": "linear", "name": "Linear", "transport": "streamable_http",
+        "endpoint": "https://mcp.linear.app/mcp/readonly", "auth_type": "bearer", "auth_env_var": "LINEAR_MCP_TOKEN",
+        "description": "Linear 官方唯讀遠端 MCP，用於查詢 Issue、專案、里程碑與產品規劃資料。",
+        "description_en": "Official read-only Linear remote MCP for issues, projects, milestones, and product planning.",
+        "source_url": "https://linear.app/docs/mcp", "is_enabled": False,
+    },
+    {
+        "slug": "cloudflare", "name": "Cloudflare", "transport": "streamable_http",
+        "endpoint": "https://mcp.cloudflare.com/mcp", "auth_type": "oauth2", "auth_env_var": "CLOUDFLARE_MCP_TOKEN",
+        "description": "Cloudflare 官方 API MCP，可管理 DNS、Workers、R2、Zero Trust 與其他平台服務。",
+        "description_en": "Official Cloudflare API MCP for DNS, Workers, R2, Zero Trust, and platform services.",
+        "source_url": "https://developers.cloudflare.com/agents/model-context-protocol/cloudflare/servers-for-cloudflare/", "is_enabled": False,
+    },
+    {
+        "slug": "cloudflare-docs", "name": "Cloudflare Docs", "transport": "streamable_http",
+        "endpoint": "https://docs.mcp.cloudflare.com/mcp", "auth_type": "none", "auth_env_var": None,
+        "description": "Cloudflare 官方文件 MCP，用於查詢最新產品文件與技術參考。",
+        "description_en": "Official Cloudflare documentation MCP for current product and technical references.",
+        "source_url": "https://developers.cloudflare.com/agents/model-context-protocol/cloudflare/servers-for-cloudflare/", "is_enabled": False,
+    },
+    {
+        "slug": "vercel", "name": "Vercel", "transport": "streamable_http",
+        "endpoint": "https://mcp.vercel.com", "auth_type": "oauth2", "auth_env_var": "VERCEL_MCP_TOKEN",
+        "description": "Vercel 官方遠端 MCP（Beta），用於專案、部署、日誌及文件查詢。",
+        "description_en": "Official Vercel remote MCP (Beta) for projects, deployments, logs, and documentation.",
+        "source_url": "https://vercel.com/docs/agent-resources/vercel-mcp", "is_enabled": False,
+    },
+    {
+        "slug": "supabase", "name": "Supabase", "transport": "streamable_http",
+        "endpoint": "https://mcp.supabase.com/mcp?read_only=true", "auth_type": "oauth2", "auth_env_var": "SUPABASE_ACCESS_TOKEN",
+        "description": "Supabase 官方遠端 MCP，預設使用唯讀模式查詢資料庫、文件、日誌與專案資訊。",
+        "description_en": "Official Supabase remote MCP, defaulting to read-only access for database, docs, logs, and project data.",
+        "source_url": "https://supabase.com/docs/guides/ai-tools/mcp", "is_enabled": False,
+    },
+    {
+        "slug": "context7", "name": "Context7", "transport": "streamable_http",
+        "endpoint": "https://mcp.context7.com/mcp", "auth_type": "none", "auth_env_var": None,
+        "description": "Context7 遠端 MCP，用於查詢最新程式庫與框架文件。",
+        "description_en": "Context7 remote MCP for up-to-date library and framework documentation.",
+        "source_url": "https://context7.com/docs", "is_enabled": False,
+    },
+    {
+        "slug": "odoo", "name": "Odoo", "transport": "streamable_http",
+        "endpoint": None, "auth_type": "custom", "auth_env_var": None,
+        "description": "連接公司自行部署的 Odoo MCP，提供財務、銷售、庫存與營運工具。",
+        "description_en": "Connect a company-hosted Odoo MCP for finance, sales, inventory, and operations tools.",
+        "source_url": None, "is_enabled": False,
+    },
+    {
+        "slug": "nas-filesystem", "name": "NAS Filesystem", "transport": "stdio",
+        "endpoint": None, "auth_type": "none", "auth_env_var": None,
+        "description": "以受控 stdio 工具讀取 NAS 檔案、目錄與企業文件。",
+        "description_en": "Access NAS files, directories, and company documents through controlled stdio tools.",
+        "source_url": "https://github.com/modelcontextprotocol/servers/tree/main/src/filesystem", "is_enabled": False,
+    },
+    {
+        "slug": "postgresql", "name": "PostgreSQL", "transport": "stdio",
+        "endpoint": None, "auth_type": "custom", "auth_env_var": None,
+        "description": "依資料庫權限執行唯讀查詢與結構探索。",
+        "description_en": "Run permission-scoped read-only queries and schema discovery.",
+        "source_url": "https://github.com/modelcontextprotocol/servers-archived/tree/main/src/postgres", "is_enabled": False,
+    },
+)
+
 
 def connect() -> sqlite3.Connection:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
@@ -156,6 +328,8 @@ def init_db() -> None:
             """
         )
         _ensure_column(conn, "nas_assets", "processor_config_json", "TEXT")
+        _ensure_column(conn, "nas_assets", "source_type", "TEXT")
+        _ensure_column(conn, "nas_assets", "source_url", "TEXT")
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS document_chunks (
@@ -330,6 +504,63 @@ def init_db() -> None:
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS system_settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_by INTEGER,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(updated_by) REFERENCES users(id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS mcp_servers (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                slug TEXT NOT NULL UNIQUE,
+                name TEXT NOT NULL,
+                description TEXT,
+                description_en TEXT,
+                transport TEXT NOT NULL DEFAULT 'streamable_http',
+                endpoint TEXT,
+                source_url TEXT,
+                auth_type TEXT NOT NULL DEFAULT 'none',
+                auth_env_var TEXT,
+                headers_json TEXT,
+                is_enabled INTEGER NOT NULL DEFAULT 0,
+                status TEXT NOT NULL DEFAULT 'unconfigured',
+                protocol_version TEXT,
+                tools_json TEXT,
+                tool_count INTEGER NOT NULL DEFAULT 0,
+                last_error TEXT,
+                last_checked_at TEXT,
+                created_by INTEGER,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(created_by) REFERENCES users(id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS mcp_audit_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                server_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                action TEXT NOT NULL,
+                status TEXT NOT NULL,
+                tool_name TEXT,
+                input_json TEXT,
+                output_json TEXT,
+                error_message TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(server_id) REFERENCES mcp_servers(id),
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            )
+            """
+        )
         _ensure_column(conn, "document_chunks", "page_number", "INTEGER")
         _ensure_column(conn, "document_chunks", "chunk_type", "TEXT NOT NULL DEFAULT 'text'")
         _ensure_column(conn, "document_chunks", "image_path", "TEXT")
@@ -338,12 +569,16 @@ def init_db() -> None:
         _ensure_column(conn, "line_sources", "is_approved", "INTEGER NOT NULL DEFAULT 1")
         _ensure_column(conn, "line_sources", "monthly_call_limit", "INTEGER NOT NULL DEFAULT 500")
         _ensure_column(conn, "line_sources", "monthly_token_limit", "INTEGER NOT NULL DEFAULT 200000")
+        _ensure_column(conn, "mcp_servers", "source_url", "TEXT")
+        _ensure_column(conn, "mcp_servers", "auth_type", "TEXT NOT NULL DEFAULT 'none'")
+        _ensure_column(conn, "mcp_servers", "headers_json", "TEXT")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_meetings_user_id ON meetings(user_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_meetings_created_at ON meetings(created_at)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_llm_calls_user_id ON llm_calls(user_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_llm_calls_created_at ON llm_calls(created_at)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_nas_assets_user_id ON nas_assets(user_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_nas_assets_created_at ON nas_assets(created_at)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_nas_assets_source_type ON nas_assets(source_type, created_at)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_document_chunks_asset_id ON document_chunks(asset_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_rag_query_cache_asset_model ON rag_query_cache(asset_id, model_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_llm_query_cache_user_model ON llm_query_cache(user_id, model_id)")
@@ -351,6 +586,8 @@ def init_db() -> None:
         conn.execute("CREATE INDEX IF NOT EXISTS idx_line_documents_source ON line_documents(line_source_id, created_at)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_line_query_cache_source ON line_query_cache(line_source_id, content_version, model_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_custom_models_type ON custom_models(model_type, is_enabled, validation_status)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_mcp_servers_status ON mcp_servers(status, is_enabled)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_mcp_audit_server ON mcp_audit_logs(server_id, created_at)")
 
 
 def _ensure_column(conn: sqlite3.Connection, table: str, column: str, definition: str) -> None:
@@ -368,6 +605,68 @@ def seed_admin(password_hash: str) -> None:
             """,
             (password_hash,),
         )
+        admin = conn.execute("SELECT id FROM users WHERE username = 'admin'").fetchone()
+        for template in MCP_CATALOG_TEMPLATES:
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO mcp_servers (
+                    slug, name, description, description_en, transport, endpoint,
+                    source_url, auth_type, auth_env_var, headers_json, is_enabled, status, created_by
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """,
+                (
+                    template["slug"], template["name"], template["description"], template["description_en"],
+                    template["transport"], template["endpoint"], template["source_url"], template["auth_type"],
+                    template["auth_env_var"], template.get("headers_json"), int(template["is_enabled"]),
+                    "unchecked" if template["endpoint"] else "unconfigured", admin["id"] if admin else None,
+                ),
+            )
+            conn.execute(
+                """
+                UPDATE mcp_servers
+                SET endpoint = COALESCE(endpoint, ?),
+                    source_url = COALESCE(source_url, ?),
+                    auth_type = CASE WHEN auth_type = 'none' THEN ? ELSE auth_type END,
+                    auth_env_var = COALESCE(auth_env_var, ?),
+                    headers_json = COALESCE(headers_json, ?),
+                    status = CASE
+                        WHEN endpoint IS NULL AND ? IS NOT NULL THEN 'unchecked'
+                        ELSE status
+                    END,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE slug = ?
+                """,
+                (
+                    template["endpoint"], template["source_url"], template["auth_type"],
+                    template["auth_env_var"], template.get("headers_json"), template["endpoint"], template["slug"],
+                ),
+            )
+        conn.execute(
+            """
+            UPDATE mcp_servers
+            SET endpoint = 'https://mcp.linear.app/mcp/readonly',
+                auth_type = 'bearer',
+                status = 'unchecked',
+                protocol_version = NULL,
+                tools_json = NULL,
+                tool_count = 0,
+                last_error = NULL,
+                last_checked_at = NULL,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE slug = 'linear' AND endpoint = 'https://mcp.linear.app/mcp'
+            """
+        )
+        conn.execute(
+            """
+            UPDATE mcp_servers
+            SET description = 'Linear 官方唯讀遠端 MCP，用於查詢 Issue、專案、里程碑與產品規劃資料。',
+                description_en = 'Official read-only Linear remote MCP for issues, projects, milestones, and product planning.',
+                updated_at = CURRENT_TIMESTAMP
+            WHERE slug = 'linear'
+              AND endpoint = 'https://mcp.linear.app/mcp/readonly'
+              AND description = 'Linear 官方遠端 MCP，用於 Issue、專案、里程碑與產品規劃協作。'
+            """
+        )
 
 
 def get_user_by_username(username: str) -> dict[str, Any] | None:
@@ -380,6 +679,188 @@ def get_user_by_id(user_id: int) -> dict[str, Any] | None:
     with connect() as conn:
         row = conn.execute("SELECT * FROM users WHERE id = ?", (user_id,)).fetchone()
     return _row_to_dict(row)
+
+
+def get_system_setting(key: str) -> dict[str, Any] | None:
+    with connect() as conn:
+        row = conn.execute(
+            """
+            SELECT system_settings.key, system_settings.value, system_settings.updated_by,
+                   system_settings.updated_at, users.username AS updated_by_username
+            FROM system_settings
+            LEFT JOIN users ON users.id = system_settings.updated_by
+            WHERE system_settings.key = ?
+            """,
+            (key,),
+        ).fetchone()
+    return _row_to_dict(row)
+
+
+def set_system_setting(key: str, value: str, updated_by: int | None) -> dict[str, Any]:
+    with connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO system_settings (key, value, updated_by)
+            VALUES (?, ?, ?)
+            ON CONFLICT(key) DO UPDATE SET
+                value = excluded.value,
+                updated_by = excluded.updated_by,
+                updated_at = CURRENT_TIMESTAMP
+            """,
+            (key, value, updated_by),
+        )
+    setting = get_system_setting(key)
+    if setting is None:
+        raise RuntimeError("System setting update failed")
+    return setting
+
+
+def list_mcp_servers() -> list[dict[str, Any]]:
+    with connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT mcp_servers.*, users.username AS created_by_username
+            FROM mcp_servers
+            LEFT JOIN users ON users.id = mcp_servers.created_by
+            ORDER BY CASE status
+                WHEN 'connected' THEN 0
+                WHEN 'failed' THEN 1
+                WHEN 'unchecked' THEN 2
+                ELSE 3
+            END, name COLLATE NOCASE
+            """
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def get_mcp_server(server_id: int) -> dict[str, Any] | None:
+    with connect() as conn:
+        row = conn.execute("SELECT * FROM mcp_servers WHERE id = ?", (server_id,)).fetchone()
+    return _row_to_dict(row)
+
+
+def create_mcp_server(values: dict[str, Any]) -> dict[str, Any]:
+    with connect() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO mcp_servers (
+                slug, name, description, description_en, transport, endpoint,
+                source_url, auth_type, auth_env_var, is_enabled, status, created_by
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                values["slug"], values["name"], values.get("description"),
+                values.get("description_en"), values["transport"], values.get("endpoint"),
+                values.get("source_url"), values.get("auth_type", "none"), values.get("auth_env_var"),
+                int(bool(values.get("is_enabled"))),
+                "unchecked" if values.get("endpoint") else "unconfigured", values.get("created_by"),
+            ),
+        )
+        row = conn.execute("SELECT * FROM mcp_servers WHERE id = ?", (cursor.lastrowid,)).fetchone()
+    result = _row_to_dict(row)
+    if result is None:
+        raise RuntimeError("MCP server creation failed")
+    return result
+
+
+def update_mcp_server(server_id: int, values: dict[str, Any]) -> dict[str, Any] | None:
+    with connect() as conn:
+        conn.execute(
+            """
+            UPDATE mcp_servers
+            SET slug = ?, name = ?, description = ?, description_en = ?, transport = ?,
+                endpoint = ?, source_url = ?, auth_type = ?, auth_env_var = ?, is_enabled = ?,
+                status = CASE
+                    WHEN COALESCE(?, '') = '' THEN 'unconfigured'
+                    WHEN endpoint IS NOT ? OR transport IS NOT ? OR auth_env_var IS NOT ? THEN 'unchecked'
+                    ELSE status
+                END,
+                tool_count = CASE
+                    WHEN endpoint IS NOT ? OR transport IS NOT ? OR auth_env_var IS NOT ? THEN 0
+                    ELSE tool_count
+                END,
+                tools_json = CASE
+                    WHEN endpoint IS NOT ? OR transport IS NOT ? OR auth_env_var IS NOT ? THEN NULL
+                    ELSE tools_json
+                END,
+                last_error = CASE
+                    WHEN endpoint IS NOT ? OR transport IS NOT ? OR auth_env_var IS NOT ? THEN NULL
+                    ELSE last_error
+                END,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (
+                values["slug"], values["name"], values.get("description"), values.get("description_en"),
+                values["transport"], values.get("endpoint"), values.get("source_url"),
+                values.get("auth_type", "none"), values.get("auth_env_var"),
+                int(bool(values.get("is_enabled"))), values.get("endpoint"),
+                values.get("endpoint"), values["transport"], values.get("auth_env_var"),
+                values.get("endpoint"), values["transport"], values.get("auth_env_var"),
+                values.get("endpoint"), values["transport"], values.get("auth_env_var"),
+                values.get("endpoint"), values["transport"], values.get("auth_env_var"),
+                server_id,
+            ),
+        )
+        row = conn.execute("SELECT * FROM mcp_servers WHERE id = ?", (server_id,)).fetchone()
+    return _row_to_dict(row)
+
+
+def update_mcp_server_sync(
+    server_id: int,
+    *,
+    status: str,
+    protocol_version: str | None,
+    tools_json: str | None,
+    tool_count: int,
+    last_error: str | None,
+) -> dict[str, Any] | None:
+    with connect() as conn:
+        conn.execute(
+            """
+            UPDATE mcp_servers
+            SET status = ?, protocol_version = COALESCE(?, protocol_version),
+                tools_json = ?, tool_count = ?, last_error = ?,
+                last_checked_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (status, protocol_version, tools_json, tool_count, last_error, server_id),
+        )
+        row = conn.execute("SELECT * FROM mcp_servers WHERE id = ?", (server_id,)).fetchone()
+    return _row_to_dict(row)
+
+
+def delete_mcp_server(server_id: int) -> bool:
+    with connect() as conn:
+        conn.execute("DELETE FROM mcp_audit_logs WHERE server_id = ?", (server_id,))
+        cursor = conn.execute("DELETE FROM mcp_servers WHERE id = ?", (server_id,))
+    return cursor.rowcount > 0
+
+
+def create_mcp_audit_log(
+    *,
+    server_id: int,
+    user_id: int,
+    action: str,
+    status: str,
+    tool_name: str | None = None,
+    input_json: str | None = None,
+    output_json: str | None = None,
+    error_message: str | None = None,
+) -> None:
+    with connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO mcp_audit_logs (
+                server_id, user_id, action, status, tool_name,
+                input_json, output_json, error_message
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                server_id, user_id, action, status, tool_name,
+                input_json, output_json, error_message,
+            ),
+        )
 
 
 def list_users(q: str | None = None) -> list[dict[str, Any]]:
@@ -656,6 +1137,9 @@ def update_meeting_translation(
     translation: str | None = None,
     translation_error: str | None = None,
     translation_metadata_json: str | None = None,
+    translation_model_id: str | None = None,
+    translation_provider: str | None = None,
+    translation_model: str | None = None,
 ) -> dict[str, Any] | None:
     with connect() as conn:
         conn.execute(
@@ -664,6 +1148,9 @@ def update_meeting_translation(
             SET translation_status = ?, translation = COALESCE(?, translation),
                 translation_error = ?,
                 translation_metadata_json = COALESCE(?, translation_metadata_json),
+                translation_model_id = COALESCE(?, translation_model_id),
+                translation_provider = COALESCE(?, translation_provider),
+                translation_model = COALESCE(?, translation_model),
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
             """,
@@ -672,6 +1159,9 @@ def update_meeting_translation(
                 translation,
                 translation_error,
                 translation_metadata_json,
+                translation_model_id,
+                translation_provider,
+                translation_model,
                 meeting_id,
             ),
         )
@@ -743,6 +1233,15 @@ def get_meeting(meeting_id: int) -> dict[str, Any] | None:
     return _row_to_dict(row)
 
 
+def get_meeting_by_nas_asset_id(asset_id: int) -> dict[str, Any] | None:
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT * FROM meetings WHERE nas_asset_id = ? ORDER BY id DESC LIMIT 1",
+            (asset_id,),
+        ).fetchone()
+    return _row_to_dict(row)
+
+
 def create_nas_asset(
     *,
     user_id: int,
@@ -755,15 +1254,17 @@ def create_nas_asset(
     status: str = "processing",
     analyzer: str | None = None,
     processor_config_json: str | None = None,
+    source_type: str | None = None,
+    source_url: str | None = None,
 ) -> dict[str, Any]:
     with connect() as conn:
         cursor = conn.execute(
             """
             INSERT INTO nas_assets (
                 user_id, category, title, original_filename, stored_path, mime_type,
-                file_size, status, analyzer, processor_config_json
+                file_size, status, analyzer, processor_config_json, source_type, source_url
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 user_id,
@@ -776,6 +1277,8 @@ def create_nas_asset(
                 status,
                 analyzer,
                 processor_config_json,
+                source_type,
+                source_url,
             ),
         )
         row = conn.execute("SELECT * FROM nas_assets WHERE id = ?", (cursor.lastrowid,)).fetchone()
@@ -812,6 +1315,49 @@ def update_nas_asset(
     return _row_to_dict(row)
 
 
+def finalize_network_asset(
+    asset_id: int,
+    *,
+    title: str,
+    original_filename: str,
+    stored_path: str,
+    mime_type: str | None,
+    file_size: int,
+    analyzer: str,
+    processor_config_json: str,
+) -> dict[str, Any] | None:
+    with connect() as conn:
+        conn.execute(
+            """
+            UPDATE nas_assets
+            SET title = ?,
+                original_filename = ?,
+                stored_path = ?,
+                mime_type = ?,
+                file_size = ?,
+                status = 'processing',
+                analyzer = ?,
+                summary = 'YouTube 內容已保存至 NAS，正在進入媒體分析流程。',
+                error_message = NULL,
+                processor_config_json = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (
+                title,
+                original_filename,
+                stored_path,
+                mime_type,
+                file_size,
+                analyzer,
+                processor_config_json,
+                asset_id,
+            ),
+        )
+        row = conn.execute("SELECT * FROM nas_assets WHERE id = ?", (asset_id,)).fetchone()
+    return _row_to_dict(row)
+
+
 def get_nas_asset(asset_id: int) -> dict[str, Any] | None:
     with connect() as conn:
         row = conn.execute(
@@ -824,6 +1370,27 @@ def get_nas_asset(asset_id: int) -> dict[str, Any] | None:
             (asset_id,),
         ).fetchone()
     return _row_to_dict(row)
+
+
+def list_pending_media_jobs() -> list[dict[str, Any]]:
+    with connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT 'meeting' AS job_type, meetings.id AS record_id
+            FROM meetings
+            WHERE meetings.status = 'processing'
+            UNION ALL
+            SELECT 'asset' AS job_type, nas_assets.id AS record_id
+            FROM nas_assets
+            WHERE nas_assets.status = 'processing'
+              AND nas_assets.category IN ('audio', 'video')
+              AND NOT EXISTS (
+                  SELECT 1 FROM meetings WHERE meetings.nas_asset_id = nas_assets.id
+              )
+            ORDER BY record_id
+            """
+        ).fetchall()
+    return [dict(row) for row in rows]
 
 
 def list_nas_assets(*, user_id: int, role: str, q: str | None = None) -> list[dict[str, Any]]:
@@ -851,7 +1418,15 @@ def list_nas_assets(*, user_id: int, role: str, q: str | None = None) -> list[di
 
     where_sql = f"WHERE {' AND '.join(where)}" if where else ""
     sql = f"""
-        SELECT nas_assets.*, users.username AS owner_username, users.role AS owner_role
+        SELECT nas_assets.*, users.username AS owner_username, users.role AS owner_role,
+               CASE WHEN nas_assets.category = 'audio' THEN (
+                   SELECT substr(document_chunks.content, 1, 360)
+                   FROM document_chunks
+                   WHERE document_chunks.asset_id = nas_assets.id
+                     AND document_chunks.chunk_type = 'audio_transcript'
+                   ORDER BY document_chunks.chunk_index ASC
+                   LIMIT 1
+               ) END AS transcript_preview
         FROM nas_assets
         JOIN users ON users.id = nas_assets.user_id
         {where_sql}
@@ -861,6 +1436,41 @@ def list_nas_assets(*, user_id: int, role: str, q: str | None = None) -> list[di
 
     with connect() as conn:
         rows = conn.execute(sql, params).fetchall()
+    return [dict(row) for row in rows]
+
+
+def list_network_assets(*, user_id: int, role: str) -> list[dict[str, Any]]:
+    params: list[Any] = []
+    ownership_sql = ""
+    if role != "admin":
+        ownership_sql = "AND nas_assets.user_id = ?"
+        params.append(user_id)
+    with connect() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT nas_assets.*, users.username AS owner_username
+            FROM nas_assets
+            JOIN users ON users.id = nas_assets.user_id
+            WHERE nas_assets.source_type = 'youtube'
+            {ownership_sql}
+            ORDER BY datetime(nas_assets.created_at) DESC, nas_assets.id DESC
+            LIMIT 50
+            """,
+            params,
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def list_pending_network_assets() -> list[dict[str, Any]]:
+    with connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT *
+            FROM nas_assets
+            WHERE source_type = 'youtube' AND status = 'downloading'
+            ORDER BY id
+            """
+        ).fetchall()
     return [dict(row) for row in rows]
 
 
@@ -1394,6 +2004,31 @@ def update_chunk_embeddings(chunks: list[dict[str, Any]]) -> None:
             """,
             [
                 (chunk["embedding"], chunk["embedding_model"], chunk["id"])
+                for chunk in chunks
+            ],
+        )
+
+
+def update_document_chunk_contents(asset_id: int, chunks: list[dict[str, Any]]) -> None:
+    if not chunks:
+        return
+    with connect() as conn:
+        conn.execute("DELETE FROM rag_query_cache WHERE asset_id = ?", (asset_id,))
+        conn.executemany(
+            """
+            UPDATE document_chunks
+            SET content = ?, token_estimate = ?, embedding = ?, embedding_model = ?
+            WHERE id = ? AND asset_id = ?
+            """,
+            [
+                (
+                    chunk["content"],
+                    chunk.get("token_estimate", 0),
+                    chunk.get("embedding"),
+                    chunk.get("embedding_model"),
+                    chunk["id"],
+                    asset_id,
+                )
                 for chunk in chunks
             ],
         )

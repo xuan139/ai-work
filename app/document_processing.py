@@ -10,14 +10,14 @@ from typing import Any
 
 from app.asr_catalog import get_asr_model
 from app.asr_runtime import AsrRuntimeError
-from app.asr_service import run_asr_with_audit
+from app.asr_service import run_segmented_asr_with_audit
 from app.db import get_nas_asset, replace_document_chunks, update_nas_asset
 from app.embedding_runtime import attach_embeddings
 from app.llm_runtime import LlmRuntimeError
 from app.notifications import manager
 from app.translation_service import translate_transcript_with_audit
 from app.video_catalog import get_video_model
-from app.video_runtime import VideoRuntimeError, analyze_video, build_video_detection_chunks
+from app.video_runtime import VideoRuntimeError, analyze_segmented_video, build_video_detection_chunks
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 AUDIO_SUFFIXES = {".wav", ".mp3", ".m4a", ".webm", ".ogg", ".flac", ".aac"}
@@ -129,12 +129,24 @@ async def process_audio_asset(
 ) -> dict[str, Any] | None:
     config = processor_config(asset)
     model = get_asr_model(config.get("asr_model_id"))
+
+    def report_progress(completed: int, total: int) -> None:
+        if total > 1:
+            update_nas_asset(
+                asset["id"],
+                status="processing",
+                analyzer=model["name"],
+                summary=f"大型音訊已切分為 {total} 段，媒體 Worker 正在處理第 {completed}/{total} 段。",
+            )
+
     try:
-        result = await run_asr_with_audit(
+        result = await run_segmented_asr_with_audit(
             path=path,
             model_id=model["id"],
             api_key=api_key,
             user_id=asset["user_id"],
+            progress=report_progress,
+            segment_archive_asset_id=asset["id"],
         )
     except AsrRuntimeError as exc:
         local_model = model["id"].startswith("local:")
@@ -144,7 +156,6 @@ async def process_audio_asset(
             analyzer=model["name"],
             summary=f"已選擇 {model['name']}。{exc}",
             error_message=None if local_model else str(exc),
-            chunk_count=0,
         )
 
     chunks = build_transcript_chunks(result["text"], path, model, result)
@@ -177,7 +188,8 @@ async def process_audio_asset(
         status="completed",
         analyzer=model["name"],
         summary=(
-            f"已使用 {model['name']} 完成語音轉文字，建立逐字稿 RAG chunks：{len(chunks)} 段；"
+            f"已使用 {model['name']} 完成語音轉文字；媒體切片 {result['metadata'].get('segment_count', 1)} 段，"
+            f"建立逐字稿 RAG chunks：{len(chunks)} 段；"
             f"{translation_summary}"
             f"{'Qwen3 Embedding 向量已寫入' if embedded else '向量服務暫時不可用，已排入背景補建'}。"
         ),
@@ -188,15 +200,31 @@ async def process_audio_asset(
 async def process_video_asset(asset: dict[str, Any], path: Path, api_key: str | None) -> dict[str, Any] | None:
     config = processor_config(asset)
     model = get_video_model(config.get("video_model_id"))
+
+    def report_progress(completed: int, total: int) -> None:
+        if total > 1:
+            update_nas_asset(
+                asset["id"],
+                status="processing",
+                analyzer=model["name"],
+                summary=f"大型影片已切分為 {total} 段，媒體 Worker 正在處理第 {completed}/{total} 段。",
+            )
+
     try:
-        result = await asyncio.to_thread(analyze_video, path, model["id"], api_key)
+        result = await asyncio.to_thread(
+            analyze_segmented_video,
+            path,
+            model["id"],
+            api_key,
+            report_progress,
+            asset["id"],
+        )
     except VideoRuntimeError as exc:
         return update_nas_asset(
             asset["id"],
             status="needs_model",
             analyzer=model["name"],
             summary=f"已選擇 {model['name']}。{exc}",
-            chunk_count=0,
         )
 
     chunks = build_video_detection_chunks(path, result)
@@ -243,6 +271,9 @@ def build_transcript_chunks(text: str, path: Path, model: dict[str, Any], result
                     "asr_model_id": model["id"],
                     "asr_model": model["name"],
                     "asr_engine": result["engine"],
+                    "segmented": bool((result.get("metadata") or {}).get("segmented")),
+                    "segment_count": (result.get("metadata") or {}).get("segment_count", 1),
+                    "source_duration_seconds": (result.get("metadata") or {}).get("source_duration_seconds"),
                 },
                 ensure_ascii=False,
             ),

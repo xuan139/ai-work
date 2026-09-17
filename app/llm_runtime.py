@@ -26,7 +26,10 @@ def company_api_key_for_model(model: dict[str, Any]) -> str | None:
         "OpenAI": "OPENAI_API_KEY",
         "Anthropic": "ANTHROPIC_API_KEY",
         "Google": "GEMINI_API_KEY",
+        "Google Gemini": "GEMINI_API_KEY",
         "DeepSeek": "DEEPSEEK_API_KEY",
+        "Deepgram": "DEEPGRAM_API_KEY",
+        "AssemblyAI": "ASSEMBLYAI_API_KEY",
         "Mistral AI": "MISTRAL_API_KEY",
         "Cohere": "COHERE_API_KEY",
         "xAI": "XAI_API_KEY",
@@ -37,34 +40,44 @@ def company_api_key_for_model(model: dict[str, Any]) -> str | None:
     return (os.getenv(env_name) or None) if env_name else None
 
 
-async def run_llm(model: dict[str, Any], prompt: str, api_key: str | None) -> dict[str, Any]:
-    return await asyncio.to_thread(_run_llm_sync, model, prompt, api_key)
+async def run_llm(
+    model: dict[str, Any],
+    prompt: str,
+    api_key: str | None,
+    system_prompt: str | None = None,
+) -> dict[str, Any]:
+    return await asyncio.to_thread(_run_llm_sync, model, prompt, api_key, system_prompt)
 
 
-def _run_llm_sync(model: dict[str, Any], prompt: str, api_key: str | None) -> dict[str, Any]:
+def _run_llm_sync(
+    model: dict[str, Any],
+    prompt: str,
+    api_key: str | None,
+    system_prompt: str | None = None,
+) -> dict[str, Any]:
     provider = model["provider"]
     if provider == "Local NAS":
-        answer, usage = _call_local_nas(model, prompt)
+        answer, usage = _call_local_nas(model, prompt, system_prompt)
         return {"access_mode": "local_nas", "answer": answer, "usage": usage}
 
     if provider == "Free Gateway":
-        answer, headers = _call_pollinations(model["model"], prompt)
+        answer, headers = _call_pollinations(model["model"], prompt, system_prompt)
         return {"access_mode": "free_no_key", "answer": answer, "usage": usage_from_headers(headers)}
 
     if not api_key:
         raise LlmRuntimeError("API key is required for this model")
 
     if provider == "OpenAI":
-        answer, usage = _call_openai(model["model"], prompt, api_key)
+        answer, usage = _call_openai(model["model"], prompt, api_key, system_prompt)
         return {"access_mode": "api_key", "answer": answer, "usage": usage}
     if provider == "Anthropic":
-        answer, usage = _call_anthropic(model["model"], prompt, api_key)
+        answer, usage = _call_anthropic(model["model"], prompt, api_key, system_prompt)
         return {"access_mode": "api_key", "answer": answer, "usage": usage}
     if provider == "Google":
-        answer, usage = _call_gemini(model["model"], prompt, api_key)
+        answer, usage = _call_gemini(model["model"], prompt, api_key, system_prompt)
         return {"access_mode": "api_key", "answer": answer, "usage": usage}
     if provider == "Cohere":
-        answer, usage = _call_cohere(model["model"], prompt, api_key)
+        answer, usage = _call_cohere(model["model"], prompt, api_key, system_prompt)
         return {"access_mode": "api_key", "answer": answer, "usage": usage}
 
     dashscope_base_url = os.getenv(
@@ -81,7 +94,9 @@ def _run_llm_sync(model: dict[str, Any], prompt: str, api_key: str | None) -> di
         "Cerebras": "https://api.cerebras.ai/v1/chat/completions",
     }
     if provider in openai_compatible:
-        answer, usage = _call_openai_compatible(openai_compatible[provider], model["model"], prompt, api_key)
+        answer, usage = _call_openai_compatible(
+            openai_compatible[provider], model["model"], prompt, api_key, system_prompt
+        )
         return {
             "access_mode": "api_key",
             "answer": answer,
@@ -91,13 +106,18 @@ def _run_llm_sync(model: dict[str, Any], prompt: str, api_key: str | None) -> di
     raise LlmRuntimeError(f"Provider is not supported: {provider}")
 
 
-def _call_local_nas(model: dict[str, Any], prompt: str) -> tuple[str, dict[str, Any]]:
+def _call_local_nas(
+    model: dict[str, Any], prompt: str, system_prompt: str | None = None
+) -> tuple[str, dict[str, Any]]:
     base_url = (
         str(model["api_base"])
         if model.get("custom_model")
         else os.getenv("NAS_LLM_BASE_URL", str(model["api_base"]))
     ).rstrip("/")
-    tokenizer_content = f"{LOCAL_NAS_SYSTEM_PROMPT}\n\n{prompt}"
+    effective_system_prompt = LOCAL_NAS_SYSTEM_PROMPT
+    if system_prompt:
+        effective_system_prompt = f"{effective_system_prompt}\n\nAdditional instructions:\n{system_prompt}"
+    tokenizer_content = f"{effective_system_prompt}\n\n{prompt}"
     tokenizer_used = bool(model.get("supports_tokenize", model.get("id") == "local:qwen3-4b"))
     if tokenizer_used:
         token_payload, _ = _request_json(
@@ -119,7 +139,7 @@ def _call_local_nas(model: dict[str, Any], prompt: str) -> tuple[str, dict[str, 
     request_payload = {
         "model": model["model"],
         "messages": [
-            {"role": "system", "content": LOCAL_NAS_SYSTEM_PROMPT},
+            {"role": "system", "content": effective_system_prompt},
             {"role": "user", "content": prompt},
         ],
         "max_tokens": 800,
@@ -161,19 +181,27 @@ def estimate_prompt_tokens(text: str) -> int:
     return max(1, (len(text.encode("utf-8")) + 2) // 3)
 
 
-def _call_pollinations(model: str, prompt: str) -> tuple[str, dict[str, str]]:
+def _call_pollinations(
+    model: str, prompt: str, system_prompt: str | None = None
+) -> tuple[str, dict[str, str]]:
+    if system_prompt:
+        prompt = f"System instructions:\n{system_prompt}\n\nUser request:\n{prompt}"
     query = urlencode({"model": model})
     url = f"https://text.pollinations.ai/{quote(prompt)}?{query}"
     request = Request(url, headers={"User-Agent": "ai-work-demo/0.1"})
     return _request_text(request)
 
 
-def _call_openai(model: str, prompt: str, api_key: str) -> tuple[str, dict[str, Any]]:
+def _call_openai(
+    model: str, prompt: str, api_key: str, system_prompt: str | None = None
+) -> tuple[str, dict[str, Any]]:
     data = {
         "model": model,
         "input": prompt,
         "max_output_tokens": 800,
     }
+    if system_prompt:
+        data["instructions"] = system_prompt
     request = _json_request(
         "https://api.openai.com/v1/responses",
         data,
@@ -192,12 +220,16 @@ def _call_openai(model: str, prompt: str, api_key: str) -> tuple[str, dict[str, 
     raise LlmRuntimeError("OpenAI response did not include text output")
 
 
-def _call_anthropic(model: str, prompt: str, api_key: str) -> tuple[str, dict[str, Any]]:
+def _call_anthropic(
+    model: str, prompt: str, api_key: str, system_prompt: str | None = None
+) -> tuple[str, dict[str, Any]]:
     data = {
         "model": model,
         "max_tokens": 800,
         "messages": [{"role": "user", "content": prompt}],
     }
+    if system_prompt:
+        data["system"] = system_prompt
     request = _json_request(
         "https://api.anthropic.com/v1/messages",
         data,
@@ -213,13 +245,14 @@ def _call_anthropic(model: str, prompt: str, api_key: str) -> tuple[str, dict[st
     raise LlmRuntimeError("Anthropic response did not include text output")
 
 
-def _call_gemini(model: str, prompt: str, api_key: str) -> tuple[str, dict[str, Any]]:
+def _call_gemini(
+    model: str, prompt: str, api_key: str, system_prompt: str | None = None
+) -> tuple[str, dict[str, Any]]:
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{quote(model)}:generateContent?{urlencode({'key': api_key})}"
-    request = _json_request(
-        url,
-        {"contents": [{"parts": [{"text": prompt}]}]},
-        {},
-    )
+    data = {"contents": [{"parts": [{"text": prompt}]}]}
+    if system_prompt:
+        data["system_instruction"] = {"parts": [{"text": system_prompt}]}
+    request = _json_request(url, data, {})
     payload, headers = _request_json(request)
     texts: list[str] = []
     for candidate in payload.get("candidates", []):
@@ -231,10 +264,16 @@ def _call_gemini(model: str, prompt: str, api_key: str) -> tuple[str, dict[str, 
     raise LlmRuntimeError("Gemini response did not include text output")
 
 
-def _call_cohere(model: str, prompt: str, api_key: str) -> tuple[str, dict[str, Any]]:
+def _call_cohere(
+    model: str, prompt: str, api_key: str, system_prompt: str | None = None
+) -> tuple[str, dict[str, Any]]:
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": prompt})
     request = _json_request(
         "https://api.cohere.com/v2/chat",
-        {"model": model, "messages": [{"role": "user", "content": prompt}]},
+        {"model": model, "messages": messages},
         {"Authorization": f"Bearer {api_key}"},
     )
     payload, headers = _request_json(request)
@@ -244,12 +283,22 @@ def _call_cohere(model: str, prompt: str, api_key: str) -> tuple[str, dict[str, 
     raise LlmRuntimeError("Cohere response did not include text output")
 
 
-def _call_openai_compatible(url: str, model: str, prompt: str, api_key: str) -> tuple[str, dict[str, Any]]:
+def _call_openai_compatible(
+    url: str,
+    model: str,
+    prompt: str,
+    api_key: str,
+    system_prompt: str | None = None,
+) -> tuple[str, dict[str, Any]]:
+    messages = []
+    if system_prompt:
+        messages.append({"role": "system", "content": system_prompt})
+    messages.append({"role": "user", "content": prompt})
     request = _json_request(
         url,
         {
             "model": model,
-            "messages": [{"role": "user", "content": prompt}],
+            "messages": messages,
             "max_tokens": 800,
         },
         {"Authorization": f"Bearer {api_key}"},

@@ -6,8 +6,8 @@ from pathlib import Path
 
 from app.asr_catalog import get_asr_model
 from app.db import create_meeting, create_nas_asset, get_user_by_username
+from app.media_worker import enqueue_media_job
 from app.notifications import manager
-from app.transcription import process_meeting_transcription
 
 AUDIO_SUFFIXES = {".wav", ".mp3", ".m4a", ".webm", ".ogg", ".flac", ".aac"}
 
@@ -105,7 +105,7 @@ async def import_nas_file(base_dir: Path, path: Path) -> None:
             "meeting": meeting,
         }
     )
-    asyncio.create_task(process_meeting_transcription(meeting["id"]))
+    await enqueue_media_job("meeting", meeting["id"])
 
 
 async def nas_discovery_loop(base_dir: Path, interval: float = 2.0) -> None:

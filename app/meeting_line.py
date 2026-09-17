@@ -16,8 +16,8 @@ from app.db import (
     update_meeting_line_push,
 )
 from app.line_service import push_line_messages
-from app.llm_catalog import get_model
 from app.llm_runtime import LlmRuntimeError, company_api_key_for_model, run_llm
+from app.system_llm import current_llm_model
 
 
 async def push_completed_meeting_to_line(meeting_id: int) -> None:
@@ -67,11 +67,9 @@ async def push_completed_meeting_to_line(meeting_id: int) -> None:
 
 
 async def summarize_meeting_for_line(meeting: dict[str, Any], caller: str, source: dict[str, Any]) -> str:
-    model = get_model(source["default_model_id"])
-    if not model:
-        raise LlmRuntimeError("Meeting summary model is unavailable")
+    model = current_llm_model()
     company_key = company_api_key_for_model(model)
-    if model["provider"] != "Local NAS" and not company_key:
+    if model["free_tier"]["requires_api_key_for_real_call"] and not company_key:
         raise LlmRuntimeError("Company API key is unavailable for the selected LINE model")
     transcript = str(meeting.get("transcript") or "").strip()
     if not transcript:
@@ -83,7 +81,13 @@ async def summarize_meeting_for_line(meeting: dict[str, Any], caller: str, sourc
         f"會議：{meeting['title']}\n轉寫模型：{meeting.get('asr_model') or '-'}\n\n"
         f"逐字稿重點取樣：\n{meeting_summary_excerpt(transcript)}"
     )
-    expected_mode = "local_nas" if model["provider"] == "Local NAS" else "company_api_key"
+    expected_mode = (
+        "local_nas"
+        if model["provider"] == "Local NAS"
+        else "company_api_key"
+        if company_key
+        else "free_no_key"
+    )
     audit_user_id = source["owner_user_id"]
     try:
         result = await run_llm(model, prompt, company_key)

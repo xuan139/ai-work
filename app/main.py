@@ -1,23 +1,30 @@
 import asyncio
+import hashlib
 import json
 import mimetypes
 import os
 import re
 import secrets
-import sqlite3
 import shutil
+import sqlite3
+import subprocess
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
+from urllib.parse import quote, urlparse
 
 from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, Header, HTTPException, UploadFile, WebSocket, WebSocketDisconnect
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from app.auth import SESSION_COOKIE, authenticate, create_session_token, current_user, hash_password, require_admin, require_meeting_access, websocket_user
 from app.analysis_persistence import persist_cloud_asset_analysis
+from app.asset_normalization import convert_asset_to_traditional
 from app.asr_catalog import asr_model_summary, get_asr_model
+from app.asr_service import run_asr_with_audit
 from app.db import (
+    create_mcp_audit_log,
+    create_mcp_server,
     create_llm_call,
     create_line_document,
     create_meeting,
@@ -32,6 +39,8 @@ from app.db import (
     get_line_source_month_usage,
     get_document_chunk,
     get_meeting,
+    get_meeting_by_nas_asset_id,
+    get_mcp_server,
     get_nas_asset,
     get_custom_model,
     get_user_by_id,
@@ -45,7 +54,10 @@ from app.db import (
     list_line_source_assets,
     list_llm_calls,
     list_meetings,
+    list_mcp_servers,
     list_nas_assets,
+    list_network_assets,
+    list_pending_network_assets,
     list_custom_models,
     list_users,
     mark_line_query_cache_hit,
@@ -57,6 +69,10 @@ from app.db import (
     update_user_access,
     update_line_source_policy,
     update_custom_model_validation,
+    update_meeting_status,
+    update_mcp_server,
+    update_mcp_server_sync,
+    update_nas_asset,
     upsert_line_source,
     user_owned_record_count,
 )
@@ -83,12 +99,33 @@ from app.local_model_manager import (
     start_download,
     validate_custom_file_model,
 )
+from app.media_segmentation import archived_media_segment_path, list_archived_media_segments
+from app.media_worker import enqueue_media_job, start_media_workers, stop_media_workers
+from app.mcp_orchestrator import (
+    McpPlanningError,
+    available_mcp_servers,
+    build_final_prompt,
+    build_planner_prompt,
+    parse_mcp_plan,
+    public_mcp_server,
+    resolve_planned_tool,
+)
+from app.mcp_runtime import (
+    McpConnectionError,
+    call_streamable_http_tool,
+    sync_streamable_http_tools,
+    validate_mcp_endpoint,
+)
 from app.model_registry import custom_model_to_catalog, register_custom_model
 from app.nas import ensure_storage_dirs, nas_discovery_loop
+from app.nas_mcp import NAS_MCP_TOOLS, handle_nas_mcp_request
+from app.network_import import download_youtube_asset, validate_youtube_url
 from app.notifications import manager
 from app.rag_cache import lookup_rag_cache, normalize_query, store_rag_cache
-from app.transcription import process_meeting_transcription
+from app.segment_transcriptions import list_audio_segment_transcriptions, update_audio_segment_transcription
+from app.system_llm import current_llm_model, current_llm_state, update_current_llm
 from app.translation_service import TARGET_LANGUAGES
+from app.upload_storage import UploadTooLargeError, save_upload_stream
 from app.video_catalog import get_video_model, video_model_summary
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -96,6 +133,116 @@ STATIC_DIR = BASE_DIR / "static"
 RECORDINGS_DIR = BASE_DIR / "storage" / "recordings"
 NAS_ASSETS_DIR = BASE_DIR / "storage" / "nas_assets"
 LLM_RUN_LOCKS: dict[tuple[int, str], asyncio.Lock] = {}
+VIDEO_PREVIEWS_DIR = BASE_DIR / "storage" / "video_previews"
+NATIVE_BROWSER_VIDEO_SUFFIXES = {".mp4", ".m4v", ".mov", ".webm"}
+VIDEO_PLAYBACK_LOCKS: dict[int, asyncio.Lock] = {}
+ACTIVE_SEGMENT_TRANSCRIPTIONS: set[tuple[int, int]] = set()
+
+
+def save_uploaded_file(upload: UploadFile, destination: Path) -> int:
+    try:
+        return save_upload_stream(upload.file, destination)
+    except UploadTooLargeError as exc:
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
+
+
+def audio_content_type(filename: str, declared_type: str | None = None) -> str:
+    if declared_type and declared_type.startswith("audio/"):
+        return declared_type
+    return mimetypes.guess_type(filename)[0] or "application/octet-stream"
+
+
+def video_content_type(filename: str, declared_type: str | None = None) -> str:
+    if declared_type and declared_type.startswith("video/"):
+        return declared_type
+    return mimetypes.guess_type(filename)[0] or "application/octet-stream"
+
+
+def browser_video_path(asset: dict) -> Path:
+    source = Path(asset["stored_path"])
+    if source.suffix.lower() in NATIVE_BROWSER_VIDEO_SUFFIXES:
+        return source
+    ffmpeg = shutil.which("ffmpeg")
+    if not ffmpeg:
+        raise RuntimeError("此影片格式需要 FFmpeg 轉換為瀏覽器可播放的 MP4")
+    VIDEO_PREVIEWS_DIR.mkdir(parents=True, exist_ok=True)
+    preview = VIDEO_PREVIEWS_DIR / f"asset-{asset['id']}.mp4"
+    if preview.is_file() and preview.stat().st_mtime_ns >= source.stat().st_mtime_ns:
+        return preview
+    temporary = preview.with_suffix(".tmp.mp4")
+    completed = subprocess.run(
+        [
+            ffmpeg,
+            "-hide_banner",
+            "-loglevel",
+            "error",
+            "-y",
+            "-i",
+            str(source),
+            "-map",
+            "0:v:0",
+            "-map",
+            "0:a?",
+            "-c:v",
+            "libx264",
+            "-preset",
+            "veryfast",
+            "-crf",
+            "23",
+            "-c:a",
+            "aac",
+            "-movflags",
+            "+faststart",
+            str(temporary),
+        ],
+        capture_output=True,
+        text=True,
+        timeout=int(os.environ.get("VIDEO_PLAYBACK_TRANSCODE_TIMEOUT_SECONDS", "14400")),
+        check=False,
+    )
+    if completed.returncode != 0 or not temporary.is_file():
+        temporary.unlink(missing_ok=True)
+        detail = " ".join((completed.stderr or completed.stdout or "未知錯誤").split())[-500:]
+        raise RuntimeError(f"影片播放格式轉換失敗：{detail}")
+    temporary.replace(preview)
+    return preview
+
+
+def merge_transcript_chunks(chunks: list[dict]) -> str:
+    parts = [str(chunk.get("content") or "").strip() for chunk in chunks]
+    parts = [part for part in parts if part]
+    if not parts:
+        return ""
+    transcript = parts[0]
+    for part in parts[1:]:
+        overlap = 0
+        for size in range(min(len(transcript), len(part), 240), 0, -1):
+            if transcript.endswith(part[:size]):
+                overlap = size
+                break
+        transcript += part[overlap:] if overlap else f"\n\n{part}"
+    return transcript.strip()
+
+
+def transcript_download_response(content: str, filename: str) -> Response:
+    fallback = re.sub(r"[^A-Za-z0-9._-]+", "-", filename).strip("-") or "transcript.txt"
+    disposition = f"attachment; filename=\"{fallback}\"; filename*=UTF-8''{quote(filename)}"
+    return Response(
+        content=("\ufeff" + content).encode("utf-8"),
+        media_type="text/plain; charset=utf-8",
+        headers={"Content-Disposition": disposition},
+    )
+
+
+def segment_transcription_payload(asset_id: int, segment_index: int, record: dict | None) -> dict | None:
+    if not record:
+        return None
+    result = dict(record)
+    if str(result.get("transcript") or "").strip():
+        result["download_url"] = (
+            f"/api/nas-assets/{asset_id}/audio-segments/{segment_index}/transcript/download"
+        )
+    return result
 
 
 def load_project_env(path: Path) -> None:
@@ -128,10 +275,33 @@ async def lifespan(app: FastAPI):
     ensure_storage_dirs(BASE_DIR)
     init_db()
     seed_admin(hash_password("admin123"))
+    nas_demo_server = next((item for item in list_mcp_servers() if item.get("slug") == "nas-demo"), None)
+    if nas_demo_server:
+        update_mcp_server_sync(
+            nas_demo_server["id"],
+            status="connected",
+            protocol_version="2025-06-18",
+            tools_json=json.dumps(NAS_MCP_TOOLS, ensure_ascii=False),
+            tool_count=len(NAS_MCP_TOOLS),
+            last_error=None,
+        )
+    await start_media_workers()
     tasks = [
         asyncio.create_task(nas_discovery_loop(BASE_DIR)),
         asyncio.create_task(embedding_backfill_loop()),
     ]
+    for asset in list_pending_network_assets():
+        config = parse_processor_config(asset)
+        tasks.append(
+            asyncio.create_task(
+                download_youtube_asset(
+                    asset["id"],
+                    asset["source_url"],
+                    asset["category"],
+                    str(config.get("requested_title") or ""),
+                )
+            )
+        )
     try:
         yield
     finally:
@@ -142,10 +312,32 @@ async def lifespan(app: FastAPI):
                 await task
             except asyncio.CancelledError:
                 pass
+        await stop_media_workers()
 
 
 app = FastAPI(title="AI Work Meeting Demo", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
+@app.get("/mcp/nas")
+async def nas_demo_mcp_info() -> dict:
+    return {
+        "name": "AI Work NAS Demo MCP",
+        "transport": "streamable_http",
+        "endpoint": "/mcp/nas",
+        "protocol_version": "2025-06-18",
+        "read_only": True,
+        "demo_data_only": True,
+        "tools": [tool["name"] for tool in NAS_MCP_TOOLS],
+    }
+
+
+@app.post("/mcp/nas")
+async def nas_demo_mcp(payload: dict) -> Response:
+    result = handle_nas_mcp_request(payload)
+    if result is None:
+        return Response(status_code=204)
+    return JSONResponse(result)
 
 
 @app.get("/")
@@ -206,6 +398,10 @@ async def me(user: dict = Depends(current_user)) -> dict:
 
 USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{2,31}$")
 VALID_ROLES = {"admin", "user"}
+MCP_SLUG_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{1,63}$")
+MCP_ENV_PATTERN = re.compile(r"^[A-Z][A-Z0-9_]{1,127}$")
+MCP_TRANSPORTS = {"streamable_http", "sse", "stdio"}
+MCP_AUTH_TYPES = {"none", "bearer", "oauth2", "managed", "custom"}
 
 
 def validate_username(value: object) -> str:
@@ -284,9 +480,175 @@ async def admin_delete_user(user_id: int, admin: dict = Depends(require_admin)) 
     return {"ok": delete_user(user_id)}
 
 
+def serialize_mcp_server(server: dict) -> dict:
+    result = dict(server)
+    try:
+        result["tools"] = json.loads(result.pop("tools_json") or "[]")
+    except json.JSONDecodeError:
+        result["tools"] = []
+    try:
+        result["headers"] = json.loads(result.pop("headers_json") or "{}")
+    except json.JSONDecodeError:
+        result["headers"] = {}
+    auth_env_var = str(result.get("auth_env_var") or "")
+    result["auth_configured"] = bool(auth_env_var and os.getenv(auth_env_var))
+    result["is_enabled"] = bool(result.get("is_enabled"))
+    result["public_endpoint"] = "/mcp/nas" if result.get("slug") == "nas-demo" else None
+    return result
+
+
+def validate_mcp_server_payload(payload: dict, existing: dict | None = None) -> dict:
+    current = existing or {}
+    slug = str(payload.get("slug", current.get("slug", ""))).strip().lower()
+    name = str(payload.get("name", current.get("name", ""))).strip()
+    description = str(payload.get("description", current.get("description", ""))).strip()
+    description_en = str(payload.get("description_en", current.get("description_en", ""))).strip()
+    transport = str(payload.get("transport", current.get("transport", "streamable_http"))).strip()
+    endpoint = str(payload.get("endpoint", current.get("endpoint", "")) or "").strip()
+    source_url = str(payload.get("source_url", current.get("source_url", "")) or "").strip()
+    auth_type = str(payload.get("auth_type", current.get("auth_type", "none")) or "none").strip()
+    auth_env_var = str(payload.get("auth_env_var", current.get("auth_env_var", "")) or "").strip()
+    is_enabled = payload.get("is_enabled", bool(current.get("is_enabled", False)))
+
+    if not MCP_SLUG_PATTERN.fullmatch(slug):
+        raise HTTPException(status_code=400, detail="MCP slug 必須是 2–64 個小寫英數字或連字號")
+    if not 2 <= len(name) <= 100:
+        raise HTTPException(status_code=400, detail="MCP 名稱必須是 2–100 個字元")
+    if len(description) > 500 or len(description_en) > 500:
+        raise HTTPException(status_code=400, detail="MCP 說明不可超過 500 個字元")
+    if transport not in MCP_TRANSPORTS:
+        raise HTTPException(status_code=400, detail="不支援此 MCP transport")
+    if auth_type not in MCP_AUTH_TYPES:
+        raise HTTPException(status_code=400, detail="不支援此 MCP 認證類型")
+    if not isinstance(is_enabled, bool):
+        raise HTTPException(status_code=400, detail="is_enabled 必須是 boolean")
+    if auth_env_var and not MCP_ENV_PATTERN.fullmatch(auth_env_var):
+        raise HTTPException(status_code=400, detail="認證環境變數名稱格式不正確")
+    if endpoint and transport in {"streamable_http", "sse"}:
+        try:
+            endpoint = validate_mcp_endpoint(endpoint)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if len(endpoint) > 500:
+        raise HTTPException(status_code=400, detail="MCP Endpoint 不可超過 500 個字元")
+    if source_url:
+        source = urlparse(source_url)
+        if source.scheme not in {"http", "https"} or not source.hostname:
+            raise HTTPException(status_code=400, detail="官方來源必須是有效的 HTTP 或 HTTPS URL")
+    if len(source_url) > 500:
+        raise HTTPException(status_code=400, detail="官方來源 URL 不可超過 500 個字元")
+    return {
+        "slug": slug,
+        "name": name,
+        "description": description or None,
+        "description_en": description_en or None,
+        "transport": transport,
+        "endpoint": endpoint or None,
+        "source_url": source_url or None,
+        "auth_type": auth_type,
+        "auth_env_var": auth_env_var or None,
+        "is_enabled": is_enabled,
+    }
+
+
+@app.get("/api/admin/mcp/servers")
+async def admin_mcp_servers(admin: dict = Depends(require_admin)) -> dict:
+    return {"servers": [serialize_mcp_server(server) for server in list_mcp_servers()]}
+
+
+@app.get("/api/mcp/available")
+async def available_mcp_tools(user: dict = Depends(current_user)) -> dict:
+    servers = available_mcp_servers(list_mcp_servers())
+    return {"servers": [public_mcp_server(server) for server in servers]}
+
+
+@app.post("/api/admin/mcp/servers", status_code=201)
+async def admin_create_mcp_server(payload: dict, admin: dict = Depends(require_admin)) -> dict:
+    values = validate_mcp_server_payload(payload)
+    values["created_by"] = admin["id"]
+    try:
+        server = create_mcp_server(values)
+    except sqlite3.IntegrityError as exc:
+        raise HTTPException(status_code=409, detail="MCP slug 已存在") from exc
+    return serialize_mcp_server(server)
+
+
+@app.patch("/api/admin/mcp/servers/{server_id}")
+async def admin_update_mcp_server(
+    server_id: int,
+    payload: dict,
+    admin: dict = Depends(require_admin),
+) -> dict:
+    existing = get_mcp_server(server_id)
+    if not existing:
+        raise HTTPException(status_code=404, detail="MCP Server not found")
+    values = validate_mcp_server_payload(payload, existing)
+    try:
+        server = update_mcp_server(server_id, values)
+    except sqlite3.IntegrityError as exc:
+        raise HTTPException(status_code=409, detail="MCP slug 已存在") from exc
+    if not server:
+        raise HTTPException(status_code=404, detail="MCP Server not found")
+    return serialize_mcp_server(server)
+
+
+@app.post("/api/admin/mcp/servers/{server_id}/sync")
+async def admin_sync_mcp_server(server_id: int, admin: dict = Depends(require_admin)) -> dict:
+    server = get_mcp_server(server_id)
+    if not server:
+        raise HTTPException(status_code=404, detail="MCP Server not found")
+    if not server.get("endpoint"):
+        raise HTTPException(status_code=400, detail="請先設定 MCP Endpoint")
+    if not server.get("is_enabled"):
+        raise HTTPException(status_code=400, detail="請先啟用 MCP Server")
+    try:
+        result = await asyncio.to_thread(sync_streamable_http_tools, server)
+    except (McpConnectionError, ValueError) as exc:
+        updated = update_mcp_server_sync(
+            server_id,
+            status="failed",
+            protocol_version=None,
+            tools_json=None,
+            tool_count=0,
+            last_error=str(exc),
+        )
+        create_mcp_audit_log(
+            server_id=server_id,
+            user_id=admin["id"],
+            action="tools/list",
+            status="failed",
+            error_message=str(exc),
+        )
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    tools_json = json.dumps(result["tools"], ensure_ascii=False)
+    updated = update_mcp_server_sync(
+        server_id,
+        status="connected",
+        protocol_version=result["protocol_version"],
+        tools_json=tools_json,
+        tool_count=len(result["tools"]),
+        last_error=None,
+    )
+    create_mcp_audit_log(
+        server_id=server_id,
+        user_id=admin["id"],
+        action="tools/list",
+        status="completed",
+        output_json=json.dumps(
+            {
+                "protocol_version": result["protocol_version"],
+                "server_info": result["server_info"],
+                "tool_names": [tool["name"] for tool in result["tools"]],
+            },
+            ensure_ascii=False,
+        ),
+    )
+    return serialize_mcp_server(updated or server)
+
+
 @app.post("/api/meetings/upload")
 async def upload_meeting(
-    background_tasks: BackgroundTasks,
     title: str = Form(default=""),
     asr_model_id: str = Form(default=""),
     asr_api_key: str = Form(default=""),
@@ -321,8 +683,7 @@ async def upload_meeting(
     stored_name = f"{uuid.uuid4().hex}{suffix}"
     stored_path = RECORDINGS_DIR / stored_name
 
-    with stored_path.open("wb") as destination:
-        shutil.copyfileobj(audio.file, destination)
+    save_uploaded_file(audio, stored_path)
 
     meeting_title = title.strip() or Path(audio.filename or "瀏覽器錄音").stem or "瀏覽器錄音"
     processor_config = {
@@ -376,11 +737,11 @@ async def upload_meeting(
         line_group_name=line_group_name.strip() or None,
         line_push_full_transcript=push_full_transcript,
     )
-    background_tasks.add_task(
-        process_meeting_transcription,
+    await enqueue_media_job(
+        "meeting",
         meeting["id"],
-        selected_key,
-        selected_translation_key,
+        audio_api_key=selected_key,
+        translation_api_key=selected_translation_key,
     )
     await manager.broadcast(
         {
@@ -434,7 +795,12 @@ async def meeting_audio(meeting_id: int, user: dict = Depends(current_user)) -> 
     audio_path = Path(meeting["audio_path"])
     if not audio_path.exists():
         raise HTTPException(status_code=404, detail="Audio file not found")
-    return FileResponse(audio_path, filename=meeting["original_filename"], media_type="audio/*")
+    return FileResponse(
+        audio_path,
+        filename=meeting["original_filename"],
+        media_type=audio_content_type(meeting["original_filename"]),
+        content_disposition_type="inline",
+    )
 
 
 @app.post("/api/nas-assets/upload")
@@ -457,8 +823,7 @@ async def upload_nas_asset(
     stored_path = NAS_ASSETS_DIR / stored_name
     stored_path.parent.mkdir(parents=True, exist_ok=True)
 
-    with stored_path.open("wb") as destination:
-        shutil.copyfileobj(file.file, destination)
+    save_uploaded_file(file, stored_path)
 
     category = classify_asset(stored_path, file.content_type)
     processor_config = {}
@@ -513,19 +878,84 @@ async def upload_nas_asset(
         analyzer=analyzer,
         processor_config_json=json.dumps(processor_config, ensure_ascii=False) if processor_config else None,
     )
-    background_tasks.add_task(
-        process_nas_asset,
-        asset["id"],
-        selected_audio_key,
-        selected_video_key,
-        selected_translation_key,
-    )
+    if category in {"audio", "video"}:
+        await enqueue_media_job(
+            "asset",
+            asset["id"],
+            audio_api_key=selected_audio_key,
+            video_api_key=selected_video_key,
+            translation_api_key=selected_translation_key,
+        )
+    else:
+        background_tasks.add_task(
+            process_nas_asset,
+            asset["id"],
+            selected_audio_key,
+            selected_video_key,
+            selected_translation_key,
+        )
     await manager.broadcast(
         {
             "type": "nas_asset_uploaded",
             "asset_id": asset["id"],
             "title": asset["title"],
             "message": f"NAS 已收到上傳檔案《{asset['title']}》，正在交給 {asset['analyzer']} 處理",
+            "asset": asset,
+        }
+    )
+    return asset
+
+
+@app.get("/api/network-assets")
+async def network_assets(user: dict = Depends(current_user)) -> list[dict]:
+    return list_network_assets(user_id=user["id"], role=user["role"])
+
+
+@app.post("/api/network-assets/youtube")
+async def import_youtube(
+    payload: dict,
+    background_tasks: BackgroundTasks,
+    user: dict = Depends(current_user),
+) -> dict:
+    try:
+        url = validate_youtube_url(str(payload.get("url", "")))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    media_type = str(payload.get("media_type", "video")).strip().lower()
+    if media_type not in {"audio", "video"}:
+        raise HTTPException(status_code=400, detail="下載類型必須是 audio 或 video")
+    if payload.get("authorized") is not True:
+        raise HTTPException(status_code=400, detail="請先確認您有權下載及保存此內容")
+
+    requested_title = str(payload.get("title", "")).strip()[:180]
+    pending_name = f"youtube-{uuid.uuid4().hex}.pending"
+    asset = create_nas_asset(
+        user_id=user["id"],
+        category=media_type,
+        title=requested_title or "YouTube 網路資料",
+        original_filename=pending_name,
+        stored_path=str(NAS_ASSETS_DIR / pending_name),
+        mime_type=None,
+        file_size=0,
+        status="downloading",
+        analyzer="YouTube Downloader",
+        processor_config_json=json.dumps({"requested_title": requested_title}, ensure_ascii=False),
+        source_type="youtube",
+        source_url=url,
+    )
+    asset = update_nas_asset(
+        asset["id"],
+        status="downloading",
+        analyzer="YouTube Downloader",
+        summary="YouTube 下載任務已建立，正在取得影片資訊。",
+    ) or asset
+    background_tasks.add_task(download_youtube_asset, asset["id"], url, media_type, requested_title)
+    await manager.broadcast(
+        {
+            "type": "nas_asset_uploaded",
+            "asset_id": asset["id"],
+            "title": asset["title"],
+            "message": "YouTube 下載任務已建立，完成後會保存到 NAS。",
             "asset": asset,
         }
     )
@@ -544,12 +974,10 @@ def validate_translation_selection(
         return False, None, None
     if target not in TARGET_LANGUAGES:
         raise HTTPException(status_code=400, detail="不支援所選翻譯目標語言")
-    model = get_model(model_id.strip())
-    if not model:
-        raise HTTPException(status_code=400, detail="請選擇翻譯模型")
-    selected_key = api_key.strip() or None
+    model = current_llm_model()
+    selected_key = api_key.strip() or server_api_key_for_model(model)
     if model["free_tier"]["requires_api_key_for_real_call"] and not selected_key:
-        raise HTTPException(status_code=400, detail=f"{model['name']} 翻譯需要 API Key")
+        raise HTTPException(status_code=400, detail=f"系統目前模型 {model['name']} 需要公司 API Key")
     return True, model, selected_key
 
 
@@ -709,12 +1137,401 @@ async def nas_asset_detail(asset_id: int, user: dict = Depends(current_user)) ->
     analysis_chunks = [chunk for chunk in chunks if chunk.get("chunk_type") == "ai_analysis"][-4:]
     preview_chunks = [*chunks[:8], *analysis_chunks]
     unique_preview = list({chunk["id"]: chunk for chunk in preview_chunks}.values())
+    media_segments = []
+    transcript = ""
+    transcript_chunk_count = 0
+    if asset["category"] == "audio":
+        transcript_chunks = [chunk for chunk in chunks if chunk.get("chunk_type") == "audio_transcript"]
+        transcript_chunk_count = len(transcript_chunks)
+        linked_meeting = get_meeting_by_nas_asset_id(asset_id)
+        transcript = str((linked_meeting or {}).get("transcript") or "").strip()
+        if not transcript:
+            transcript = merge_transcript_chunks(transcript_chunks)
+    if asset["category"] in {"audio", "video"}:
+        segment_transcriptions = list_audio_segment_transcriptions(asset_id) if asset["category"] == "audio" else {}
+        media_segments = [
+            {
+                **segment,
+                "audio_url": (
+                    f"/api/nas-assets/{asset_id}/audio-segments/{segment['index']}"
+                    if asset["category"] == "audio"
+                    else None
+                ),
+                "download_url": f"/api/nas-assets/{asset_id}/media-segments/{segment['index']}/download",
+                "is_source": False,
+                "transcription": segment_transcription_payload(
+                    asset_id,
+                    segment["index"],
+                    segment_transcriptions.get(segment["index"]),
+                ),
+            }
+            for segment in list_archived_media_segments(asset_id, asset["category"])
+        ]
+        if not media_segments:
+            media_segments = [
+                {
+                    "index": 0,
+                    "filename": asset["original_filename"],
+                    "start_seconds": 0,
+                    "duration_seconds": None,
+                    "file_size": asset["file_size"],
+                    "audio_url": f"/api/nas-assets/{asset_id}/audio" if asset["category"] == "audio" else None,
+                    "download_url": f"/api/nas-assets/{asset_id}/download",
+                    "is_source": True,
+                    "transcription": segment_transcription_payload(asset_id, 0, segment_transcriptions.get(0)),
+                }
+            ]
     return {
         **asset,
         "processor_config": parse_processor_config(asset),
         "chunks": serialize_document_chunks(asset_id, unique_preview),
         "ai_analyses": analyses,
+        "audio_url": f"/api/nas-assets/{asset_id}/audio" if asset["category"] == "audio" else None,
+        "video_url": f"/api/nas-assets/{asset_id}/video" if asset["category"] == "video" else None,
+        "download_url": f"/api/nas-assets/{asset_id}/download" if asset["category"] in {"audio", "video"} else None,
+        "audio_segments": media_segments if asset["category"] == "audio" else [],
+        "video_segments": media_segments if asset["category"] == "video" else [],
+        "transcript": transcript or None,
+        "transcript_download_url": f"/api/nas-assets/{asset_id}/transcript/download" if transcript else None,
+        "transcript_chunk_count": transcript_chunk_count,
     }
+
+
+@app.get("/api/nas-assets/{asset_id}/download")
+async def download_nas_media(asset_id: int, user: dict = Depends(current_user)) -> FileResponse:
+    asset = require_nas_asset_access(get_nas_asset(asset_id), user)
+    if asset["category"] not in {"audio", "video"}:
+        raise HTTPException(status_code=400, detail="此 NAS 資產不是音訊或影片檔")
+    source_path = Path(asset["stored_path"])
+    if not source_path.is_file():
+        raise HTTPException(status_code=404, detail="NAS 原始媒體不存在")
+    content_type = (
+        audio_content_type(asset["original_filename"], asset.get("mime_type"))
+        if asset["category"] == "audio"
+        else video_content_type(asset["original_filename"], asset.get("mime_type"))
+    )
+    return FileResponse(
+        source_path,
+        filename=asset["original_filename"],
+        media_type=content_type,
+        content_disposition_type="attachment",
+    )
+
+
+@app.get("/api/nas-assets/{asset_id}/media-segments/{segment_index}/download")
+async def download_nas_media_segment(
+    asset_id: int,
+    segment_index: int,
+    user: dict = Depends(current_user),
+) -> FileResponse:
+    asset = require_nas_asset_access(get_nas_asset(asset_id), user)
+    if asset["category"] not in {"audio", "video"}:
+        raise HTTPException(status_code=400, detail="此 NAS 資產不是音訊或影片檔")
+    segment_path = archived_media_segment_path(asset_id, asset["category"], segment_index)
+    if not segment_path:
+        raise HTTPException(status_code=404, detail="找不到指定的媒體切片")
+    content_type = (
+        audio_content_type(segment_path.name)
+        if asset["category"] == "audio"
+        else video_content_type(segment_path.name)
+    )
+    return FileResponse(
+        segment_path,
+        filename=segment_path.name,
+        media_type=content_type,
+        content_disposition_type="attachment",
+    )
+
+
+@app.get("/api/nas-assets/{asset_id}/audio")
+async def nas_asset_audio(asset_id: int, user: dict = Depends(current_user)) -> FileResponse:
+    asset = require_nas_asset_access(get_nas_asset(asset_id), user)
+    if asset["category"] != "audio":
+        raise HTTPException(status_code=400, detail="此 NAS 資產不是音訊檔")
+    audio_path = Path(asset["stored_path"])
+    if not audio_path.is_file():
+        raise HTTPException(status_code=404, detail="NAS 原始音訊不存在")
+    return FileResponse(
+        audio_path,
+        filename=asset["original_filename"],
+        media_type=audio_content_type(asset["original_filename"], asset.get("mime_type")),
+        content_disposition_type="inline",
+    )
+
+
+@app.get("/api/nas-assets/{asset_id}/video")
+async def nas_asset_video(asset_id: int, user: dict = Depends(current_user)) -> FileResponse:
+    asset = require_nas_asset_access(get_nas_asset(asset_id), user)
+    if asset["category"] != "video":
+        raise HTTPException(status_code=400, detail="此 NAS 資產不是影片檔")
+    source_path = Path(asset["stored_path"])
+    if not source_path.is_file():
+        raise HTTPException(status_code=404, detail="NAS 原始影片不存在")
+    try:
+        lock = VIDEO_PLAYBACK_LOCKS.setdefault(asset_id, asyncio.Lock())
+        async with lock:
+            video_path = await asyncio.to_thread(browser_video_path, asset)
+    except (OSError, RuntimeError, subprocess.TimeoutExpired) as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    return FileResponse(
+        video_path,
+        filename=video_path.name,
+        media_type=video_content_type(video_path.name, asset.get("mime_type") if video_path == source_path else "video/mp4"),
+        content_disposition_type="inline",
+    )
+
+
+@app.get("/api/nas-assets/{asset_id}/audio-segments/{segment_index}")
+async def nas_asset_audio_segment(
+    asset_id: int,
+    segment_index: int,
+    user: dict = Depends(current_user),
+) -> FileResponse:
+    asset = require_nas_asset_access(get_nas_asset(asset_id), user)
+    if asset["category"] != "audio":
+        raise HTTPException(status_code=400, detail="此 NAS 資產不是音訊檔")
+    segment_path = archived_media_segment_path(asset_id, "audio", segment_index)
+    if not segment_path:
+        raise HTTPException(status_code=404, detail="找不到指定的音訊切片")
+    return FileResponse(
+        segment_path,
+        filename=segment_path.name,
+        media_type="audio/wav",
+        content_disposition_type="inline",
+    )
+
+
+@app.get("/api/nas-assets/{asset_id}/transcript/download")
+async def download_nas_asset_transcript(asset_id: int, user: dict = Depends(current_user)) -> Response:
+    asset = require_nas_asset_access(get_nas_asset(asset_id), user)
+    if asset["category"] != "audio":
+        raise HTTPException(status_code=400, detail="此 NAS 資產不是音訊檔")
+    linked_meeting = get_meeting_by_nas_asset_id(asset_id)
+    transcript = str((linked_meeting or {}).get("transcript") or "").strip()
+    if not transcript:
+        chunks = [
+            chunk
+            for chunk in list_document_chunks(asset_id)
+            if chunk.get("chunk_type") == "audio_transcript"
+        ]
+        transcript = merge_transcript_chunks(chunks)
+    if not transcript:
+        raise HTTPException(status_code=404, detail="此音訊尚未產生逐字稿")
+    filename = f"{Path(asset['original_filename']).stem}-transcript.txt"
+    return transcript_download_response(transcript, filename)
+
+
+@app.get("/api/nas-assets/{asset_id}/audio-segments/{segment_index}/transcript/download")
+async def download_nas_audio_segment_transcript(
+    asset_id: int,
+    segment_index: int,
+    user: dict = Depends(current_user),
+) -> Response:
+    asset = require_nas_asset_access(get_nas_asset(asset_id), user)
+    if asset["category"] != "audio":
+        raise HTTPException(status_code=400, detail="此 NAS 資產不是音訊檔")
+    record = list_audio_segment_transcriptions(asset_id).get(segment_index) or {}
+    transcript = str(record.get("transcript") or "").strip()
+    if not transcript:
+        raise HTTPException(status_code=404, detail="此音訊切片尚未產生逐字稿")
+    filename = f"{Path(asset['original_filename']).stem}-segment-{segment_index + 1:04d}-transcript.txt"
+    return transcript_download_response(transcript, filename)
+
+
+@app.post("/api/nas-assets/{asset_id}/audio-segments/{segment_index}/transcribe")
+async def transcribe_nas_audio_segment(
+    asset_id: int,
+    segment_index: int,
+    payload: dict,
+    background_tasks: BackgroundTasks,
+    user: dict = Depends(current_user),
+) -> dict:
+    asset = require_nas_asset_access(get_nas_asset(asset_id), user)
+    if asset["category"] != "audio":
+        raise HTTPException(status_code=400, detail="此 NAS 資產不是音訊檔")
+    segment_path = archived_media_segment_path(asset_id, "audio", segment_index)
+    if not segment_path and segment_index == 0:
+        source_path = Path(asset["stored_path"])
+        segment_path = source_path if source_path.is_file() else None
+    if not segment_path:
+        raise HTTPException(status_code=404, detail="找不到指定的音訊切片")
+
+    existing = list_audio_segment_transcriptions(asset_id).get(segment_index) or {}
+    job_key = (asset_id, segment_index)
+    if job_key in ACTIVE_SEGMENT_TRANSCRIPTIONS:
+        raise HTTPException(status_code=409, detail="此音訊切片正在轉寫")
+    config = parse_processor_config(asset)
+    model = get_asr_model(str(payload.get("model_id") or config.get("asr_model_id") or ""))
+    api_key = str(payload.get("api_key") or "").strip() or None
+    if model["requires_api_key"] and not api_key:
+        raise HTTPException(status_code=400, detail=f"{model['name']} 需要 {model.get('api_key_label') or 'API Key'}")
+
+    record = update_audio_segment_transcription(
+        asset_id,
+        segment_index,
+        status="queued",
+        progress=5,
+        model_id=model["id"],
+        model_name=model["name"],
+        transcript=existing.get("transcript"),
+        error_message=None,
+    )
+    ACTIVE_SEGMENT_TRANSCRIPTIONS.add(job_key)
+    background_tasks.add_task(
+        run_single_audio_segment_transcription,
+        asset,
+        segment_index,
+        segment_path,
+        model["id"],
+        api_key,
+    )
+    return record
+
+
+async def run_single_audio_segment_transcription(
+    asset: dict,
+    segment_index: int,
+    segment_path: Path,
+    model_id: str,
+    api_key: str | None,
+) -> None:
+    update_audio_segment_transcription(
+        asset["id"],
+        segment_index,
+        status="processing",
+        progress=15,
+        error_message=None,
+    )
+    try:
+        result = await run_asr_with_audit(
+            path=segment_path,
+            model_id=model_id,
+            api_key=api_key,
+            user_id=asset["user_id"],
+        )
+        update_audio_segment_transcription(
+            asset["id"],
+            segment_index,
+            status="completed",
+            progress=100,
+            model_id=result["model"]["id"],
+            model_name=result["model"].get("name") or result["model"]["id"],
+            transcript=result["text"],
+            error_message=None,
+        )
+        await manager.broadcast(
+            {
+                "type": "nas_asset_segment_transcribed",
+                "asset_id": asset["id"],
+                "segment_index": segment_index,
+                "title": asset["title"],
+            }
+        )
+    except Exception as exc:
+        update_audio_segment_transcription(
+            asset["id"],
+            segment_index,
+            status="failed",
+            progress=100,
+            error_message=str(exc),
+        )
+    finally:
+        ACTIVE_SEGMENT_TRANSCRIPTIONS.discard((asset["id"], segment_index))
+
+
+@app.post("/api/nas-assets/{asset_id}/reprocess")
+async def reprocess_nas_asset(
+    asset_id: int,
+    payload: dict,
+    background_tasks: BackgroundTasks,
+    user: dict = Depends(current_user),
+) -> dict:
+    asset = require_nas_asset_access(get_nas_asset(asset_id), user)
+    if asset["category"] not in {"audio", "video", "pdf", "docx", "image"}:
+        raise HTTPException(status_code=400, detail="此檔案類型目前沒有可重新執行的分析流程")
+    if asset["status"] == "processing":
+        raise HTTPException(status_code=409, detail="此資產已在媒體 Worker 處理中")
+    if not Path(asset["stored_path"]).is_file():
+        raise HTTPException(status_code=404, detail="NAS 原始檔不存在，無法重新處理")
+
+    config = parse_processor_config(asset)
+    audio_api_key = str(payload.get("audio_api_key", "")).strip() or None
+    video_api_key = str(payload.get("video_api_key", "")).strip() or None
+    translation_api_key = str(payload.get("translation_api_key", "")).strip() or None
+
+    if asset["category"] == "audio":
+        asr_model = get_asr_model(config.get("asr_model_id"))
+        audio_api_key = audio_api_key or server_api_key_for_model(asr_model)
+        if asr_model["requires_api_key"] and not audio_api_key:
+            raise HTTPException(status_code=400, detail=f"重新處理需要 {asr_model.get('api_key_label') or 'API Key'}")
+        if config.get("translation_enabled"):
+            translation_model = current_llm_model()
+            translation_api_key = translation_api_key or server_api_key_for_model(translation_model)
+            if translation_model["free_tier"]["requires_api_key_for_real_call"] and not translation_api_key:
+                raise HTTPException(status_code=400, detail=f"系統目前模型需要 {translation_model['provider']} 公司 API Key")
+    elif asset["category"] == "video":
+        video_model = get_video_model(config.get("video_model_id"))
+        video_api_key = video_api_key or server_api_key_for_model(video_model)
+        if video_model["requires_api_key"] and not video_api_key:
+            raise HTTPException(status_code=400, detail=f"重新處理需要 {video_model.get('api_key_label') or 'API Key'}")
+
+    updated = update_nas_asset(
+        asset_id,
+        status="processing",
+        analyzer=asset.get("analyzer"),
+        summary="已保留現有結果，原始檔已重新加入媒體 Worker 佇列。",
+        error_message=None,
+        chunk_count=asset.get("chunk_count"),
+    )
+    meeting = get_meeting_by_nas_asset_id(asset_id) if asset["category"] == "audio" else None
+    if meeting:
+        update_meeting_status(meeting["id"], status="processing", error_message=None)
+        await enqueue_media_job(
+            "meeting",
+            meeting["id"],
+            audio_api_key=audio_api_key,
+            translation_api_key=translation_api_key,
+        )
+    elif asset["category"] == "video":
+        await enqueue_media_job(
+            "asset",
+            asset_id,
+            audio_api_key=audio_api_key,
+            video_api_key=video_api_key,
+            translation_api_key=translation_api_key,
+        )
+    else:
+        background_tasks.add_task(process_nas_asset, asset_id)
+    await manager.broadcast(
+        {
+            "type": "nas_asset_uploaded",
+            "asset_id": asset_id,
+            "title": asset["title"],
+            "message": "NAS 原始檔已重新加入媒體 Worker 佇列",
+            "asset": updated,
+        }
+    )
+    return updated or asset
+
+
+@app.post("/api/nas-assets/{asset_id}/opencc-traditional")
+async def opencc_nas_asset(asset_id: int, user: dict = Depends(current_user)) -> dict:
+    asset = require_nas_asset_access(get_nas_asset(asset_id), user)
+    if asset["category"] not in {"audio", "video"}:
+        raise HTTPException(status_code=400, detail="OpenCC 按鈕目前適用於 audio 與 video 資產")
+    if asset["status"] == "processing":
+        raise HTTPException(status_code=409, detail="請等待媒體 Worker 完成後再執行 OpenCC")
+    result = await convert_asset_to_traditional(asset)
+    await manager.broadcast(
+        {
+            "type": "nas_asset_processed",
+            "asset_id": asset_id,
+            "title": asset["title"],
+            "message": result["message"],
+            "asset": result["asset"],
+        }
+    )
+    return result
 
 
 @app.get("/api/nas-assets/{asset_id}/chunk-images/{chunk_id}")
@@ -743,7 +1560,7 @@ async def nas_asset_chunk_image(asset_id: int, chunk_id: int, user: dict = Depen
 async def ask_nas_asset(asset_id: int, payload: dict, user: dict = Depends(current_user)) -> dict:
     asset = require_nas_asset_access(get_nas_asset(asset_id), user)
     question = str(payload.get("question", "")).strip()
-    model_id = str(payload.get("model_id", "")).strip()
+    model_id = current_llm_model()["id"]
     api_key = str(payload.get("api_key", "")).strip() or None
 
     if not question:
@@ -842,18 +1659,32 @@ async def embedding_status(user: dict = Depends(current_user)) -> dict:
 
 @app.get("/api/llm/models")
 async def llm_models(user: dict = Depends(current_user)) -> dict:
+    current = current_llm_state()
     return {
         "updated_at": PRICING_UPDATED_AT,
         "providers": provider_summary(),
         "models": [with_server_key_status(model) for model in model_summary()],
+        "current_model": with_server_key_status(current["model"]),
+        "current_model_updated_at": current["updated_at"],
+        "current_model_updated_by": current["updated_by"],
+        "current_model_is_default": current["is_default"],
     }
+
+
+@app.put("/api/admin/llm/current-model")
+async def set_current_llm(payload: dict, admin: dict = Depends(require_admin)) -> dict:
+    model_id = str(payload.get("model_id", "")).strip()
+    model = get_model(model_id)
+    if not model:
+        raise HTTPException(status_code=404, detail="Model not found")
+    if model["free_tier"]["requires_api_key_for_real_call"] and not server_api_key_for_model(model):
+        raise HTTPException(status_code=400, detail="此雲端模型尚未設定公司 API Key，不能設為系統目前模型")
+    return update_current_llm(model_id, admin["id"])
 
 
 @app.get("/api/llm/suggestions")
 async def llm_suggestions(q: str = "", model_id: str = "", user: dict = Depends(current_user)) -> dict:
-    clean_model_id = model_id.strip()
-    if not clean_model_id or not get_model(clean_model_id):
-        raise HTTPException(status_code=404, detail="Model not found")
+    clean_model_id = current_llm_model()["id"]
     return {
         "suggestions": await suggest_llm_prompts(
             user_id=user["id"],
@@ -873,18 +1704,155 @@ async def llm_pricing(model_id: str, user: dict = Depends(current_user)) -> dict
 
 @app.post("/api/llm/run")
 async def llm_run(payload: dict, user: dict = Depends(current_user)) -> dict:
-    model_id = str(payload.get("model_id", "")).strip()
+    model_id = current_llm_model()["id"]
+    system_prompt = str(payload.get("system_prompt", "")).strip()
+    if len(system_prompt) > 4000:
+        raise HTTPException(status_code=400, detail="System prompt must be 4,000 characters or fewer")
     force_refresh = payload.get("force_refresh") is True
+    use_mcp = payload.get("use_mcp") is True
+    selected_server_id = payload.get("mcp_server_id")
+    if selected_server_id in {None, "", "auto"}:
+        selected_server_id = None
+    else:
+        try:
+            selected_server_id = int(selected_server_id)
+        except (TypeError, ValueError) as exc:
+            raise HTTPException(status_code=400, detail="MCP Server 選擇無效") from exc
     lock = LLM_RUN_LOCKS.setdefault((user["id"], model_id), asyncio.Lock())
     async with lock:
+        if use_mcp:
+            return await run_model_with_mcp(
+                model_id=model_id,
+                prompt=str(payload.get("prompt", "")),
+                api_key=str(payload.get("api_key", "")).strip() or None,
+                user=user,
+                selected_server_id=selected_server_id,
+                system_prompt=system_prompt or None,
+            )
         return await run_model_with_audit(
             model_id=model_id,
             prompt=str(payload.get("prompt", "")),
             api_key=str(payload.get("api_key", "")).strip() or None,
             user=user,
+            system_prompt=system_prompt or None,
             use_semantic_cache=True,
             force_refresh=force_refresh,
         )
+
+
+async def run_model_with_mcp(
+    *,
+    model_id: str,
+    prompt: str,
+    api_key: str | None,
+    user: dict,
+    selected_server_id: int | None,
+    system_prompt: str | None = None,
+) -> dict:
+    clean_prompt = prompt.strip()
+    if not clean_prompt:
+        return await run_model_with_audit(
+            model_id=model_id,
+            prompt=prompt,
+            api_key=api_key,
+            user=user,
+            system_prompt=system_prompt,
+            audit_context={"channel": "mcp_planner"},
+        )
+    try:
+        servers = available_mcp_servers(list_mcp_servers(), selected_server_id)
+    except McpPlanningError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if not servers:
+        raise HTTPException(status_code=400, detail="目前沒有已啟用、已連線的唯讀 MCP 工具")
+
+    planner = await run_model_with_audit(
+        model_id=model_id,
+        prompt=build_planner_prompt(clean_prompt, servers),
+        api_key=api_key,
+        user=user,
+        audit_context={"channel": "mcp_planner", "source_ref": clean_prompt[:500]},
+    )
+    try:
+        plan = parse_mcp_plan(planner["answer"])
+    except McpPlanningError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    if plan["action"] == "answer":
+        final = await run_model_with_audit(
+            model_id=model_id,
+            prompt=clean_prompt,
+            api_key=api_key,
+            user=user,
+            system_prompt=system_prompt,
+            audit_context={"channel": "mcp_final", "source_ref": "no_relevant_tool"},
+        )
+        final["cache"] = {"hit": False, "bypassed": True, "reason": "mcp"}
+        final["mcp"] = {
+            "enabled": True,
+            "used": False,
+            "planner_call_id": planner["call_id"],
+            "reason": plan.get("reason") or "No relevant MCP tool selected",
+        }
+        return final
+
+    try:
+        server, tool = resolve_planned_tool(plan, servers)
+    except McpPlanningError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    audit_input = json.dumps(plan["arguments"], ensure_ascii=False)
+    try:
+        tool_result = await asyncio.to_thread(
+            call_streamable_http_tool,
+            server,
+            tool["name"],
+            plan["arguments"],
+        )
+    except (McpConnectionError, ValueError) as exc:
+        create_mcp_audit_log(
+            server_id=server["id"],
+            user_id=user["id"],
+            action="tools/call",
+            status="failed",
+            tool_name=tool["name"],
+            input_json=audit_input,
+            error_message=str(exc),
+        )
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    create_mcp_audit_log(
+        server_id=server["id"],
+        user_id=user["id"],
+        action="tools/call",
+        status="completed",
+        tool_name=tool["name"],
+        input_json=audit_input,
+        output_json=json.dumps(tool_result, ensure_ascii=False),
+    )
+    final = await run_model_with_audit(
+        model_id=model_id,
+        prompt=build_final_prompt(clean_prompt, server, tool, tool_result),
+        api_key=api_key,
+        user=user,
+        system_prompt=system_prompt,
+        audit_context={
+            "channel": "mcp_final",
+            "source_ref": f"mcp:{server['slug']}:{tool['name']}",
+        },
+    )
+    final["cache"] = {"hit": False, "bypassed": True, "reason": "mcp"}
+    final["mcp"] = {
+        "enabled": True,
+        "used": True,
+        "planner_call_id": planner["call_id"],
+        "server_id": server["id"],
+        "server": server["name"],
+        "tool": tool["name"],
+        "arguments": plan["arguments"],
+        "result": tool_result,
+    }
+    return final
 
 
 async def run_model_with_audit(
@@ -893,6 +1861,7 @@ async def run_model_with_audit(
     prompt: str,
     api_key: str | None,
     user: dict,
+    system_prompt: str | None = None,
     audit_context: dict | None = None,
     use_semantic_cache: bool = False,
     force_refresh: bool = False,
@@ -901,6 +1870,16 @@ async def run_model_with_audit(
     model = get_model(requested_model_id)
     raw_prompt = prompt
     clean_prompt = raw_prompt.strip()
+    clean_system_prompt = (system_prompt or "").strip()
+    audit_prompt = (
+        f"[System Prompt]\n{clean_system_prompt}\n\n[User Prompt]\n{clean_prompt}"
+        if clean_system_prompt
+        else clean_prompt
+    )
+    cache_model_id = model["id"] if model else requested_model_id
+    if clean_system_prompt:
+        prompt_namespace = hashlib.sha256(clean_system_prompt.encode("utf-8")).hexdigest()[:16]
+        cache_model_id = f"{cache_model_id}::system:{prompt_namespace}"
     audit_fields = {
         key: value
         for key, value in (audit_context or {}).items()
@@ -913,7 +1892,7 @@ async def run_model_with_audit(
             provider="Unknown",
             model_name="Unknown model",
             model_id=requested_model_id or "-",
-            prompt=clean_prompt,
+            prompt=audit_prompt,
             response=None,
             status="failed",
             error_message="Model is required" if not requested_model_id else "Model not found",
@@ -938,15 +1917,15 @@ async def run_model_with_audit(
     query_vector = None
     if cacheable:
         if force_refresh:
-            query_vector = await embed_query(clean_prompt, user["id"])
+            query_vector = await embed_query(audit_prompt, user["id"])
         else:
             cached, query_vector = await lookup_llm_cache(
                 user_id=user["id"],
-                model_id=model["id"],
-                prompt=clean_prompt,
+                model_id=cache_model_id,
+                prompt=audit_prompt,
             )
             if cached:
-                return record_llm_cache_hit(model=model, prompt=clean_prompt, user=user, cached=cached)
+                return record_llm_cache_hit(model=model, prompt=audit_prompt, user=user, cached=cached)
 
     free_tier = model["free_tier"]
     server_api_key = server_api_key_for_model(model)
@@ -967,7 +1946,7 @@ async def run_model_with_audit(
             provider=model["provider"],
             model_name=model["name"],
             model_id=model["id"],
-            prompt=clean_prompt,
+            prompt=audit_prompt,
             response=None,
             status="blocked",
             access_mode="no_api_key",
@@ -977,7 +1956,10 @@ async def run_model_with_audit(
         raise HTTPException(status_code=402, detail="API key is required for this model")
 
     try:
-        result = await run_llm(model, clean_prompt, api_key)
+        if clean_system_prompt:
+            result = await run_llm(model, clean_prompt, api_key, clean_system_prompt)
+        else:
+            result = await run_llm(model, clean_prompt, api_key)
         if using_server_key:
             result["access_mode"] = "company_api_key"
     except LlmRuntimeError as exc:
@@ -986,7 +1968,7 @@ async def run_model_with_audit(
             provider=model["provider"],
             model_name=model["name"],
             model_id=model["id"],
-            prompt=clean_prompt,
+            prompt=audit_prompt,
             response=None,
             status="failed",
             access_mode=expected_access_mode,
@@ -1000,7 +1982,7 @@ async def run_model_with_audit(
             provider=model["provider"],
             model_name=model["name"],
             model_id=model["id"],
-            prompt=clean_prompt,
+            prompt=audit_prompt,
             response=None,
             status="failed",
             access_mode=expected_access_mode,
@@ -1017,7 +1999,7 @@ async def run_model_with_audit(
         provider=model["provider"],
         model_name=model["name"],
         model_id=model["id"],
-        prompt=clean_prompt,
+        prompt=audit_prompt,
         response=result["answer"],
         status="completed",
         access_mode=result["access_mode"],
@@ -1043,8 +2025,8 @@ async def run_model_with_audit(
     if cacheable:
         await store_llm_cache(
             user_id=user["id"],
-            model_id=model["id"],
-            prompt=clean_prompt,
+            model_id=cache_model_id,
+            prompt=audit_prompt,
             query_vector=query_vector,
             result=response,
         )
@@ -1128,16 +2110,15 @@ def line_audit_context(source_id: str, sender_name: str | None, sender_id: str |
 
 
 def company_line_models() -> list[dict]:
-    models = []
-    for summary in model_summary():
-        model = get_model(summary["id"])
-        if not model:
-            continue
-        if model["provider"] == "Local NAS":
-            models.append({**summary, "access_mode": "local_nas"})
-        elif company_api_key_for_model(model):
-            models.append({**summary, "access_mode": "company_api_key"})
-    return models
+    model = current_llm_model()
+    access_mode = (
+        "local_nas"
+        if model["provider"] == "Local NAS"
+        else "company_api_key"
+        if company_api_key_for_model(model)
+        else "free_no_key"
+    )
+    return [{**with_server_key_status(model), "access_mode": access_mode}]
 
 
 def require_company_line_source(source: dict | None) -> dict:
@@ -1202,7 +2183,7 @@ async def admin_update_line_source(
         if field in payload and not isinstance(payload[field], bool):
             raise HTTPException(status_code=400, detail=f"{field} must be a boolean")
 
-    model_id = str(payload.get("default_model_id", source["default_model_id"])).strip()
+    model_id = current_llm_model()["id"]
     allowed_model_ids = {model["id"] for model in company_line_models()}
     if model_id not in allowed_model_ids:
         raise HTTPException(status_code=400, detail="模型必須是 NAS 本地模型或已設定公司 API Key 的雲端模型")
@@ -1270,8 +2251,7 @@ async def ingest_line_pdf(
 
     stored_path = NAS_ASSETS_DIR / f"{uuid.uuid4().hex}.pdf"
     stored_path.parent.mkdir(parents=True, exist_ok=True)
-    with stored_path.open("wb") as destination:
-        shutil.copyfileobj(file.file, destination)
+    save_uploaded_file(file, stored_path)
 
     title = Path(filename).stem or "LINE PDF"
     asset = create_nas_asset(
@@ -1322,7 +2302,7 @@ async def ingest_line_pdf(
                 f"PDF 內容：\n{context}"
             )
             result = await run_model_with_audit(
-                model_id=source["default_model_id"],
+                model_id=current_llm_model()["id"],
                 prompt=prompt,
                 api_key=None,
                 user=owner,
@@ -1375,7 +2355,7 @@ async def query_line_documents(payload: dict, _: None = Depends(require_line_int
     owner = get_user_by_id(source["owner_user_id"])
     if not owner or not owner.get("is_active"):
         raise HTTPException(status_code=503, detail="LINE integration owner is unavailable")
-    model_id = source["default_model_id"]
+    model_id = current_llm_model()["id"]
     normalized = normalize_query(question)
     exact = get_exact_line_query_cache(source["id"], source["content_version"], model_id, normalized)
     if exact:

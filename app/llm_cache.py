@@ -59,7 +59,7 @@ async def suggest_llm_prompts(
     suggestions = []
     seen = set()
     for row in history:
-        prompt = str(row["prompt"] or "").strip()
+        prompt = _user_prompt_for_suggestion(str(row["prompt"] or ""))
         normalized_prompt = normalize_llm_prompt(prompt)
         if not normalized_prompt or normalized_prompt in seen:
             continue
@@ -93,6 +93,13 @@ async def suggest_llm_prompts(
 
     suggestions.sort(key=lambda item: (-item["score"], -int(item["cached"]), item["prompt"]))
     return suggestions[: max(1, min(limit, 10))]
+
+
+def _user_prompt_for_suggestion(prompt: str) -> str:
+    marker = "\n\n[User Prompt]\n"
+    if prompt.startswith("[System Prompt]\n") and marker in prompt:
+        return prompt.split(marker, 1)[1].strip()
+    return prompt.strip()
 
 
 async def lookup_llm_cache(

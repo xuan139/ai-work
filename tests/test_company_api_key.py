@@ -51,6 +51,42 @@ class CompanyApiKeyTests(unittest.TestCase):
         self.assertNotIn("api_key", public_model)
         self.assertNotIn("company-qwen-key", repr(public_model))
 
+    def test_system_prompt_is_sent_and_written_to_audit(self) -> None:
+        model = {
+            "id": "alibaba:qwen-plus",
+            "provider": "Alibaba Cloud",
+            "name": "Qwen Plus",
+            "free_tier": {"requires_api_key_for_real_call": True},
+        }
+        runtime_result = {"access_mode": "api_key", "answer": "result", "usage": {}}
+
+        with (
+            patch.dict(os.environ, {"DASHSCOPE_API_KEY": "company-qwen-key"}),
+            patch.object(main, "get_model", return_value=model),
+            patch.object(main, "run_llm", new=AsyncMock(return_value=runtime_result)) as run_llm,
+            patch.object(main, "create_llm_call", return_value={"id": 43}) as create_call,
+        ):
+            asyncio.run(
+                main.run_model_with_audit(
+                    model_id=model["id"],
+                    prompt="整理本月報告",
+                    system_prompt="請用繁體中文條列回答",
+                    api_key=None,
+                    user={"id": 1, "username": "admin"},
+                )
+            )
+
+        run_llm.assert_awaited_once_with(
+            model,
+            "整理本月報告",
+            "company-qwen-key",
+            "請用繁體中文條列回答",
+        )
+        self.assertEqual(
+            create_call.call_args.kwargs["prompt"],
+            "[System Prompt]\n請用繁體中文條列回答\n\n[User Prompt]\n整理本月報告",
+        )
+
 
 class LlmSemanticCacheTests(unittest.TestCase):
     def setUp(self) -> None:
