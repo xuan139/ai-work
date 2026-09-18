@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from app import db, main
 from app.auth import hash_password
+from app.gmail_mcp import handle_gmail_mcp_request
 from app.mcp_runtime import (
     call_streamable_http_tool,
     mcp_auth_configured,
@@ -39,8 +40,9 @@ class McpRegistryTests(unittest.TestCase):
             "xero", "odoo", "quickbooks", "netsuite",
         }.issubset(slugs))
         gmail = next(server for server in servers if server["slug"] == "gmail")
-        self.assertEqual(gmail["endpoint"], "https://gmailmcp.googleapis.com/mcp/v1")
-        self.assertEqual(gmail["auth_type"], "oauth2")
+        self.assertEqual(gmail["endpoint"], "http://127.0.0.1:8000/mcp/gmail")
+        self.assertEqual(gmail["auth_type"], "bearer")
+        self.assertEqual(gmail["auth_env_var"], "GMAIL_LOCAL_MCP_KEY")
         monday = next(server for server in servers if server["slug"] == "monday")
         self.assertEqual(monday["endpoint"], "https://mcp.monday.com/mcp")
         self.assertEqual(monday["auth_type"], "bearer")
@@ -146,6 +148,20 @@ class McpRegistryTests(unittest.TestCase):
         self.assertIn("應收應付", odoo["description"])
         self.assertEqual(odoo["auth_env_var"], "ODOO_MCP_TOKEN")
 
+    def test_official_gmail_preview_endpoint_migrates_to_local_read_only_mcp(self) -> None:
+        with db.connect() as conn:
+            conn.execute(
+                "UPDATE mcp_servers SET endpoint = ?, auth_type = 'oauth2', "
+                "auth_env_var = 'GMAIL_MCP_TOKEN', status = 'connected' WHERE slug = 'gmail'",
+                ("https://gmailmcp.googleapis.com/mcp/v1",),
+            )
+        db.seed_admin(hash_password("ignored"))
+        gmail = next(server for server in db.list_mcp_servers() if server["slug"] == "gmail")
+        self.assertEqual(gmail["endpoint"], "http://127.0.0.1:8000/mcp/gmail")
+        self.assertEqual(gmail["auth_type"], "bearer")
+        self.assertEqual(gmail["auth_env_var"], "GMAIL_LOCAL_MCP_KEY")
+        self.assertEqual(gmail["status"], "unchecked")
+
     def test_streamable_http_sync_collects_tools(self) -> None:
         responses = [
             ({"jsonrpc": "2.0", "id": 1, "result": {"protocolVersion": "2025-06-18", "serverInfo": {"name": "demo"}}}, "session-1"),
@@ -231,6 +247,40 @@ class McpRegistryTests(unittest.TestCase):
         )
         self.assertFalse(called["result"]["isError"])
         self.assertEqual(called["result"]["structuredContent"]["count"], 1)
+
+    def test_gmail_mcp_lists_read_only_tools_and_reads_message(self) -> None:
+        listed = handle_gmail_mcp_request(
+            {"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
+            "access-token",
+        )
+        self.assertEqual(len(listed["result"]["tools"]), 4)
+        self.assertTrue(all(tool["annotations"]["readOnlyHint"] for tool in listed["result"]["tools"]))
+        encoded = "VGVzdCBtZXNzYWdl"
+        response = {
+            "id": "message-1",
+            "threadId": "thread-1",
+            "snippet": "Test",
+            "payload": {
+                "mimeType": "text/plain",
+                "headers": [
+                    {"name": "Subject", "value": "Status"},
+                    {"name": "From", "value": "sender@example.com"},
+                ],
+                "body": {"data": encoded},
+            },
+        }
+        with patch("app.gmail_mcp._gmail_request", return_value=response):
+            called = handle_gmail_mcp_request(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 2,
+                    "method": "tools/call",
+                    "params": {"name": "gmail_get_message", "arguments": {"message_id": "message-1"}},
+                },
+                "access-token",
+            )
+        self.assertEqual(called["result"]["structuredContent"]["subject"], "Status")
+        self.assertEqual(called["result"]["structuredContent"]["text"], "Test message")
 
 
 if __name__ == "__main__":

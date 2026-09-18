@@ -242,6 +242,10 @@ def _oauth_access_token(auth_env_var: str) -> str:
     return access_token
 
 
+def oauth_access_token(auth_env_var: str) -> str:
+    return _oauth_access_token(auth_env_var)
+
+
 def _initialize_session(
     endpoint: str,
     token: str | None,

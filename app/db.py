@@ -15,11 +15,11 @@ MCP_CATALOG_TEMPLATES = (
         "source_url": None, "is_enabled": True,
     },
     {
-        "slug": "gmail", "name": "Gmail", "transport": "streamable_http",
-        "endpoint": "https://gmailmcp.googleapis.com/mcp/v1", "auth_type": "oauth2", "auth_env_var": "GMAIL_MCP_TOKEN",
-        "description": "Gmail 官方遠端 MCP（Developer Preview），支援搜尋郵件、讀取討論串、建立草稿與標籤管理。",
-        "description_en": "Official Gmail remote MCP (Developer Preview) for search, threads, drafts, and labels.",
-        "source_url": "https://developers.google.com/workspace/gmail/api/guides/configure-mcp-server", "is_enabled": False,
+        "slug": "gmail", "name": "Gmail Read-only", "transport": "streamable_http",
+        "endpoint": "http://127.0.0.1:8000/mcp/gmail", "auth_type": "bearer", "auth_env_var": "GMAIL_LOCAL_MCP_KEY",
+        "description": "AI Work 受保護的 Gmail 唯讀 MCP，透過正式 Gmail API 搜尋與讀取郵件、討論串及標籤。",
+        "description_en": "Protected AI Work read-only Gmail MCP backed by the stable Gmail API for messages, threads, search, and labels.",
+        "source_url": "https://developers.google.com/workspace/gmail/api/guides", "is_enabled": False,
     },
     {
         "slug": "google-drive", "name": "Google Drive", "transport": "streamable_http",
@@ -675,6 +675,27 @@ def seed_admin(password_hash: str) -> None:
                 last_checked_at = NULL,
                 updated_at = CURRENT_TIMESTAMP
             WHERE slug = 'linear' AND endpoint = 'https://mcp.linear.app/mcp'
+            """
+        )
+        conn.execute(
+            """
+            UPDATE mcp_servers
+            SET name = 'Gmail Read-only',
+                description = 'AI Work 受保護的 Gmail 唯讀 MCP，透過正式 Gmail API 搜尋與讀取郵件、討論串及標籤。',
+                description_en = 'Protected AI Work read-only Gmail MCP backed by the stable Gmail API for messages, threads, search, and labels.',
+                endpoint = 'http://127.0.0.1:8000/mcp/gmail',
+                source_url = 'https://developers.google.com/workspace/gmail/api/guides',
+                auth_type = 'bearer',
+                auth_env_var = 'GMAIL_LOCAL_MCP_KEY',
+                status = 'unchecked',
+                protocol_version = NULL,
+                tools_json = NULL,
+                tool_count = 0,
+                last_error = NULL,
+                last_checked_at = NULL,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE slug = 'gmail'
+              AND endpoint = 'https://gmailmcp.googleapis.com/mcp/v1'
             """
         )
         conn.execute(
