@@ -16,12 +16,29 @@ MAX_THREAD_TEXT_CHARS = 30000
 
 GMAIL_MCP_TOOLS = [
     {
+        "name": "gmail_list_recent_messages",
+        "title": "List Recent Gmail Messages",
+        "description": (
+            "List the newest individual messages from the Gmail inbox in reverse chronological order. "
+            "Use this tool when the user asks for the latest or most recent N emails; N is a message count, not days."
+        ),
+        "inputSchema": {
+            "type": "object",
+            "properties": {
+                "max_results": {"type": "integer", "minimum": 1, "maximum": 10, "default": 10},
+            },
+            "additionalProperties": False,
+        },
+        "annotations": {"readOnlyHint": True, "destructiveHint": False},
+    },
+    {
         "name": "gmail_search_threads",
         "title": "Search Gmail Threads",
         "description": (
             "Search Gmail threads and return message metadata. The query must use Gmail search syntax, "
             "for example newer_than:10d, from:user@example.com, subject:invoice, or is:unread. "
-            "Use newer_than:30d for general recent mail; never use recent: or within:."
+            "Use this for conditions or date ranges, not for listing the latest N individual messages. "
+            "Use newer_than:30d for mail from the last 30 days; never use recent: or within:."
         ),
         "inputSchema": {
             "type": "object",
@@ -127,16 +144,37 @@ def _call_tool(name: str, arguments: dict[str, Any], access_token: str) -> dict[
                 for label in result.get("labels") or []
             ]
         }
+    if name == "gmail_list_recent_messages":
+        limit = _bounded_limit(arguments.get("max_results"), 10)
+        result = _gmail_request(
+            "messages",
+            access_token,
+            [("labelIds", "INBOX"), ("maxResults", str(limit))],
+        )
+        messages = []
+        for item in result.get("messages") or []:
+            message_id = str(item.get("id") or "")
+            if not message_id:
+                continue
+            metadata = _gmail_request(
+                f"messages/{quote(message_id, safe='')}",
+                access_token,
+                [("format", "metadata"), ("metadataHeaders", "Subject"), ("metadataHeaders", "From"), ("metadataHeaders", "Date")],
+            )
+            messages.append(_message_summary(metadata))
+        return {"mailbox": "INBOX", "requested_count": limit, "count": len(messages), "messages": messages}
     if name == "gmail_search_threads":
         requested_query = str(arguments.get("query") or "").strip()
         if not requested_query:
             raise ValueError("query is required")
-        query = normalize_gmail_query(requested_query)
-        limit = _bounded_limit(arguments.get("max_results"), 5)
+        query, limit = normalize_gmail_search(requested_query, arguments.get("max_results"))
+        query_params = [("maxResults", str(limit))]
+        if query:
+            query_params.insert(0, ("q", query))
         result = _gmail_request(
             "threads",
             access_token,
-            [("q", query), ("maxResults", str(limit))],
+            query_params,
         )
         threads = []
         for item in result.get("threads") or []:
@@ -230,6 +268,19 @@ def _message_content(message: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def _message_summary(message: dict[str, Any]) -> dict[str, Any]:
+    payload = message.get("payload") if isinstance(message.get("payload"), dict) else {}
+    headers = _headers(payload)
+    return {
+        "message_id": message.get("id"),
+        "thread_id": message.get("threadId"),
+        "subject": headers.get("subject", ""),
+        "from": headers.get("from", ""),
+        "date": headers.get("date", ""),
+        "snippet": str(message.get("snippet") or "")[:500],
+    }
+
+
 def _headers(payload: dict[str, Any]) -> dict[str, str]:
     result: dict[str, str] = {}
     for item in payload.get("headers") or []:
@@ -286,12 +337,6 @@ def _required_id(arguments: dict[str, Any], key: str) -> str:
 def normalize_gmail_query(query: str) -> str:
     normalized = " ".join(query.split())
     normalized = re.sub(
-        r"\brecent:(\d+)(?:\s*(?:days?|d))?\b",
-        lambda match: f"newer_than:{match.group(1)}d",
-        normalized,
-        flags=re.IGNORECASE,
-    )
-    normalized = re.sub(
         r"\bwithin:(\d+)\s*(?:days?|d)\b",
         lambda match: f"newer_than:{match.group(1)}d",
         normalized,
@@ -317,6 +362,13 @@ def normalize_gmail_query(query: str) -> str:
         flags=re.IGNORECASE,
     )
     return " ".join(normalized.split())
+
+
+def normalize_gmail_search(query: str, max_results: object) -> tuple[str, int]:
+    recent_count = re.fullmatch(r"recent:(\d+)", query.strip(), flags=re.IGNORECASE)
+    if recent_count:
+        return "", _bounded_limit(recent_count.group(1), 10)
+    return normalize_gmail_query(query), _bounded_limit(max_results, 5)
 
 
 def _bounded_limit(value: object, default: int) -> int:

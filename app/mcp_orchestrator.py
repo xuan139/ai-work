@@ -98,6 +98,8 @@ def build_planner_prompt(user_prompt: str, servers: list[dict[str, Any]]) -> str
         "If none is relevant, return: "
         '{"action":"answer","reason":"brief reason"}.\n'
         "Use only the listed server_id and tool name. Arguments must satisfy the input schema.\n\n"
+        "When the user asks for the latest N emails, N is a message count; prefer a tool that lists recent messages. "
+        "Only use Gmail newer_than:Nd when the user explicitly asks for a number of days.\n\n"
         f"AVAILABLE TOOLS:\n{json.dumps(catalog, ensure_ascii=False, separators=(',', ':'))}\n\n"
         f"USER REQUEST:\n{user_prompt}"
     )

@@ -253,7 +253,7 @@ class McpRegistryTests(unittest.TestCase):
             {"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
             "access-token",
         )
-        self.assertEqual(len(listed["result"]["tools"]), 4)
+        self.assertEqual(len(listed["result"]["tools"]), 5)
         self.assertTrue(all(tool["annotations"]["readOnlyHint"] for tool in listed["result"]["tools"]))
         encoded = "VGVzdCBtZXNzYWdl"
         response = {
