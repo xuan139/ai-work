@@ -4,9 +4,10 @@ import ipaddress
 import json
 import os
 import socket
+import time
 from typing import Any
 from urllib.error import HTTPError, URLError
-from urllib.parse import urlparse
+from urllib.parse import urlencode, urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 
@@ -37,6 +38,8 @@ TRUSTED_PUBLIC_MCP_HOSTS = {
     "mcp.supabase.com",
     "mcp.context7.com",
 }
+OAUTH_TOKEN_CACHE: dict[str, tuple[str, float]] = {}
+GOOGLE_OAUTH_TOKEN_URL = "https://oauth2.googleapis.com/token"
 
 
 class _NoRedirect(HTTPRedirectHandler):
@@ -155,6 +158,21 @@ def call_streamable_http_tool(
     return result
 
 
+def mcp_auth_configured(server: dict[str, Any]) -> bool:
+    auth_env_var = str(server.get("auth_env_var") or "").strip()
+    if not auth_env_var:
+        return server.get("auth_type") == "none"
+    if os.getenv(auth_env_var):
+        return True
+    if server.get("auth_type") != "oauth2":
+        return False
+    prefix = _oauth_env_prefix(auth_env_var)
+    return all(
+        os.getenv(f"{prefix}_{suffix}")
+        for suffix in ("CLIENT_ID", "CLIENT_SECRET", "REFRESH_TOKEN")
+    )
+
+
 def _server_connection(server: dict[str, Any]) -> tuple[str, str | None, dict[str, str]]:
     if server.get("transport") != "streamable_http":
         raise McpConnectionError("目前只支援 Streamable HTTP 的實際連線與工具呼叫")
@@ -163,9 +181,65 @@ def _server_connection(server: dict[str, Any]) -> tuple[str, str | None, dict[st
     auth_env_var = str(server.get("auth_env_var") or "").strip()
     if auth_env_var:
         token = os.getenv(auth_env_var)
+        if not token and server.get("auth_type") == "oauth2":
+            token = _oauth_access_token(auth_env_var)
         if not token:
             raise McpConnectionError(f"伺服器環境變數 {auth_env_var} 尚未設定")
     return endpoint, token, _parse_extra_headers(server.get("headers_json"))
+
+
+def _oauth_env_prefix(auth_env_var: str) -> str:
+    return auth_env_var[:-6] if auth_env_var.endswith("_TOKEN") else auth_env_var
+
+
+def _oauth_access_token(auth_env_var: str) -> str:
+    prefix = _oauth_env_prefix(auth_env_var)
+    cached = OAUTH_TOKEN_CACHE.get(prefix)
+    now = time.time()
+    if cached and cached[1] > now + 60:
+        return cached[0]
+
+    client_id = os.getenv(f"{prefix}_CLIENT_ID")
+    client_secret = os.getenv(f"{prefix}_CLIENT_SECRET")
+    refresh_token = os.getenv(f"{prefix}_REFRESH_TOKEN")
+    if not all((client_id, client_secret, refresh_token)):
+        raise McpConnectionError(
+            f"請設定 {prefix}_CLIENT_ID、{prefix}_CLIENT_SECRET 與 {prefix}_REFRESH_TOKEN"
+        )
+
+    token_url = os.getenv(f"{prefix}_TOKEN_URL", GOOGLE_OAUTH_TOKEN_URL)
+    parsed = urlparse(token_url)
+    if parsed.scheme != "https" or parsed.hostname != "oauth2.googleapis.com":
+        raise McpConnectionError("目前 OAuth 自動更新僅允許 Google 官方 Token Endpoint")
+    request = Request(
+        token_url,
+        data=urlencode(
+            {
+                "client_id": client_id,
+                "client_secret": client_secret,
+                "refresh_token": refresh_token,
+                "grant_type": "refresh_token",
+            }
+        ).encode("ascii"),
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        method="POST",
+    )
+    try:
+        with build_opener(_NoRedirect).open(request, timeout=10) as response:
+            raw = response.read(64 * 1024)
+    except HTTPError as exc:
+        detail = exc.read(500).decode("utf-8", errors="replace").strip()
+        raise McpConnectionError(f"Google OAuth Token 更新失敗：HTTP {exc.code} {detail}") from exc
+    except (URLError, TimeoutError, OSError) as exc:
+        raise McpConnectionError(f"Google OAuth Token 更新失敗：{exc}") from exc
+    try:
+        result = json.loads(raw.decode("utf-8"))
+        access_token = str(result["access_token"])
+        expires_in = max(60, int(result.get("expires_in", 3600)))
+    except (KeyError, TypeError, ValueError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise McpConnectionError("Google OAuth Token Endpoint 回應格式不正確") from exc
+    OAUTH_TOKEN_CACHE[prefix] = (access_token, now + expires_in)
+    return access_token
 
 
 def _initialize_session(

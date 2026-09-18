@@ -7,7 +7,12 @@ from unittest.mock import patch
 
 from app import db, main
 from app.auth import hash_password
-from app.mcp_runtime import call_streamable_http_tool, sync_streamable_http_tools, validate_mcp_endpoint
+from app.mcp_runtime import (
+    call_streamable_http_tool,
+    mcp_auth_configured,
+    sync_streamable_http_tools,
+    validate_mcp_endpoint,
+)
 from app.nas_mcp import handle_nas_mcp_request
 
 
@@ -183,6 +188,33 @@ class McpRegistryTests(unittest.TestCase):
         self.assertEqual(result["structuredContent"]["status"], "online")
         self.assertEqual(request.call_args_list[-1].args[1]["method"], "tools/call")
         self.assertEqual(request.call_args_list[-1].args[1]["params"]["arguments"], {"detail": True})
+
+    def test_oauth_refresh_credentials_supply_access_token(self) -> None:
+        responses = [
+            ({"jsonrpc": "2.0", "id": 1, "result": {"protocolVersion": "2025-06-18"}}, "session-1"),
+            ({}, "session-1"),
+            ({"jsonrpc": "2.0", "id": 2, "result": {"tools": []}}, "session-1"),
+        ]
+        server = {
+            "transport": "streamable_http",
+            "endpoint": "https://gmailmcp.googleapis.com/mcp/v1",
+            "auth_type": "oauth2",
+            "auth_env_var": "GMAIL_MCP_TOKEN",
+        }
+        env = {
+            "GMAIL_MCP_CLIENT_ID": "client-id",
+            "GMAIL_MCP_CLIENT_SECRET": "client-secret",
+            "GMAIL_MCP_REFRESH_TOKEN": "refresh-token",
+        }
+        with (
+            patch.dict(os.environ, env, clear=False),
+            patch("app.mcp_runtime._oauth_access_token", return_value="fresh-access-token") as refresh,
+            patch("app.mcp_runtime._json_rpc_request", side_effect=responses) as request,
+        ):
+            self.assertTrue(mcp_auth_configured(server))
+            sync_streamable_http_tools(server)
+        refresh.assert_called_once_with("GMAIL_MCP_TOKEN")
+        self.assertEqual(request.call_args_list[0].kwargs["token"], "fresh-access-token")
 
     def test_nas_demo_mcp_lists_and_calls_read_only_tools(self) -> None:
         initialized = handle_nas_mcp_request({"jsonrpc": "2.0", "id": 1, "method": "initialize"})

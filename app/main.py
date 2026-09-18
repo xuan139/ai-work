@@ -113,6 +113,7 @@ from app.mcp_orchestrator import (
 from app.mcp_runtime import (
     McpConnectionError,
     call_streamable_http_tool,
+    mcp_auth_configured,
     sync_streamable_http_tools,
     validate_mcp_endpoint,
 )
@@ -490,8 +491,7 @@ def serialize_mcp_server(server: dict) -> dict:
         result["headers"] = json.loads(result.pop("headers_json") or "{}")
     except json.JSONDecodeError:
         result["headers"] = {}
-    auth_env_var = str(result.get("auth_env_var") or "")
-    result["auth_configured"] = bool(auth_env_var and os.getenv(auth_env_var))
+    result["auth_configured"] = mcp_auth_configured(result)
     result["is_enabled"] = bool(result.get("is_enabled"))
     result["public_endpoint"] = "/mcp/nas" if result.get("slug") == "nas-demo" else None
     return result
