@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import base64
 import json
+import re
 from typing import Any
 from urllib.error import HTTPError, URLError
 from urllib.parse import quote, urlencode
@@ -17,11 +18,18 @@ GMAIL_MCP_TOOLS = [
     {
         "name": "gmail_search_threads",
         "title": "Search Gmail Threads",
-        "description": "Search Gmail threads with Gmail query syntax and return message metadata.",
+        "description": (
+            "Search Gmail threads and return message metadata. The query must use Gmail search syntax, "
+            "for example newer_than:10d, from:user@example.com, subject:invoice, or is:unread. "
+            "Use newer_than:30d for general recent mail; never use recent: or within:."
+        ),
         "inputSchema": {
             "type": "object",
             "properties": {
-                "query": {"type": "string"},
+                "query": {
+                    "type": "string",
+                    "description": "Gmail search query, such as 'newer_than:30d invoice' or 'is:unread'.",
+                },
                 "max_results": {"type": "integer", "minimum": 1, "maximum": 10, "default": 5},
             },
             "required": ["query"],
@@ -120,9 +128,10 @@ def _call_tool(name: str, arguments: dict[str, Any], access_token: str) -> dict[
             ]
         }
     if name == "gmail_search_threads":
-        query = str(arguments.get("query") or "").strip()
-        if not query:
+        requested_query = str(arguments.get("query") or "").strip()
+        if not requested_query:
             raise ValueError("query is required")
+        query = normalize_gmail_query(requested_query)
         limit = _bounded_limit(arguments.get("max_results"), 5)
         result = _gmail_request(
             "threads",
@@ -140,7 +149,13 @@ def _call_tool(name: str, arguments: dict[str, Any], access_token: str) -> dict[
                 [("format", "metadata"), ("metadataHeaders", "Subject"), ("metadataHeaders", "From"), ("metadataHeaders", "Date")],
             )
             threads.append(_thread_summary(metadata))
-        return {"query": query, "count": len(threads), "threads": threads}
+        return {
+            "requested_query": requested_query,
+            "query": query,
+            "query_normalized": query != requested_query,
+            "count": len(threads),
+            "threads": threads,
+        }
     if name == "gmail_get_thread":
         thread_id = _required_id(arguments, "thread_id")
         result = _gmail_request(f"threads/{quote(thread_id, safe='')}", access_token, [("format", "full")])
@@ -266,6 +281,42 @@ def _required_id(arguments: dict[str, Any], key: str) -> str:
     if not value:
         raise ValueError(f"{key} is required")
     return value
+
+
+def normalize_gmail_query(query: str) -> str:
+    normalized = " ".join(query.split())
+    normalized = re.sub(
+        r"\brecent:(\d+)(?:\s*(?:days?|d))?\b",
+        lambda match: f"newer_than:{match.group(1)}d",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    normalized = re.sub(
+        r"\bwithin:(\d+)\s*(?:days?|d)\b",
+        lambda match: f"newer_than:{match.group(1)}d",
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    normalized = re.sub(
+        r"(?:最近|近)\s*(\d+)\s*(?:天|日)(?:內|内)?",
+        lambda match: f"newer_than:{match.group(1)}d",
+        normalized,
+    )
+    normalized = re.sub(r"最近(?:的)?(?:郵件|邮件|信件)", "newer_than:30d", normalized)
+
+    def replace_invalid_date_operator(match: re.Match[str]) -> str:
+        operator, value = match.groups()
+        if re.fullmatch(r"(?:\d{4}[-/]\d{1,2}[-/]\d{1,2}|\d{9,})", value):
+            return f"{operator}:{value}"
+        return value
+
+    normalized = re.sub(
+        r"\b(after|before):([^\s]+)",
+        replace_invalid_date_operator,
+        normalized,
+        flags=re.IGNORECASE,
+    )
+    return " ".join(normalized.split())
 
 
 def _bounded_limit(value: object, default: int) -> int:

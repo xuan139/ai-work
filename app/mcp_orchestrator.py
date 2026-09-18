@@ -198,7 +198,7 @@ def _compact_schema(schema: object) -> dict[str, Any]:
             name: {
                 key: value
                 for key, value in definition.items()
-                if key in {"type", "enum", "minimum", "maximum", "default"}
+                if key in {"type", "enum", "minimum", "maximum", "default", "description"}
             }
             for name, definition in properties.items()
             if isinstance(definition, dict)
