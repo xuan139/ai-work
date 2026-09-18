@@ -1,0 +1,62 @@
+AI WORK PROPRIETARY LICENSE
+
+Copyright (c) 2026 xuan139. All Rights Reserved.
+
+This software, including its source code, object code, documentation, user
+interface, data structures, and all related materials (collectively, the
+"Software"), is proprietary and protected by applicable copyright and other
+intellectual property laws.
+
+No license or permission is granted by making the Software available in this
+repository. Unless the copyright owner gives prior written authorization, no
+person or organization may, in whole or in part:
+
+1. copy, reproduce, download, mirror, or republish the Software;
+2. modify, adapt, translate, or create derivative works from the Software;
+3. distribute, transmit, disclose, sublicense, sell, rent, lease, host, or
+   otherwise make the Software available to any third party;
+4. use the Software for commercial, production, competitive, benchmarking, or
+   service-provider purposes;
+5. reverse engineer, decompile, disassemble, or attempt to derive any source
+   code, model configuration, workflow, or implementation detail; or
+6. remove or alter this notice or any copyright, trademark, or proprietary
+   marking.
+
+Access to or viewing of this repository does not transfer ownership and does
+not imply permission to use the Software. Any authorized use is limited to the
+scope and duration expressly stated in a separate written agreement signed by
+the copyright owner.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS
+FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. TO THE MAXIMUM EXTENT PERMITTED
+BY LAW, THE COPYRIGHT OWNER SHALL NOT BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+LIABILITY ARISING FROM THE SOFTWARE OR ITS USE.
+
+For permission requests, contact the repository owner through GitHub.
+
+繁體中文說明
+
+本軟體之原始碼、目的碼、文件、使用者介面、資料結構及所有相關材料，
+均為著作權人之專有財產，並受著作權法及其他智慧財產權法律保護。
+
+本儲存庫公開可見不代表授予任何授權。未事先取得著作權人書面許可，
+任何個人或組織均不得全部或部分進行下列行為：
+
+1. 複製、重製、下載、鏡像或重新發布本軟體；
+2. 修改、改作、翻譯或建立衍生作品；
+3. 散布、傳輸、揭露、再授權、出售、出租、託管或提供予任何第三方；
+4. 將本軟體用於商業、生產、競爭、效能比較或對外服務用途；
+5. 反向工程、反編譯、反組譯，或嘗試取得原始碼、模型設定、流程或實作細節；
+6. 移除或變更本聲明及任何著作權、商標或專有權利標示。
+
+存取或檢視本儲存庫不會移轉任何所有權，也不代表取得使用許可。任何
+經授權之使用，僅限於著作權人另行簽署之書面協議所明定的範圍與期間。
+
+本軟體依「現狀」提供，不附任何明示或默示擔保。在法律允許的最大範圍
+內，著作權人不對因本軟體或其使用所產生的任何請求、損害或其他責任負責。
+
+如需取得授權，請透過 GitHub 聯絡本儲存庫所有者。
+
+If the English and Traditional Chinese texts conflict, the English text
+controls.

@@ -2,6 +2,10 @@
 
 FastAPI demo for authenticated NAS-style meeting audio intake, browser recording, file upload, file discovery, transcription status, searchable meeting history, document RAG, and LLM call auditing.
 
+> **Proprietary software:** Copyright (c) 2026 xuan139. All rights reserved.
+> Copying, modification, distribution, sublicensing, hosting, or commercial use
+> is prohibited without prior written permission. See [LICENSE](LICENSE).
+
 Administrators can manage Portal accounts from the Account Management view: create users, assign roles, enable or disable access, reset passwords, and safely remove unused standard accounts. Access or password changes revoke existing sessions.
 
 ## Run
@@ -77,3 +81,10 @@ The NAS Upload page accepts audio, video, image, PDF, DOCX, text, and general fi
 - PDF/DOCX assets with RAG chunks show a document LLM input panel for document Q&A through the selected LLM provider.
 - If no model is selected for document Q&A, the UI prompts for a model before sending.
 - For scanned or image-based PDFs, install the optional OCR engine with `pip install -r requirements-ocr.txt`; without it the asset status shows that an OCR engine is required. On macOS arm64, use Python 3.12 for PaddlePaddle support.
+
+## License
+
+This project is proprietary and is not open-source software. No permission is
+granted to copy, modify, distribute, host, sublicense, or commercially use any
+part of this repository without prior written authorization. See
+[LICENSE](LICENSE) for the complete terms.
