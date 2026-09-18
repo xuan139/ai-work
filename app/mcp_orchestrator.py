@@ -8,6 +8,25 @@ class McpPlanningError(RuntimeError):
     pass
 
 
+ODOO_READ_ONLY_TOOLS = {
+    "describe_model",
+    "export_records",
+    "get_access_rights",
+    "get_messages",
+    "list_languages",
+    "list_models",
+    "list_modules",
+    "print_report",
+    "read_group",
+    "read_records",
+    "read_resource",
+    "search_count",
+    "search_read",
+    "system_info",
+    "whoami",
+}
+
+
 def available_mcp_servers(
     servers: list[dict[str, Any]],
     selected_server_id: int | None = None,
@@ -159,6 +178,8 @@ def _is_read_only_tool(tool: object, server: dict[str, Any]) -> bool:
     endpoint = str(server.get("endpoint") or "").rstrip("/")
     if server.get("slug") == "linear" and endpoint == "https://mcp.linear.app/mcp/readonly":
         return True
+    if server.get("slug") == "odoo":
+        return str(tool["name"]) in ODOO_READ_ONLY_TOOLS
     annotations = tool.get("annotations")
     return bool(
         isinstance(annotations, dict)

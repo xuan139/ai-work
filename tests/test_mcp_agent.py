@@ -61,6 +61,23 @@ class McpAgentTests(unittest.TestCase):
         linear["endpoint"] = "https://mcp.linear.app/mcp"
         self.assertEqual(available_mcp_servers([linear]), [])
 
+    def test_odoo_allows_only_known_read_only_tools(self) -> None:
+        odoo = {
+            **self.server,
+            "slug": "odoo",
+            "endpoint": "https://odoo.example.com/mcp",
+            "tools_json": json.dumps(
+                [
+                    {"name": "search_read", "annotations": {}},
+                    {"name": "whoami", "annotations": {}},
+                    {"name": "create_records", "annotations": {}},
+                    {"name": "call_method", "annotations": {}},
+                ]
+            ),
+        }
+        tools = available_mcp_servers([odoo])[0]["tools"]
+        self.assertEqual([tool["name"] for tool in tools], ["search_read", "whoami"])
+
     def test_plan_parser_handles_model_reasoning_and_rejects_unknown_tool(self) -> None:
         plan = parse_mcp_plan(
             '<think>choose status</think>\n```json\n'
