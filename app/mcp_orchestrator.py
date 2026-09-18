@@ -161,9 +161,11 @@ def build_final_prompt(
     tool: dict[str, Any],
     tool_result: dict[str, Any],
 ) -> str:
-    result_text = json.dumps(tool_result, ensure_ascii=False, separators=(",", ":"))
-    if len(result_text) > 20000:
-        result_text = result_text[:20000] + "...[truncated]"
+    structured_result = tool_result.get("structuredContent")
+    prompt_result = structured_result if isinstance(structured_result, (dict, list)) else tool_result
+    result_text = json.dumps(prompt_result, ensure_ascii=False, separators=(",", ":"))
+    if len(result_text) > 6000:
+        result_text = result_text[:6000] + "...[truncated]"
     return (
         "Answer the user's original request using the MCP tool result below. "
         "Answer in the same language as the user, using Traditional Chinese for Chinese. "

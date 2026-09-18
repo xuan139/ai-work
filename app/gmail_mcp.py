@@ -277,7 +277,7 @@ def _message_summary(message: dict[str, Any]) -> dict[str, Any]:
         "subject": headers.get("subject", ""),
         "from": headers.get("from", ""),
         "date": headers.get("date", ""),
-        "snippet": str(message.get("snippet") or "")[:500],
+        "snippet": str(message.get("snippet") or "")[:160],
     }
 
 

@@ -10,6 +10,7 @@ from app.auth import hash_password
 from app.mcp_orchestrator import (
     McpPlanningError,
     available_mcp_servers,
+    build_final_prompt,
     parse_mcp_plan,
     resolve_planned_tool,
 )
@@ -90,6 +91,23 @@ class McpAgentTests(unittest.TestCase):
         plan["tool_name"] = "nas_delete_everything"
         with self.assertRaises(McpPlanningError):
             resolve_planned_tool(plan, servers)
+
+    def test_final_prompt_uses_structured_result_without_duplicate_content(self) -> None:
+        tool_result = {
+            "content": [{"type": "text", "text": "duplicate text that should not be included"}],
+            "structuredContent": {"count": 1, "messages": [{"subject": "Status"}]},
+            "isError": False,
+        }
+
+        prompt = build_final_prompt(
+            "列出最近郵件",
+            {"name": "Gmail Read-only"},
+            {"name": "gmail_list_recent_messages"},
+            tool_result,
+        )
+
+        self.assertIn('"subject":"Status"', prompt)
+        self.assertNotIn("duplicate text that should not be included", prompt)
 
     def test_complete_llm_mcp_llm_chain_writes_tool_audit(self) -> None:
         planner = {
