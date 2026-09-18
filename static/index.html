@@ -11,9 +11,13 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png" />
     <link rel="apple-touch-icon" href="/static/icons/icon-192.png" />
-    <link rel="stylesheet" href="/static/styles.css?v=system-prompt-v5" />
+    <link rel="stylesheet" href="/static/styles.css?v=asset-upload-meta-v1" />
   </head>
   <body>
+    <div id="globalBusyIndicator" class="global-busy-indicator" role="status" aria-live="polite" hidden>
+      <span class="global-busy-spinner" aria-hidden="true"></span>
+      <span id="globalBusyText" data-i18n="loading.active">正在載入資料...</span>
+    </div>
     <div id="toastHost" class="toast-host" aria-live="polite" aria-atomic="true"></div>
 
     <main id="loginView" class="login-view" hidden>
@@ -1032,6 +1036,6 @@
       </section>
     </div>
 
-    <script src="/static/app.js?v=system-prompt-v5"></script>
+    <script src="/static/app.js?v=asset-upload-meta-v1"></script>
   </body>
 </html>

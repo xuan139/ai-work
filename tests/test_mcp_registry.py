@@ -29,7 +29,10 @@ class McpRegistryTests(unittest.TestCase):
         servers = db.list_mcp_servers()
         slugs = {server["slug"] for server in servers}
         self.assertGreaterEqual(len(slugs), 20)
-        self.assertTrue({"gmail", "slack", "github", "notion", "atlassian", "monday", "linear", "nas-demo"}.issubset(slugs))
+        self.assertTrue({
+            "gmail", "slack", "github", "notion", "atlassian", "monday", "linear", "nas-demo",
+            "xero", "odoo", "quickbooks", "netsuite",
+        }.issubset(slugs))
         gmail = next(server for server in servers if server["slug"] == "gmail")
         self.assertEqual(gmail["endpoint"], "https://gmailmcp.googleapis.com/mcp/v1")
         self.assertEqual(gmail["auth_type"], "oauth2")
@@ -40,6 +43,16 @@ class McpRegistryTests(unittest.TestCase):
         linear = next(server for server in servers if server["slug"] == "linear")
         self.assertEqual(linear["endpoint"], "https://mcp.linear.app/mcp/readonly")
         self.assertEqual(linear["auth_type"], "bearer")
+        xero = next(server for server in servers if server["slug"] == "xero")
+        self.assertEqual(xero["transport"], "stdio")
+        self.assertEqual(xero["auth_env_var"], "XERO_CLIENT_BEARER_TOKEN")
+        self.assertFalse(xero["is_enabled"])
+        quickbooks = next(server for server in servers if server["slug"] == "quickbooks")
+        self.assertEqual(quickbooks["auth_type"], "oauth2")
+        self.assertIsNone(quickbooks["endpoint"])
+        netsuite = next(server for server in servers if server["slug"] == "netsuite")
+        self.assertEqual(netsuite["auth_type"], "oauth2")
+        self.assertIsNone(netsuite["endpoint"])
         slack = next(server for server in servers if server["slug"] == "slack")
         self.assertIsNone(slack["endpoint"])
         nas_demo = next(server for server in servers if server["slug"] == "nas-demo")
@@ -115,6 +128,18 @@ class McpRegistryTests(unittest.TestCase):
         self.assertEqual(linear["status"], "unchecked")
         self.assertIsNone(linear["tools_json"])
         self.assertIn("唯讀", linear["description"])
+
+    def test_legacy_odoo_template_migrates_to_accounting_connector(self) -> None:
+        with db.connect() as conn:
+            conn.execute(
+                "UPDATE mcp_servers SET name = 'Odoo', description = ? WHERE slug = 'odoo'",
+                ("連接 Odoo ERP 的財務、銷售、庫存與營運工具。",),
+            )
+        db.seed_admin(hash_password("ignored"))
+        odoo = next(server for server in db.list_mcp_servers() if server["slug"] == "odoo")
+        self.assertEqual(odoo["name"], "Odoo Accounting")
+        self.assertIn("應收應付", odoo["description"])
+        self.assertEqual(odoo["auth_env_var"], "ODOO_MCP_TOKEN")
 
     def test_streamable_http_sync_collects_tools(self) -> None:
         responses = [

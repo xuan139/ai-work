@@ -106,6 +106,34 @@ MCP_CATALOG_TEMPLATES = (
         "source_url": "https://support.atlassian.com/atlassian-ai-gateway/docs/get-started-with-the-atlassian-remote-mcp-server/", "is_enabled": False,
     },
     {
+        "slug": "xero", "name": "Xero Accounting", "transport": "stdio",
+        "endpoint": None, "auth_type": "bearer", "auth_env_var": "XERO_CLIENT_BEARER_TOKEN",
+        "description": "Xero 官方開源 MCP，支援會計科目、聯絡人、發票、付款、銀行交易、損益表、資產負債表與試算表；預設停用，需先完成 Xero 授權。",
+        "description_en": "Official open-source Xero MCP for accounts, contacts, invoices, payments, bank transactions, profit and loss, balance sheets, and trial balances. Disabled until Xero authorization is configured.",
+        "source_url": "https://github.com/XeroAPI/xero-mcp-server", "is_enabled": False,
+    },
+    {
+        "slug": "odoo", "name": "Odoo Accounting", "transport": "streamable_http",
+        "endpoint": None, "auth_type": "custom", "auth_env_var": "ODOO_MCP_TOKEN",
+        "description": "連接公司自行部署的 Odoo MCP，提供唯讀財務、發票、應收應付、總帳、銷售、庫存與營運查詢。",
+        "description_en": "Connect a company-hosted Odoo MCP for read-only finance, invoices, receivables, payables, ledger, sales, inventory, and operations queries.",
+        "source_url": "https://www.odoo.com/documentation/19.0/developer/reference/external_api.html", "is_enabled": False,
+    },
+    {
+        "slug": "quickbooks", "name": "QuickBooks Online", "transport": "streamable_http",
+        "endpoint": None, "auth_type": "oauth2", "auth_env_var": "QUICKBOOKS_MCP_TOKEN",
+        "description": "供公司自架 QuickBooks MCP Adapter 使用，以 OAuth 2.0 受控查詢會計科目、客戶、供應商、發票、費用與財務報表。",
+        "description_en": "For a company-hosted QuickBooks MCP adapter using OAuth 2.0 to query accounts, customers, vendors, invoices, expenses, and financial reports under company policy.",
+        "source_url": "https://developer.intuit.com/app/developer/qbo/docs/get-started", "is_enabled": False,
+    },
+    {
+        "slug": "netsuite", "name": "Oracle NetSuite", "transport": "streamable_http",
+        "endpoint": None, "auth_type": "oauth2", "auth_env_var": "NETSUITE_MCP_TOKEN",
+        "description": "供公司自架 NetSuite MCP Adapter 使用，透過 SuiteTalk REST 與 OAuth 2.0 查詢財務、訂單、庫存及 ERP 資料。",
+        "description_en": "For a company-hosted NetSuite MCP adapter using SuiteTalk REST and OAuth 2.0 to query finance, orders, inventory, and ERP data.",
+        "source_url": "https://docs.oracle.com/en/cloud/saas/netsuite/ns-online-help/chapter_1540391670.html", "is_enabled": False,
+    },
+    {
         "slug": "monday", "name": "Monday.com", "transport": "streamable_http",
         "endpoint": "https://mcp.monday.com/mcp", "auth_type": "bearer", "auth_env_var": "MONDAY_MCP_TOKEN",
         "headers_json": '{"Api-Version":"2026-07"}',
@@ -154,13 +182,6 @@ MCP_CATALOG_TEMPLATES = (
         "description": "Context7 遠端 MCP，用於查詢最新程式庫與框架文件。",
         "description_en": "Context7 remote MCP for up-to-date library and framework documentation.",
         "source_url": "https://context7.com/docs", "is_enabled": False,
-    },
-    {
-        "slug": "odoo", "name": "Odoo", "transport": "streamable_http",
-        "endpoint": None, "auth_type": "custom", "auth_env_var": None,
-        "description": "連接公司自行部署的 Odoo MCP，提供財務、銷售、庫存與營運工具。",
-        "description_en": "Connect a company-hosted Odoo MCP for finance, sales, inventory, and operations tools.",
-        "source_url": None, "is_enabled": False,
     },
     {
         "slug": "nas-filesystem", "name": "NAS Filesystem", "transport": "stdio",
@@ -665,6 +686,21 @@ def seed_admin(password_hash: str) -> None:
             WHERE slug = 'linear'
               AND endpoint = 'https://mcp.linear.app/mcp/readonly'
               AND description = 'Linear 官方遠端 MCP，用於 Issue、專案、里程碑與產品規劃協作。'
+            """
+        )
+        conn.execute(
+            """
+            UPDATE mcp_servers
+            SET name = 'Odoo Accounting',
+                description = '連接公司自行部署的 Odoo MCP，提供唯讀財務、發票、應收應付、總帳、銷售、庫存與營運查詢。',
+                description_en = 'Connect a company-hosted Odoo MCP for read-only finance, invoices, receivables, payables, ledger, sales, inventory, and operations queries.',
+                updated_at = CURRENT_TIMESTAMP
+            WHERE slug = 'odoo'
+              AND name = 'Odoo'
+              AND description IN (
+                  '連接公司自行部署的 Odoo MCP，提供財務、銷售、庫存與營運工具。',
+                  '連接 Odoo ERP 的財務、銷售、庫存與營運工具。'
+              )
             """
         )
 

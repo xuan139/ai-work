@@ -48,6 +48,43 @@ class DashboardAssetTests(unittest.TestCase):
 
         self.assertEqual(assets[0]["transcript_preview"], "會議確認本週交付項目與負責人。")
 
+    def test_assets_include_uploader_and_newest_is_first(self) -> None:
+        older = db.create_nas_asset(
+            user_id=self.admin["id"],
+            category="file",
+            title="Older file",
+            original_filename="older.txt",
+            stored_path="/nas/older.txt",
+            mime_type="text/plain",
+            file_size=10,
+            status="completed",
+        )
+        newer = db.create_nas_asset(
+            user_id=self.admin["id"],
+            category="file",
+            title="Newer file",
+            original_filename="newer.txt",
+            stored_path="/nas/newer.txt",
+            mime_type="text/plain",
+            file_size=5,
+            status="completed",
+        )
+        with db.connect() as conn:
+            conn.execute("UPDATE nas_assets SET created_at = '2026-09-17 08:00:00' WHERE id = ?", (older["id"],))
+            conn.execute("UPDATE nas_assets SET created_at = '2026-09-18 08:00:00' WHERE id = ?", (newer["id"],))
+
+        assets = db.list_nas_assets(user_id=self.admin["id"], role="admin")
+
+        self.assertEqual([asset["id"] for asset in assets[:2]], [newer["id"], older["id"]])
+        self.assertEqual(assets[0]["owner_username"], "admin")
+
+    def test_dashboard_renders_upload_metadata(self) -> None:
+        script = (Path(__file__).resolve().parents[1] / "static" / "app.js").read_text(encoding="utf-8")
+        self.assertIn('class="dashboard-asset-upload"', script)
+        self.assertIn('t("dashboardAssets.uploader")', script)
+        self.assertIn('t("dashboardAssets.uploadedAt")', script)
+        self.assertNotIn('Number(right.file_size || 0) - Number(left.file_size || 0)', script)
+
 
 if __name__ == "__main__":
     unittest.main()

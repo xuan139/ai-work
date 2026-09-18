@@ -2,6 +2,7 @@ const messages = {
   "zh-Hant": {
     documentTitle: "AI Work 會議入口",
     language: { label: "語言切換" },
+    loading: { active: "正在載入資料..." },
     login: {
       eyebrow: "NAS 安全工作區",
       title: "AI Work NAS 會議入口",
@@ -197,10 +198,14 @@ const messages = {
       searchPlaceholder: "搜尋名稱、Endpoint 或服務",
       securityNote: "官方 Endpoint 已預先列入安全清單；OAuth 服務仍需完成企業授權或設定 Access Token。SSE 與 stdio 第一階段只保存設定。",
       empty: "尚未登錄 MCP Server",
-      enterpriseTitle: "企業管理與協作",
-      enterpriseCopy: "優先管理 NAS、Odoo、Google Workspace、Monday.com 與日常企業協作服務。",
-      technicalTitle: "技術整合",
-      technicalCopy: "開發、資料庫與雲端基礎設施連接器，預設收合以精簡管理畫面。",
+      categories: {
+        nas: { title: "NAS 與知識資料", copy: "存取 NAS 檔案、企業文件與內部知識庫。" },
+        office: { title: "辦公與通訊", copy: "電子郵件、Google Workspace、行事曆與團隊訊息。" },
+        finance: { title: "財務會計與 ERP", copy: "會計、付款、發票、財務報表與企業資源管理。" },
+        project: { title: "專案管理與協作", copy: "專案、任務、Issue、里程碑與跨部門協作。" },
+        technical: { title: "開發、雲端與資料庫", copy: "程式碼、部署、雲端基礎設施與資料庫工具。" },
+        other: { title: "其他連接器", copy: "公司自行新增或尚未歸類的 MCP Server。" },
+      },
       connectorCount: "{count} 個連接器",
       status: { connected: "已連線", failed: "連線失敗", unchecked: "待測試", unconfigured: "未設定" },
       transport: "Transport",
@@ -252,7 +257,7 @@ const messages = {
     dashboardAssets: {
       eyebrow: "NAS 資產庫",
       title: "所有已上傳檔案",
-      copy: "依檔案大小顯示 audio、video、文件與圖片；點擊即可查看分析結果與重新處理。",
+      copy: "依上傳時間由新到舊顯示 audio、video、文件與圖片；點擊即可查看分析結果與重新處理。",
       filterLabel: "資產類型",
       all: "全部",
       audio: "Audio",
@@ -260,7 +265,9 @@ const messages = {
       documents: "文件",
       images: "圖片",
       upload: "上傳新檔案",
-      largest: "最大檔案",
+      newest: "最新上傳",
+      uploader: "上傳者",
+      uploadedAt: "上傳時間",
       open: "查看詳情",
       transcript: "逐字稿預覽",
       transcriptDetail: "逐字稿詳情",
@@ -814,6 +821,7 @@ const messages = {
   en: {
     documentTitle: "AI Work Meeting Portal",
     language: { label: "Language switcher" },
+    loading: { active: "Loading data..." },
     login: {
       eyebrow: "NAS Secure Workspace",
       title: "AI Work NAS Meeting Portal",
@@ -1009,10 +1017,14 @@ const messages = {
       searchPlaceholder: "Search names, endpoints, or services",
       securityNote: "Official endpoints are pre-approved. OAuth services still require enterprise authorization or an access token. SSE and stdio remain configuration-only in phase one.",
       empty: "No MCP servers are registered",
-      enterpriseTitle: "Business Management and Collaboration",
-      enterpriseCopy: "Prioritize NAS, Odoo, Google Workspace, Monday.com, and everyday business collaboration services.",
-      technicalTitle: "Technical Integrations",
-      technicalCopy: "Development, database, and cloud-infrastructure connectors are collapsed by default to keep this view focused.",
+      categories: {
+        nas: { title: "NAS and Knowledge", copy: "Access NAS files, company documents, and internal knowledge bases." },
+        office: { title: "Office and Communication", copy: "Email, Google Workspace, calendars, and team messaging." },
+        finance: { title: "Accounting and ERP", copy: "Accounting, payments, invoices, financial reports, and enterprise resource planning." },
+        project: { title: "Project Management and Collaboration", copy: "Projects, tasks, issues, milestones, and cross-team collaboration." },
+        technical: { title: "Development, Cloud, and Databases", copy: "Code, deployments, cloud infrastructure, and database tools." },
+        other: { title: "Other Connectors", copy: "Company-added or uncategorized MCP servers." },
+      },
       connectorCount: "{count} connectors",
       status: { connected: "Connected", failed: "Connection Failed", unchecked: "Not Tested", unconfigured: "Not Configured" },
       transport: "Transport",
@@ -1064,7 +1076,7 @@ const messages = {
     dashboardAssets: {
       eyebrow: "NAS Asset Library",
       title: "All Uploaded Files",
-      copy: "Audio, video, documents, and images are ordered by size. Open a file to review results or reprocess it.",
+      copy: "Audio, video, documents, and images are ordered from newest to oldest. Open a file to review results or reprocess it.",
       filterLabel: "Asset type",
       all: "All",
       audio: "Audio",
@@ -1072,7 +1084,9 @@ const messages = {
       documents: "Documents",
       images: "Images",
       upload: "Upload New File",
-      largest: "Largest file",
+      newest: "Newest upload",
+      uploader: "Uploaded by",
+      uploadedAt: "Uploaded at",
       open: "View Details",
       transcript: "Transcript Preview",
       transcriptDetail: "Transcript Details",
@@ -1691,6 +1705,8 @@ const state = {
 };
 
 const els = {
+  globalBusyIndicator: document.querySelector("#globalBusyIndicator"),
+  globalBusyText: document.querySelector("#globalBusyText"),
   loginView: document.querySelector("#loginView"),
   appView: document.querySelector("#appView"),
   loginForm: document.querySelector("#loginForm"),
@@ -1963,21 +1979,67 @@ function applyLanguage(lang) {
   if (state.user) renderCurrentUser();
 }
 
-async function api(path, options = {}) {
-  const response = await fetch(path, {
-    credentials: "include",
-    headers: { "Content-Type": "application/json", ...(options.headers || {}) },
-    ...options,
-  });
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({ detail: response.statusText }));
-    throw new Error(error.detail || t("errors.requestFailed"));
+let globalBusyCount = 0;
+let globalBusyShownAt = 0;
+let globalBusyHideTimer = null;
+const GLOBAL_BUSY_MINIMUM_MS = 360;
+
+function beginGlobalBusy() {
+  globalBusyCount += 1;
+  if (globalBusyHideTimer) {
+    window.clearTimeout(globalBusyHideTimer);
+    globalBusyHideTimer = null;
   }
-  return response.json();
+  if (globalBusyCount === 1) {
+    globalBusyShownAt = Date.now();
+    els.globalBusyText.textContent = t("loading.active");
+    els.globalBusyIndicator.hidden = false;
+    document.documentElement.classList.add("is-busy");
+  }
+  let finished = false;
+  return () => {
+    if (finished) return;
+    finished = true;
+    globalBusyCount = Math.max(0, globalBusyCount - 1);
+    if (globalBusyCount) return;
+    const remaining = Math.max(0, GLOBAL_BUSY_MINIMUM_MS - (Date.now() - globalBusyShownAt));
+    globalBusyHideTimer = window.setTimeout(() => {
+      if (globalBusyCount) return;
+      els.globalBusyIndicator.hidden = true;
+      document.documentElement.classList.remove("is-busy");
+      globalBusyHideTimer = null;
+    }, remaining);
+  };
+}
+
+async function api(path, options = {}) {
+  const { busy = true, ...requestOptions } = options;
+  const finishBusy = busy ? beginGlobalBusy() : () => {};
+  try {
+    const response = await fetch(path, {
+      credentials: "include",
+      headers: { "Content-Type": "application/json", ...(requestOptions.headers || {}) },
+      ...requestOptions,
+    });
+    if (!response.ok) {
+      const error = await response.json().catch(() => ({ detail: response.statusText }));
+      throw new Error(error.detail || t("errors.requestFailed"));
+    }
+    return response.json();
+  } finally {
+    finishBusy();
+  }
 }
 
 function uploadFormData(path, formData, onProgress) {
   return new Promise((resolve, reject) => {
+    const finishBusy = beginGlobalBusy();
+    let finished = false;
+    const finish = () => {
+      if (finished) return;
+      finished = true;
+      finishBusy();
+    };
     const request = new XMLHttpRequest();
     request.open("POST", path);
     request.withCredentials = true;
@@ -1987,6 +2049,7 @@ function uploadFormData(path, formData, onProgress) {
       onProgress(Math.min(100, Math.round((event.loaded / event.total) * 100)));
     });
     request.addEventListener("load", () => {
+      finish();
       let payload = {};
       try {
         payload = request.responseText ? JSON.parse(request.responseText) : {};
@@ -1999,8 +2062,14 @@ function uploadFormData(path, formData, onProgress) {
       }
       reject(new Error(payload.detail || `${t("upload.uploadFailed")} (HTTP ${request.status})`));
     });
-    request.addEventListener("error", () => reject(new Error(t("upload.connectionFailed"))));
-    request.addEventListener("abort", () => reject(new Error(t("upload.connectionFailed"))));
+    request.addEventListener("error", () => {
+      finish();
+      reject(new Error(t("upload.connectionFailed")));
+    });
+    request.addEventListener("abort", () => {
+      finish();
+      reject(new Error(t("upload.connectionFailed")));
+    });
     request.send(formData);
   });
 }
@@ -2095,26 +2164,35 @@ async function refreshViewData(name) {
   if (name === "accounts") return loadAccounts();
 }
 
-async function navigateFromSidebar(name) {
-  if (name !== "network" && state.networkPollTimer) {
-    window.clearTimeout(state.networkPollTimer);
-    state.networkPollTimer = null;
-  }
-  if (name === "upload") {
-    state.selectedAssetId = null;
-    state.selectedAsset = null;
-    renderNasAssetList();
-    renderNasAssetDetail();
-  }
-  if (name === "meetings") {
-    state.selectedMeetingId = null;
-    renderMeetingList();
-    renderSelectedMeetingEmptyState();
-  }
+async function navigateFromSidebar(name, trigger = null) {
+  const finishBusy = beginGlobalBusy();
+  trigger?.classList.add("navigation-loading");
+  trigger?.setAttribute("aria-busy", "true");
+  try {
+    if (name !== "network" && state.networkPollTimer) {
+      window.clearTimeout(state.networkPollTimer);
+      state.networkPollTimer = null;
+    }
+    if (name === "upload") {
+      state.selectedAssetId = null;
+      state.selectedAsset = null;
+      renderNasAssetList();
+      renderNasAssetDetail();
+    }
+    if (name === "meetings") {
+      state.selectedMeetingId = null;
+      renderMeetingList();
+      renderSelectedMeetingEmptyState();
+    }
 
-  switchView(name);
-  window.scrollTo({ top: 0, behavior: "smooth" });
-  await refreshViewData(name);
+    switchView(name);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    await refreshViewData(name);
+  } finally {
+    trigger?.classList.remove("navigation-loading");
+    trigger?.removeAttribute("aria-busy");
+    finishBusy();
+  }
 }
 
 function currentViewName() {
@@ -2122,11 +2200,11 @@ function currentViewName() {
   return active?.dataset.view || "dashboard";
 }
 
-async function loadMeetings() {
+async function loadMeetings({ background = false } = {}) {
   const params = new URLSearchParams();
   const query = els.meetingSearch.value.trim();
   if (query) params.set("q", query);
-  state.meetings = await api(`/api/meetings${params.toString() ? `?${params}` : ""}`);
+  state.meetings = await api(`/api/meetings${params.toString() ? `?${params}` : ""}`, { busy: !background });
   renderMetrics();
   renderMeetingList();
 }
@@ -2212,21 +2290,28 @@ function renderMcpServers() {
     return;
   }
 
-  const businessPriority = [
-    "nas-demo", "odoo", "gmail", "google-drive", "google-docs", "google-sheets",
-    "google-calendar", "google-slides", "google-chat", "google-people", "monday",
-    "linear", "slack", "notion", "atlassian", "stripe",
+  const categories = [
+    { key: "nas", slugs: ["nas-demo", "nas-filesystem", "notion"] },
+    {
+      key: "office",
+      slugs: [
+        "gmail", "google-drive", "google-docs", "google-sheets", "google-slides",
+        "google-calendar", "google-chat", "google-people", "slack",
+      ],
+    },
+    { key: "finance", slugs: ["xero", "odoo", "quickbooks", "netsuite", "stripe"] },
+    { key: "project", slugs: ["monday", "linear", "atlassian"] },
+    {
+      key: "technical",
+      slugs: ["github", "cloudflare", "cloudflare-docs", "vercel", "supabase", "context7", "postgresql"],
+    },
   ];
-  const technicalPriority = [
-    "github", "cloudflare", "cloudflare-docs", "vercel", "supabase", "context7",
-    "nas-filesystem", "postgresql",
-  ];
-  const technicalSlugs = new Set(technicalPriority);
-  const sortServers = (servers, priority) => servers.slice().sort((left, right) => {
-    const leftIndex = priority.indexOf(left.slug);
-    const rightIndex = priority.indexOf(right.slug);
-    const leftRank = leftIndex === -1 ? priority.length : leftIndex;
-    const rightRank = rightIndex === -1 ? priority.length : rightIndex;
+  const categorizedSlugs = new Set(categories.flatMap((category) => category.slugs));
+  const sortByCategory = (servers, slugs) => servers.slice().sort((left, right) => {
+    const leftIndex = slugs.indexOf(left.slug);
+    const rightIndex = slugs.indexOf(right.slug);
+    const leftRank = leftIndex === -1 ? slugs.length : leftIndex;
+    const rightRank = rightIndex === -1 ? slugs.length : rightIndex;
     return leftRank - rightRank || left.name.localeCompare(right.name);
   });
   const renderServerCard = (server) => {
@@ -2281,39 +2366,34 @@ function renderMcpServers() {
       </article>
     `;
   };
-  const businessServers = sortServers(
-    visibleServers.filter((server) => !technicalSlugs.has(server.slug)),
-    businessPriority,
-  );
-  const technicalServers = sortServers(
-    visibleServers.filter((server) => technicalSlugs.has(server.slug)),
-    technicalPriority,
-  );
-  const businessSection = businessServers.length ? `
-    <section class="mcp-server-group enterprise">
-      <div class="mcp-group-heading">
-        <div>
-          <h4>${escapeHtml(t("mcp.enterpriseTitle"))}</h4>
-          <p>${escapeHtml(t("mcp.enterpriseCopy"))}</p>
-        </div>
-        <span>${escapeHtml(t("mcp.connectorCount", { count: businessServers.length }))}</span>
-      </div>
-      <div class="mcp-server-group-list">${businessServers.map(renderServerCard).join("")}</div>
-    </section>
-  ` : "";
-  const technicalSection = technicalServers.length ? `
-    <details class="mcp-server-group technical" ${query ? "open" : ""}>
-      <summary class="mcp-group-heading">
-        <div>
-          <h4>${escapeHtml(t("mcp.technicalTitle"))}</h4>
-          <p>${escapeHtml(t("mcp.technicalCopy"))}</p>
-        </div>
-        <span>${escapeHtml(t("mcp.connectorCount", { count: technicalServers.length }))}</span>
-      </summary>
-      <div class="mcp-server-group-list">${technicalServers.map(renderServerCard).join("")}</div>
-    </details>
-  ` : "";
-  els.mcpServerList.innerHTML = businessSection + technicalSection;
+  const groupedCategories = categories.map((category) => ({
+    ...category,
+    servers: sortByCategory(
+      visibleServers.filter((server) => category.slugs.includes(server.slug)),
+      category.slugs,
+    ),
+  }));
+  groupedCategories.push({
+    key: "other",
+    slugs: [],
+    servers: visibleServers
+      .filter((server) => !categorizedSlugs.has(server.slug))
+      .sort((left, right) => left.name.localeCompare(right.name)),
+  });
+  els.mcpServerList.innerHTML = groupedCategories
+    .filter((category) => category.servers.length)
+    .map((category) => `
+      <details class="mcp-server-group ${escapeHtml(category.key)}" data-mcp-category="${escapeHtml(category.key)}" ${query ? "open" : ""}>
+        <summary class="mcp-group-heading">
+          <div>
+            <h4>${escapeHtml(t(`mcp.categories.${category.key}.title`))}</h4>
+            <p>${escapeHtml(t(`mcp.categories.${category.key}.copy`))}</p>
+          </div>
+          <span>${escapeHtml(t("mcp.connectorCount", { count: category.servers.length }))}</span>
+        </summary>
+        <div class="mcp-server-group-list">${category.servers.map(renderServerCard).join("")}</div>
+      </details>
+    `).join("");
 }
 
 function openMcpServerModal(server = null) {
@@ -2686,8 +2766,8 @@ async function loadVideoCatalog() {
   renderVideoControls();
 }
 
-async function loadLocalModels() {
-  state.localModels = await api("/api/local-models");
+async function loadLocalModels({ background = false } = {}) {
+  state.localModels = await api("/api/local-models", { busy: !background });
   renderLocalModelManager();
   renderRecordingAsrControls();
   renderAsrControls();
@@ -2702,11 +2782,11 @@ async function loadLlmCalls() {
   renderLlmCallHistory();
 }
 
-async function loadNasAssets() {
+async function loadNasAssets({ background = false } = {}) {
   const params = new URLSearchParams();
   const query = els.nasAssetSearch.value.trim();
   if (query) params.set("q", query);
-  state.nasAssets = await api(`/api/nas-assets${params.toString() ? `?${params}` : ""}`);
+  state.nasAssets = await api(`/api/nas-assets${params.toString() ? `?${params}` : ""}`, { busy: !background });
   renderDashboardAssets();
   renderNasAssetList();
   if (state.selectedAssetId) {
@@ -2715,8 +2795,8 @@ async function loadNasAssets() {
   }
 }
 
-async function loadNetworkAssets() {
-  state.networkAssets = await api("/api/network-assets");
+async function loadNetworkAssets({ background = false } = {}) {
+  state.networkAssets = await api("/api/network-assets", { busy: !background });
   renderNetworkAssets();
   scheduleNetworkAssetPolling();
 }
@@ -2761,7 +2841,7 @@ function scheduleNetworkAssetPolling() {
   const active = state.networkAssets.some((asset) => ["downloading", "processing"].includes(asset.status));
   if (!active || currentViewName() !== "network") return;
   state.networkPollTimer = window.setTimeout(() => {
-    loadNetworkAssets().catch(() => {});
+    loadNetworkAssets({ background: true }).catch(() => {});
   }, 3000);
 }
 
@@ -2841,7 +2921,10 @@ function renderDashboardAssets() {
   });
   const assets = state.nasAssets
     .filter((asset) => dashboardAssetMatches(asset, state.dashboardAssetFilter))
-    .sort((left, right) => Number(right.file_size || 0) - Number(left.file_size || 0));
+    .sort((left, right) => (
+      String(right.created_at || "").localeCompare(String(left.created_at || ""))
+      || Number(right.id || 0) - Number(left.id || 0)
+    ));
   if (!assets.length) {
     els.dashboardAssetGrid.innerHTML = `<div class="empty-state compact">${escapeHtml(t("dashboardAssets.empty"))}</div>`;
     return;
@@ -2859,9 +2942,13 @@ function renderDashboardAssets() {
           <strong>${escapeHtml(asset.title)}</strong>
           <small>${escapeHtml(asset.original_filename)}</small>
         </span>
+        <span class="dashboard-asset-upload">
+          <small><b>${escapeHtml(t("dashboardAssets.uploader"))}</b>${escapeHtml(asset.owner_username || "-")}</small>
+          <small><b>${escapeHtml(t("dashboardAssets.uploadedAt"))}</b>${escapeHtml(formatDate(asset.created_at))}</small>
+        </span>
         <span class="dashboard-asset-size">
           <b>${escapeHtml(formatBytes(asset.file_size))}</b>
-          ${index === 0 ? `<small>${escapeHtml(t("dashboardAssets.largest"))}</small>` : ""}
+          ${index === 0 ? `<small>${escapeHtml(t("dashboardAssets.newest"))}</small>` : ""}
         </span>
         <span class="badge ${escapeHtml(asset.status)}">${escapeHtml(statusLabel(asset.status))}</span>
         <button class="dashboard-asset-open" type="button" data-dashboard-asset-id="${asset.id}">
@@ -3576,7 +3663,7 @@ function scheduleLocalModelPolling() {
   const active = (state.localModels?.models || []).some((item) => item.status === "downloading" || item.status === "cancelling");
   if (active) {
     state.localModelPollTimer = window.setInterval(() => {
-      loadLocalModels().catch(() => {});
+      loadLocalModels({ background: true }).catch(() => {});
     }, 1800);
   }
 }
@@ -4464,7 +4551,7 @@ async function loadLlmSuggestions() {
     return;
   }
   try {
-    const result = await api(`/api/llm/suggestions?model_id=${encodeURIComponent(modelId)}&q=${encodeURIComponent(query)}`);
+    const result = await api(`/api/llm/suggestions?model_id=${encodeURIComponent(modelId)}&q=${encodeURIComponent(query)}`, { busy: false });
     if (requestId !== state.llmSuggestionRequestId || query !== els.llmPromptInput.value.trim()) return;
     state.llmSuggestions = result.suggestions || [];
     state.activeLlmSuggestion = -1;
@@ -4695,11 +4782,11 @@ function connectWebSocket() {
     addActivity(message, payload.title || t("activity.fallbackTitle"));
     showToast(message, title);
     if (payload.type.startsWith("nas_asset_")) {
-      await loadNasAssets();
-      if (currentViewName() === "network") await loadNetworkAssets();
+      await loadNasAssets({ background: true });
+      if (currentViewName() === "network") await loadNetworkAssets({ background: true });
       return;
     }
-    await loadMeetings();
+    await loadMeetings({ background: true });
     if (state.selectedMeetingId && payload.meeting_id === state.selectedMeetingId) {
       await selectMeeting(state.selectedMeetingId);
     }
@@ -4956,7 +5043,7 @@ els.langOptions.forEach((button) => {
   button.addEventListener("click", () => applyLanguage(button.dataset.lang));
 });
 els.navItems.forEach((item) => item.addEventListener("click", () => {
-  navigateFromSidebar(item.dataset.view).catch((error) => showToast(error.message, t("errors.requestFailed")));
+  navigateFromSidebar(item.dataset.view, item).catch((error) => showToast(error.message, t("errors.requestFailed")));
 }));
 els.settingsNav.addEventListener("click", () => {
   setManagementMenuExpanded(els.settingsNav.getAttribute("aria-expanded") !== "true");
@@ -4973,7 +5060,7 @@ els.networkAssetList.addEventListener("click", (event) => {
 });
 document.querySelectorAll("[data-jump]").forEach((item) => {
   item.addEventListener("click", () => {
-    navigateFromSidebar(item.dataset.jump).catch((error) => showToast(error.message, t("errors.requestFailed")));
+    navigateFromSidebar(item.dataset.jump, item).catch((error) => showToast(error.message, t("errors.requestFailed")));
   });
 });
 document.querySelectorAll("[data-dashboard-meeting-status]").forEach((item) => {
@@ -5285,6 +5372,30 @@ function debounce(fn, delay) {
     timer = window.setTimeout(() => fn(...args), delay);
   };
 }
+
+const buttonFeedbackTimers = new WeakMap();
+
+function showButtonFeedback(button) {
+  if (!button || button.disabled) return;
+  const previousTimer = buttonFeedbackTimers.get(button);
+  if (previousTimer) window.clearTimeout(previousTimer);
+  button.querySelector(":scope > .button-feedback-spinner")?.remove();
+  const spinner = document.createElement("span");
+  spinner.className = "button-feedback-spinner";
+  spinner.setAttribute("aria-hidden", "true");
+  button.appendChild(spinner);
+  button.classList.add("has-interaction-feedback");
+  const timer = window.setTimeout(() => {
+    spinner.remove();
+    button.classList.remove("has-interaction-feedback");
+    buttonFeedbackTimers.delete(button);
+  }, 520);
+  buttonFeedbackTimers.set(button, timer);
+}
+
+document.addEventListener("click", (event) => {
+  showButtonFeedback(event.target.closest("button"));
+}, true);
 
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
