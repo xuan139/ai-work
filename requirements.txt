@@ -5,4 +5,5 @@ pypdf
 PyMuPDF
 python-docx
 opencc-python-reimplemented==0.1.7
+openpyxl==3.1.5
 yt-dlp

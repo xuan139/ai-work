@@ -92,6 +92,7 @@ from app.llm_catalog import PRICING_UPDATED_AT, get_model, model_summary, provid
 from app.llm_cache import lookup_llm_cache, normalize_llm_prompt, store_llm_cache, suggest_llm_prompts
 from app.llm_runtime import LlmRuntimeError, company_api_key_for_model, run_llm
 from app.drive_mcp import DRIVE_MCP_TOOLS, handle_drive_mcp_request
+from app.excel_mcp import EXCEL_MCP_TOOLS, handle_excel_mcp_request
 from app.gmail_mcp import GMAIL_MCP_TOOLS, handle_gmail_mcp_request
 from app.line_service import LineServiceError, list_line_groups
 from app.local_model_manager import (
@@ -329,6 +330,21 @@ async def lifespan(app: FastAPI):
             tool_count=len(DRIVE_MCP_TOOLS),
             last_error=None,
         )
+    excel_server = next((item for item in list_mcp_servers() if item.get("slug") == "nas-excel"), None)
+    if (
+        excel_server
+        and excel_server.get("is_enabled")
+        and excel_server.get("endpoint") == "http://127.0.0.1:8000/mcp/excel"
+        and mcp_auth_configured(excel_server)
+    ):
+        update_mcp_server_sync(
+            excel_server["id"],
+            status="connected",
+            protocol_version="2025-06-18",
+            tools_json=json.dumps(EXCEL_MCP_TOOLS, ensure_ascii=False),
+            tool_count=len(EXCEL_MCP_TOOLS),
+            last_error=None,
+        )
     await start_media_workers()
     tasks = [
         asyncio.create_task(nas_discovery_loop(BASE_DIR)),
@@ -439,6 +455,32 @@ async def google_drive_mcp(request: Request, payload: dict) -> Response:
     except McpConnectionError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     result = await asyncio.to_thread(handle_drive_mcp_request, payload, token)
+    if result is None:
+        return Response(status_code=204)
+    return JSONResponse(result)
+
+
+@app.get("/mcp/excel")
+async def excel_mcp_info() -> dict:
+    return {
+        "name": "AI Work NAS Excel SQL MCP",
+        "transport": "streamable_http",
+        "endpoint": "/mcp/excel",
+        "protocol_version": "2025-06-18",
+        "read_only": True,
+        "tools": [tool["name"] for tool in EXCEL_MCP_TOOLS],
+    }
+
+
+@app.post("/mcp/excel")
+async def excel_mcp(request: Request, payload: dict) -> Response:
+    expected_key = os.getenv("NAS_EXCEL_LOCAL_MCP_KEY", "")
+    supplied = request.headers.get("authorization", "")
+    if not expected_key:
+        raise HTTPException(status_code=503, detail="NAS Excel MCP 尚未設定內部存取金鑰")
+    if not hmac.compare_digest(supplied, f"Bearer {expected_key}"):
+        raise HTTPException(status_code=401, detail="NAS Excel MCP authorization failed")
+    result = await asyncio.to_thread(handle_excel_mcp_request, payload)
     if result is None:
         return Response(status_code=204)
     return JSONResponse(result)
@@ -596,7 +638,13 @@ def serialize_mcp_server(server: dict) -> dict:
         result["headers"] = {}
     result["auth_configured"] = mcp_auth_configured(result)
     result["is_enabled"] = bool(result.get("is_enabled"))
-    result["public_endpoint"] = "/mcp/nas" if result.get("slug") == "nas-demo" else None
+    public_endpoints = {
+        "nas-demo": "/mcp/nas",
+        "gmail": "/mcp/gmail",
+        "google-drive": "/mcp/google-drive",
+        "nas-excel": "/mcp/excel",
+    }
+    result["public_endpoint"] = public_endpoints.get(result.get("slug"))
     return result
 
 

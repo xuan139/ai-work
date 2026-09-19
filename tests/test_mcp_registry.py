@@ -8,6 +8,7 @@ from unittest.mock import patch
 from app import db, main
 from app.auth import hash_password
 from app.drive_mcp import handle_drive_mcp_request
+from app.excel_mcp import handle_excel_mcp_request
 from app.gmail_mcp import handle_gmail_mcp_request
 from app.mcp_runtime import (
     call_streamable_http_tool,
@@ -39,6 +40,7 @@ class McpRegistryTests(unittest.TestCase):
         self.assertTrue({
             "gmail", "slack", "github", "notion", "atlassian", "monday", "linear", "nas-demo",
             "xero", "odoo", "quickbooks", "netsuite",
+            "nas-excel", "microsoft-365-excel", "microsoft-markitdown",
         }.issubset(slugs))
         gmail = next(server for server in servers if server["slug"] == "gmail")
         self.assertEqual(gmail["endpoint"], "http://127.0.0.1:8000/mcp/gmail")
@@ -48,6 +50,10 @@ class McpRegistryTests(unittest.TestCase):
         self.assertEqual(drive["endpoint"], "http://127.0.0.1:8000/mcp/google-drive")
         self.assertEqual(drive["auth_type"], "bearer")
         self.assertEqual(drive["auth_env_var"], "GOOGLE_DRIVE_LOCAL_MCP_KEY")
+        excel = next(server for server in servers if server["slug"] == "nas-excel")
+        self.assertEqual(excel["endpoint"], "http://127.0.0.1:8000/mcp/excel")
+        self.assertEqual(excel["auth_type"], "bearer")
+        self.assertEqual(excel["auth_env_var"], "NAS_EXCEL_LOCAL_MCP_KEY")
         monday = next(server for server in servers if server["slug"] == "monday")
         self.assertEqual(monday["endpoint"], "https://mcp.monday.com/mcp")
         self.assertEqual(monday["auth_type"], "bearer")
@@ -70,6 +76,14 @@ class McpRegistryTests(unittest.TestCase):
         nas_demo = next(server for server in servers if server["slug"] == "nas-demo")
         self.assertTrue(nas_demo["is_enabled"])
         self.assertEqual(nas_demo["status"], "unchecked")
+
+    def test_excel_mcp_lists_read_only_data_tools(self) -> None:
+        response = handle_excel_mcp_request({"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
+        assert response is not None
+        tools = response["result"]["tools"]
+        self.assertEqual(len(tools), 6)
+        self.assertIn("excel_query_sql", {tool["name"] for tool in tools})
+        self.assertTrue(all(tool["annotations"]["readOnlyHint"] for tool in tools))
 
     def test_sync_updates_tools_and_writes_audit(self) -> None:
         server = next(item for item in db.list_mcp_servers() if item["slug"] == "odoo")

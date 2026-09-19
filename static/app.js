@@ -201,6 +201,7 @@ const messages = {
       categories: {
         nas: { title: "NAS 與知識資料", copy: "存取 NAS 檔案、企業文件與內部知識庫。" },
         office: { title: "辦公與通訊", copy: "電子郵件、Google Workspace、行事曆與團隊訊息。" },
+        spreadsheet: { title: "試算表與 Excel", copy: "分析 NAS Excel、Google Sheets 與 Microsoft 365 活頁簿。" },
         finance: { title: "財務會計與 ERP", copy: "會計、付款、發票、財務報表與企業資源管理。" },
         project: { title: "專案管理與協作", copy: "專案、任務、Issue、里程碑與跨部門協作。" },
         technical: { title: "開發、雲端與資料庫", copy: "程式碼、部署、雲端基礎設施與資料庫工具。" },
@@ -1020,6 +1021,7 @@ const messages = {
       categories: {
         nas: { title: "NAS and Knowledge", copy: "Access NAS files, company documents, and internal knowledge bases." },
         office: { title: "Office and Communication", copy: "Email, Google Workspace, calendars, and team messaging." },
+        spreadsheet: { title: "Spreadsheets and Excel", copy: "Analyze NAS Excel, Google Sheets, and Microsoft 365 workbooks." },
         finance: { title: "Accounting and ERP", copy: "Accounting, payments, invoices, financial reports, and enterprise resource planning." },
         project: { title: "Project Management and Collaboration", copy: "Projects, tasks, issues, milestones, and cross-team collaboration." },
         technical: { title: "Development, Cloud, and Databases", copy: "Code, deployments, cloud infrastructure, and database tools." },
@@ -2295,9 +2297,13 @@ function renderMcpServers() {
     {
       key: "office",
       slugs: [
-        "gmail", "google-drive", "google-docs", "google-sheets", "google-slides",
+        "gmail", "google-drive", "google-docs", "google-slides",
         "google-calendar", "google-chat", "google-people", "slack",
       ],
+    },
+    {
+      key: "spreadsheet",
+      slugs: ["nas-excel", "google-sheets", "microsoft-365-excel", "microsoft-markitdown"],
     },
     { key: "finance", slugs: ["xero", "odoo", "quickbooks", "netsuite", "stripe"] },
     { key: "project", slugs: ["monday", "linear", "atlassian"] },
@@ -2910,7 +2916,7 @@ async function openNasAsset(id, { transcript = false } = {}) {
 
 function dashboardAssetMatches(asset, filter) {
   if (filter === "all") return true;
-  if (filter === "document") return ["pdf", "docx", "file"].includes(asset.category);
+  if (filter === "document") return ["pdf", "docx", "excel", "file"].includes(asset.category);
   return asset.category === filter;
 }
 

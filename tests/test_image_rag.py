@@ -12,6 +12,16 @@ class ImageRagTests(unittest.TestCase):
         self.assertEqual(classify_asset(Path("scan.JPG")), "image")
         self.assertEqual(classify_asset(Path("upload.bin"), "image/webp"), "image")
 
+    def test_classifies_excel_workbooks(self) -> None:
+        self.assertEqual(classify_asset(Path("sales.xlsx")), "excel")
+        self.assertEqual(
+            classify_asset(
+                Path("upload.bin"),
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            ),
+            "excel",
+        )
+
     @patch("app.document_processing.run_paddle_ocr", return_value="NAS 維護報告\n磁碟狀態正常")
     @patch("app.document_processing.paddle_ocr_engine", return_value=object())
     def test_builds_image_ocr_chunks_with_source_preview(self, _engine, _ocr) -> None:

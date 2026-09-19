@@ -15,6 +15,14 @@ MCP_CATALOG_TEMPLATES = (
         "source_url": None, "is_enabled": True,
     },
     {
+        "slug": "nas-excel", "name": "NAS Excel SQL", "transport": "streamable_http",
+        "endpoint": "http://127.0.0.1:8000/mcp/excel", "auth_type": "bearer",
+        "auth_env_var": "NAS_EXCEL_LOCAL_MCP_KEY",
+        "description": "Ubuntu/NAS 內建 Excel 唯讀 MCP，可檢視、搜尋、統計及以 SELECT SQL 查詢使用者上傳的 XLSX/XLSM，不需安裝 Excel。",
+        "description_en": "Built-in Ubuntu/NAS read-only Excel MCP for inspecting, searching, profiling, and querying uploaded XLSX/XLSM files with SELECT SQL. Microsoft Excel is not required.",
+        "source_url": "https://openpyxl.readthedocs.io/en/stable/", "is_enabled": False,
+    },
+    {
         "slug": "gmail", "name": "Gmail Read-only", "transport": "streamable_http",
         "endpoint": "http://127.0.0.1:8000/mcp/gmail", "auth_type": "bearer", "auth_env_var": "GMAIL_LOCAL_MCP_KEY",
         "description": "AI Work 受保護的 Gmail 唯讀 MCP，透過正式 Gmail API 搜尋與讀取郵件、討論串及標籤。",
@@ -41,6 +49,20 @@ MCP_CATALOG_TEMPLATES = (
         "description": "Google Sheets 官方遠端 MCP（Developer Preview），用於試算表查詢與更新。",
         "description_en": "Official Google Sheets remote MCP (Developer Preview) for spreadsheet queries and updates.",
         "source_url": "https://developers.google.com/workspace/guides/configure-mcp-servers", "is_enabled": False,
+    },
+    {
+        "slug": "microsoft-365-excel", "name": "Microsoft 365 Excel Online", "transport": "streamable_http",
+        "endpoint": None, "auth_type": "oauth2", "auth_env_var": "MICROSOFT_365_EXCEL_MCP_TOKEN",
+        "description": "供公司自架 Microsoft Graph 唯讀 Adapter 使用，查詢 OneDrive／SharePoint 內的 XLSX 活頁簿；需 Files.Read 授權，不需在 Ubuntu 安裝 Excel。",
+        "description_en": "For a company-hosted read-only Microsoft Graph adapter that queries XLSX workbooks in OneDrive or SharePoint with Files.Read. No Excel installation is required on Ubuntu.",
+        "source_url": "https://learn.microsoft.com/en-us/graph/api/resources/excel?view=graph-rest-1.0", "is_enabled": False,
+    },
+    {
+        "slug": "microsoft-markitdown", "name": "Microsoft MarkItDown", "transport": "stdio",
+        "endpoint": None, "auth_type": "none", "auth_env_var": None,
+        "description": "Microsoft 開源文件轉換 MCP，可將 Excel 與 Office 文件轉為 Markdown 供 LLM/RAG 使用；預設停用，僅應在受信任的本機檔案環境啟用。",
+        "description_en": "Microsoft open-source conversion MCP for turning Excel and Office files into Markdown for LLM/RAG use. Disabled by default and intended only for trusted local files.",
+        "source_url": "https://github.com/microsoft/markitdown/tree/main/packages/markitdown-mcp", "is_enabled": False,
     },
     {
         "slug": "google-slides", "name": "Google Slides", "transport": "streamable_http",
