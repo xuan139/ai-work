@@ -170,7 +170,7 @@
             </button>
             <button class="module-card" type="button" data-jump="upload">
               <strong data-i18n="modules.upload.title">NAS 上傳</strong>
-              <span data-i18n="modules.upload.copy">上傳 audio、video、PDF、DOCX 等資料，NAS 收件後進入對應分析流程。</span>
+              <span data-i18n="modules.upload.copy">上傳 audio、video、文件與試算表，NAS 收件後進入 ASR、影片分析、RAG 或 SQL 查詢流程。</span>
             </button>
             <button class="module-card" type="button" data-jump="meetings">
               <strong data-i18n="modules.meetings.title">資料庫查詢</strong>
@@ -317,12 +317,12 @@
               <div class="section-heading">
                 <p class="eyebrow" data-i18n="upload.eyebrow">NAS 收件</p>
                 <h3 data-i18n="upload.title">上傳 NAS 資料</h3>
-                <p data-i18n="upload.copy">支援 audio、video、圖片、PDF、DOCX 與一般文件。NAS 收到圖片後會執行 OCR、建立向量與可追溯原圖的 RAG 索引。</p>
+                <p data-i18n="upload.copy">支援 audio、video、圖片、PDF、DOCX、Excel、CSV 與 TSV。試算表可透過 NAS Excel SQL MCP 查詢與分析。</p>
               </div>
               <form id="nasUploadForm" class="nas-upload-form">
                 <label>
                   <span data-i18n="upload.fileLabel">選擇檔案</span>
-                  <input id="nasFileInput" type="file" accept="audio/*,video/*,image/*,.jpg,.jpeg,.png,.webp,.tif,.tiff,.bmp,.pdf,.docx,.txt,.md" required />
+                  <input id="nasFileInput" type="file" accept="audio/*,video/*,image/*,.jpg,.jpeg,.png,.webp,.tif,.tiff,.bmp,.pdf,.docx,.xlsx,.xlsm,.xltx,.xltm,.csv,.tsv,.txt,.md" required />
                 </label>
                 <label>
                   <span data-i18n="upload.titleLabel">資料名稱</span>
@@ -1036,6 +1036,6 @@
       </section>
     </div>
 
-    <script src="/static/app.js?v=asset-upload-meta-v1"></script>
+    <script src="/static/app.js?v=spreadsheet-csv-v1"></script>
   </body>
 </html>

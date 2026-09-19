@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import csv
 import json
 import re
 import sqlite3
+from contextlib import contextmanager
 from datetime import date, datetime, time
 from decimal import Decimal
 from pathlib import Path
@@ -17,6 +19,9 @@ from app.db import connect, get_nas_asset
 BASE_DIR = Path(__file__).resolve().parent.parent
 NAS_ASSETS_DIR = BASE_DIR / "storage" / "nas_assets"
 EXCEL_SUFFIXES = {".xlsx", ".xlsm", ".xltx", ".xltm"}
+DELIMITED_SUFFIXES = {".csv", ".tsv"}
+TABULAR_SUFFIXES = EXCEL_SUFFIXES | DELIMITED_SUFFIXES
+DELIMITED_SHEET_NAME = "data"
 MAX_RANGE_ROWS = 200
 MAX_RANGE_COLUMNS = 50
 MAX_RANGE_CELLS = 5000
@@ -30,8 +35,8 @@ MAX_SQL_RESULT_ROWS = 500
 EXCEL_MCP_TOOLS = [
     {
         "name": "excel_list_workbooks",
-        "title": "List NAS Excel Workbooks",
-        "description": "List Excel workbooks uploaded to the NAS, including asset IDs and uploader metadata.",
+        "title": "List NAS Spreadsheet Files",
+        "description": "List Excel, CSV, and TSV files uploaded to the NAS, including asset IDs and uploader metadata.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -44,8 +49,8 @@ EXCEL_MCP_TOOLS = [
     },
     {
         "name": "excel_get_workbook_info",
-        "title": "Get Excel Workbook Info",
-        "description": "Read worksheet metadata plus the SQL table and column names used by excel_query_sql.",
+        "title": "Get Spreadsheet Info",
+        "description": "Read Excel/CSV/TSV metadata plus the SQL table and column names used by excel_query_sql.",
         "inputSchema": {
             "type": "object",
             "properties": {"asset_id": {"type": "integer", "minimum": 1}},
@@ -56,8 +61,8 @@ EXCEL_MCP_TOOLS = [
     },
     {
         "name": "excel_read_range",
-        "title": "Read Excel Range",
-        "description": "Read calculated values from a bounded worksheet range such as A1:F50.",
+        "title": "Read Spreadsheet Range",
+        "description": "Read values from a bounded Excel, CSV, or TSV range such as A1:F50.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -79,8 +84,8 @@ EXCEL_MCP_TOOLS = [
     },
     {
         "name": "excel_search_cells",
-        "title": "Search Excel Cells",
-        "description": "Search calculated cell values across one worksheet or the whole workbook.",
+        "title": "Search Spreadsheet Cells",
+        "description": "Search cell values across an Excel workbook or a CSV/TSV file.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -96,8 +101,8 @@ EXCEL_MCP_TOOLS = [
     },
     {
         "name": "excel_profile_sheet",
-        "title": "Profile Excel Worksheet",
-        "description": "Inspect worksheet columns, data types, missing values, distinct values, and numeric statistics.",
+        "title": "Profile Spreadsheet Data",
+        "description": "Inspect Excel/CSV/TSV columns, data types, missing values, distinct values, and numeric statistics.",
         "inputSchema": {
             "type": "object",
             "properties": {
@@ -112,10 +117,11 @@ EXCEL_MCP_TOOLS = [
     },
     {
         "name": "excel_query_sql",
-        "title": "Query Excel with Read-only SQL",
+        "title": "Query Spreadsheets with Read-only SQL",
         "description": (
-            "Load worksheets into an in-memory SQLite database and run one read-only SELECT or WITH query. "
-            "Supports filtering, sorting, grouping, aggregates, and joins without changing the workbook."
+            "Load Excel worksheets or CSV/TSV data into an in-memory SQLite database and run one read-only "
+            "SELECT or WITH query. Supports filtering, sorting, grouping, aggregates, and joins without "
+            "changing the source file."
         ),
         "inputSchema": {
             "type": "object",
@@ -158,8 +164,8 @@ def handle_excel_mcp_request(payload: dict[str, Any]) -> dict[str, Any] | None:
             {
                 "protocolVersion": "2025-06-18",
                 "capabilities": {"tools": {"listChanged": False}},
-                "serverInfo": {"name": "AI Work NAS Excel Read-only MCP", "version": "1.0.0"},
-                "instructions": "Read-only Excel access for NAS-managed workbooks. Files are never modified.",
+                "serverInfo": {"name": "AI Work NAS Excel/CSV Read-only MCP", "version": "1.1.0"},
+                "instructions": "Read-only Excel, CSV, and TSV access for NAS-managed files. Files are never modified.",
             },
         )
     if method == "ping":
@@ -190,28 +196,33 @@ def _call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         return _list_workbooks(str(arguments.get("query") or "").strip(), _bounded_int(arguments.get("limit"), 20, 50))
     if name == "excel_get_workbook_info":
         asset, path = _workbook_asset(arguments)
-        workbook = _open_workbook(path)
-        try:
-            sheets = []
-            used_table_names: set[str] = set()
-            for index, sheet in enumerate(workbook.worksheets, start=1):
-                first_row = next(sheet.iter_rows(min_row=1, max_row=1, values_only=True), ())
-                sheets.append(
-                    {
-                        "name": sheet.title,
-                        "state": sheet.sheet_state,
-                        "max_row": sheet.max_row,
-                        "max_column": sheet.max_column,
-                        "dimension": sheet.calculate_dimension(),
-                        "sql_table_name": _unique_identifier(sheet.title, used_table_names, f"sheet_{index}"),
-                        "sql_columns": _column_names(first_row[:MAX_SQL_COLUMNS]),
-                    }
-                )
-        finally:
-            workbook.close()
+        if _is_delimited(path):
+            sheets = [_delimited_info(path)]
+        else:
+            workbook = _open_workbook(path)
+            try:
+                sheets = []
+                used_table_names: set[str] = set()
+                for index, sheet in enumerate(workbook.worksheets, start=1):
+                    first_row = next(sheet.iter_rows(min_row=1, max_row=1, values_only=True), ())
+                    sheets.append(
+                        {
+                            "name": sheet.title,
+                            "state": sheet.sheet_state,
+                            "max_row": sheet.max_row,
+                            "max_column": sheet.max_column,
+                            "dimension": sheet.calculate_dimension(),
+                            "sql_table_name": _unique_identifier(sheet.title, used_table_names, f"sheet_{index}"),
+                            "sql_columns": _column_names(first_row[:MAX_SQL_COLUMNS]),
+                        }
+                    )
+            finally:
+                workbook.close()
         return {"workbook": _asset_summary(asset), "sheet_count": len(sheets), "sheets": sheets}
     if name == "excel_read_range":
         asset, path = _workbook_asset(arguments)
+        if _is_delimited(path):
+            return {"workbook": _asset_summary(asset), **_read_delimited_range(path, arguments)}
         workbook = _open_workbook(path)
         try:
             sheet = _worksheet(workbook, arguments)
@@ -246,6 +257,12 @@ def _call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         if not query:
             raise ValueError("query is required")
         limit = _bounded_int(arguments.get("max_results"), 20, 50)
+        if _is_delimited(path):
+            return {
+                "workbook": _asset_summary(asset),
+                "query": query,
+                **_search_delimited(path, arguments, query, limit),
+            }
         workbook = _open_workbook(path)
         try:
             requested_sheet = str(arguments.get("sheet_name") or "").strip()
@@ -263,6 +280,15 @@ def _call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         }
     if name == "excel_profile_sheet":
         asset, path = _workbook_asset(arguments)
+        if _is_delimited(path):
+            return {
+                "workbook": _asset_summary(asset),
+                **_profile_delimited(
+                    path,
+                    arguments,
+                    _bounded_int(arguments.get("max_rows"), 1000, MAX_PROFILE_ROWS),
+                ),
+            }
         workbook = _open_workbook(path)
         try:
             sheet = _worksheet(workbook, arguments)
@@ -292,8 +318,8 @@ def _call_tool(name: str, arguments: dict[str, Any]) -> dict[str, Any]:
 
 
 def _list_workbooks(query: str, limit: int) -> dict[str, Any]:
-    suffix_sql = " OR ".join("lower(nas_assets.original_filename) LIKE ?" for _ in EXCEL_SUFFIXES)
-    params: list[Any] = [f"%{suffix}" for suffix in sorted(EXCEL_SUFFIXES)]
+    suffix_sql = " OR ".join("lower(nas_assets.original_filename) LIKE ?" for _ in TABULAR_SUFFIXES)
+    params: list[Any] = [f"%{suffix}" for suffix in sorted(TABULAR_SUFFIXES)]
     query_sql = ""
     if query:
         query_sql = "AND (nas_assets.title LIKE ? OR nas_assets.original_filename LIKE ?)"
@@ -322,16 +348,16 @@ def _workbook_asset(arguments: dict[str, Any]) -> tuple[dict[str, Any], Path]:
         raise ValueError("asset_id is required") from exc
     asset = get_nas_asset(asset_id)
     if not asset:
-        raise ValueError("Excel asset not found")
+        raise ValueError("Spreadsheet asset not found")
     path = Path(str(asset.get("stored_path") or "")).resolve()
-    if path.suffix.lower() not in EXCEL_SUFFIXES:
-        raise ValueError("The selected NAS asset is not an .xlsx or .xlsm workbook")
+    if path.suffix.lower() not in TABULAR_SUFFIXES:
+        raise ValueError("The selected NAS asset is not an .xlsx, .xlsm, .csv, or .tsv file")
     try:
         path.relative_to(NAS_ASSETS_DIR.resolve())
     except ValueError as exc:
-        raise ExcelMcpError("Workbook is outside the managed NAS asset directory") from exc
+        raise ExcelMcpError("Spreadsheet is outside the managed NAS asset directory") from exc
     if not path.is_file():
-        raise ExcelMcpError("Workbook file is missing from NAS storage")
+        raise ExcelMcpError("Spreadsheet file is missing from NAS storage")
     return asset, path
 
 
@@ -340,6 +366,175 @@ def _open_workbook(path: Path):
         return load_workbook(path, read_only=True, data_only=True, keep_links=False)
     except Exception as exc:
         raise ExcelMcpError(f"Unable to read Excel workbook: {exc}") from exc
+
+
+def _is_delimited(path: Path) -> bool:
+    return path.suffix.lower() in DELIMITED_SUFFIXES
+
+
+@contextmanager
+def _open_delimited(path: Path):
+    encoding = _detect_delimited_encoding(path)
+    handle = path.open("r", encoding=encoding, newline="")
+    try:
+        sample = handle.read(65536)
+        handle.seek(0)
+        delimiter = _detect_delimiter(sample, path.suffix.lower())
+        yield csv.reader(handle, delimiter=delimiter), {
+            "encoding": encoding,
+            "delimiter": delimiter,
+            "delimiter_name": "tab" if delimiter == "\t" else delimiter,
+        }
+    finally:
+        handle.close()
+
+
+def _detect_delimited_encoding(path: Path) -> str:
+    with path.open("rb") as handle:
+        sample = handle.read(65536)
+    if sample.startswith((b"\xff\xfe", b"\xfe\xff")):
+        return "utf-16"
+    for encoding in ("utf-8-sig", "cp950"):
+        try:
+            sample.decode(encoding)
+            return encoding
+        except UnicodeDecodeError:
+            continue
+    raise ExcelMcpError("CSV/TSV encoding is not supported; use UTF-8, UTF-16, Big5, or CP950")
+
+
+def _detect_delimiter(sample: str, suffix: str) -> str:
+    fallback = "\t" if suffix == ".tsv" else ","
+    if not sample.strip():
+        return fallback
+    try:
+        return csv.Sniffer().sniff(sample, delimiters=",\t;|").delimiter
+    except csv.Error:
+        return fallback
+
+
+def _require_delimited_sheet(arguments: dict[str, Any], path: Path) -> None:
+    sheet_name = str(arguments.get("sheet_name") or "").strip()
+    allowed = {DELIMITED_SHEET_NAME, path.stem}
+    if sheet_name and sheet_name not in allowed:
+        raise ValueError(f"CSV/TSV has one data sheet named '{DELIMITED_SHEET_NAME}'")
+
+
+def _delimited_info(path: Path) -> dict[str, Any]:
+    with _open_delimited(path) as (reader, metadata):
+        first_row = next(reader, [])
+        max_column = len(first_row)
+        data_rows = 0
+        truncated = False
+        for row in reader:
+            if data_rows >= MAX_SQL_TOTAL_ROWS:
+                truncated = True
+                break
+            data_rows += 1
+            max_column = max(max_column, len(row))
+    max_row = data_rows + (1 if first_row else 0)
+    dimension = "A1"
+    if max_row and max_column:
+        dimension = f"A1:{get_column_letter(max_column)}{max_row}"
+    return {
+        "name": DELIMITED_SHEET_NAME,
+        "state": "visible",
+        "max_row": max_row,
+        "max_column": max_column,
+        "dimension": dimension,
+        "row_count_truncated": truncated,
+        "sql_table_name": _unique_identifier(path.stem, set(), "data"),
+        "sql_columns": _column_names(first_row[:MAX_SQL_COLUMNS]),
+        **metadata,
+    }
+
+
+def _read_delimited_range(path: Path, arguments: dict[str, Any]) -> dict[str, Any]:
+    _require_delimited_sheet(arguments, path)
+    min_column, min_row, max_column, max_row = _delimited_range_bounds(arguments)
+    rows: list[list[Any]] = []
+    with _open_delimited(path) as (reader, metadata):
+        for row_number, row in enumerate(reader, start=1):
+            if row_number < min_row:
+                continue
+            if row_number > max_row:
+                break
+            values = row[min_column - 1:max_column]
+            values.extend([""] * (max_column - min_column + 1 - len(values)))
+            rows.append([_parse_delimited_value(value) for value in values])
+    return {
+        "sheet_name": DELIMITED_SHEET_NAME,
+        "range": f"{get_column_letter(min_column)}{min_row}:{get_column_letter(max_column)}{max_row}",
+        "row_count": len(rows),
+        "column_count": max_column - min_column + 1,
+        "rows": rows,
+        **metadata,
+    }
+
+
+def _delimited_range_bounds(arguments: dict[str, Any]) -> tuple[int, int, int, int]:
+    cell_range = str(arguments.get("cell_range") or "A1").strip().upper()
+    if "!" in cell_range:
+        raise ValueError("Use sheet_name separately from cell_range")
+    try:
+        min_column, min_row, requested_max_column, requested_max_row = range_boundaries(cell_range)
+    except ValueError as exc:
+        raise ValueError("cell_range must use A1 notation, for example A1:F50") from exc
+    max_rows = _bounded_int(arguments.get("max_rows"), 50, MAX_RANGE_ROWS)
+    max_columns = _bounded_int(arguments.get("max_columns"), 20, MAX_RANGE_COLUMNS)
+    if ":" not in cell_range:
+        requested_max_row = min_row + max_rows - 1
+        requested_max_column = min_column + max_columns - 1
+    max_row = min(requested_max_row, min_row + max_rows - 1)
+    max_column = min(requested_max_column, min_column + max_columns - 1)
+    if (max_row - min_row + 1) * (max_column - min_column + 1) > MAX_RANGE_CELLS:
+        raise ValueError(f"Requested range exceeds {MAX_RANGE_CELLS} cells")
+    return min_column, min_row, max_column, max_row
+
+
+def _search_delimited(
+    path: Path,
+    arguments: dict[str, Any],
+    query: str,
+    limit: int,
+) -> dict[str, Any]:
+    _require_delimited_sheet(arguments, path)
+    needle = query.casefold()
+    matches: list[dict[str, Any]] = []
+    scanned = 0
+    truncated = False
+    with _open_delimited(path) as (reader, metadata):
+        for row_number, row in enumerate(reader, start=1):
+            for column_number, value in enumerate(row, start=1):
+                scanned += 1
+                if needle in value.casefold():
+                    matches.append(
+                        {
+                            "sheet_name": DELIMITED_SHEET_NAME,
+                            "cell": f"{get_column_letter(column_number)}{row_number}",
+                            "value": _parse_delimited_value(value),
+                        }
+                    )
+                    if len(matches) >= limit:
+                        return {
+                            "count": len(matches),
+                            "scanned_cells": scanned,
+                            "scan_truncated": True,
+                            "matches": matches,
+                            **metadata,
+                        }
+                if scanned >= MAX_SEARCH_CELLS:
+                    truncated = True
+                    break
+            if truncated:
+                break
+    return {
+        "count": len(matches),
+        "scanned_cells": scanned,
+        "scan_truncated": truncated,
+        "matches": matches,
+        **metadata,
+    }
 
 
 def _worksheet(workbook, arguments: dict[str, Any]):
@@ -393,6 +588,31 @@ def _search_sheets(sheets: list[Any], query: str, limit: int) -> tuple[list[dict
 def _profile_sheet(sheet: Any, max_rows: int) -> dict[str, Any]:
     iterator = sheet.iter_rows(values_only=True)
     first_row = next(iterator, ())
+    return _profile_values(
+        sheet.title,
+        first_row,
+        iterator,
+        max_rows,
+        max(0, sheet.max_row - 1),
+    )
+
+
+def _profile_delimited(path: Path, arguments: dict[str, Any], max_rows: int) -> dict[str, Any]:
+    _require_delimited_sheet(arguments, path)
+    with _open_delimited(path) as (reader, metadata):
+        first_row = next(reader, [])
+        values = ([_parse_delimited_value(value) for value in row] for row in reader)
+        result = _profile_values(DELIMITED_SHEET_NAME, first_row, values, max_rows, None)
+    return {**result, **metadata}
+
+
+def _profile_values(
+    sheet_name: str,
+    first_row: tuple[Any, ...] | list[Any],
+    rows: Any,
+    max_rows: int,
+    worksheet_rows: int | None,
+) -> dict[str, Any]:
     column_count = min(len(first_row), MAX_SQL_COLUMNS)
     columns = _column_names(first_row[:column_count])
     stats = [
@@ -410,8 +630,10 @@ def _profile_sheet(sheet: Any, max_rows: int) -> dict[str, Any]:
         for column in columns
     ]
     scanned_rows = 0
-    for row in iterator:
+    scan_truncated = False
+    for row in rows:
         if scanned_rows >= max_rows:
+            scan_truncated = True
             break
         scanned_rows += 1
         for index, column_stats in enumerate(stats):
@@ -447,10 +669,10 @@ def _profile_sheet(sheet: Any, max_rows: int) -> dict[str, Any]:
             }
         )
     return {
-        "sheet_name": sheet.title,
-        "worksheet_rows": max(0, sheet.max_row - 1),
+        "sheet_name": sheet_name,
+        "worksheet_rows": worksheet_rows,
         "scanned_rows": scanned_rows,
-        "scan_truncated": sheet.max_row - 1 > scanned_rows,
+        "scan_truncated": scan_truncated if worksheet_rows is None else worksheet_rows > scanned_rows,
         "columns": output_columns,
     }
 
@@ -459,12 +681,17 @@ def _query_sql(path: Path, sql: str, sheet_names: list[str] | None, max_rows: in
     if not re.match(r"^(SELECT|WITH)\b", sql, flags=re.IGNORECASE):
         raise ValueError("Only one read-only SELECT or WITH query is allowed")
 
-    workbook = _open_workbook(path)
+    workbook = None
     connection = sqlite3.connect(":memory:")
     connection.row_factory = sqlite3.Row
     try:
-        selected_sheets = _selected_sql_sheets(workbook, sheet_names)
-        table_map, loaded_rows, truncated = _load_sql_tables(connection, selected_sheets)
+        if _is_delimited(path):
+            _validate_delimited_sheet_names(path, sheet_names)
+            table_map, loaded_rows, truncated = _load_delimited_sql_table(connection, path)
+        else:
+            workbook = _open_workbook(path)
+            selected_sheets = _selected_sql_sheets(workbook, sheet_names)
+            table_map, loaded_rows, truncated = _load_sql_tables(connection, selected_sheets)
         connection.set_authorizer(_readonly_sql_authorizer)
         try:
             cursor = connection.execute(sql)
@@ -487,7 +714,59 @@ def _query_sql(path: Path, sql: str, sheet_names: list[str] | None, max_rows: in
         }
     finally:
         connection.close()
-        workbook.close()
+        if workbook is not None:
+            workbook.close()
+
+
+def _validate_delimited_sheet_names(path: Path, sheet_names: list[str] | None) -> None:
+    if not sheet_names:
+        return
+    allowed = {DELIMITED_SHEET_NAME, path.stem}
+    missing = [name for name in sheet_names if name not in allowed]
+    if missing:
+        raise ValueError(f"CSV/TSV has one data sheet named '{DELIMITED_SHEET_NAME}'")
+
+
+def _load_delimited_sql_table(
+    connection: sqlite3.Connection,
+    path: Path,
+) -> tuple[list[dict[str, Any]], int, bool]:
+    table_name = _unique_identifier(path.stem, set(), "data")
+    with _open_delimited(path) as (reader, metadata):
+        first_row = next(reader, [])
+        column_count = min(len(first_row), MAX_SQL_COLUMNS)
+        if not column_count:
+            return ([{
+                "sheet_name": DELIMITED_SHEET_NAME,
+                "table_name": table_name,
+                "columns": [],
+                "rows": 0,
+                **metadata,
+            }], 0, False)
+        columns = _column_names(first_row[:column_count])
+        quoted_columns = ", ".join(f'"{_quote_identifier(column)}"' for column in columns)
+        connection.execute(f'CREATE TABLE "{_quote_identifier(table_name)}" ({quoted_columns})')
+        placeholders = ", ".join("?" for _ in columns)
+        insert_sql = f'INSERT INTO "{_quote_identifier(table_name)}" VALUES ({placeholders})'
+        loaded_rows = 0
+        truncated = False
+        for row in reader:
+            if loaded_rows >= MAX_SQL_TOTAL_ROWS:
+                truncated = True
+                break
+            values = [
+                _parse_delimited_value(row[column]) if column < len(row) else None
+                for column in range(column_count)
+            ]
+            connection.execute(insert_sql, values)
+            loaded_rows += 1
+    return ([{
+        "sheet_name": DELIMITED_SHEET_NAME,
+        "table_name": table_name,
+        "columns": columns,
+        "rows": loaded_rows,
+        **metadata,
+    }], loaded_rows, truncated)
 
 
 def _selected_sql_sheets(workbook: Any, sheet_names: list[str] | None) -> list[Any]:
@@ -563,6 +842,23 @@ def _unique_identifier(value: str, used: set[str], fallback: str) -> str:
 
 def _quote_identifier(value: str) -> str:
     return value.replace('"', '""')
+
+
+def _parse_delimited_value(value: str) -> Any:
+    normalized = value.strip()
+    if not normalized:
+        return None
+    if re.fullmatch(r"[-+]?(?:0|[1-9]\d*)", normalized):
+        try:
+            return int(normalized)
+        except ValueError:
+            pass
+    if re.fullmatch(r"[-+]?(?:\d+\.\d*|\.\d+)(?:[eE][-+]?\d+)?", normalized):
+        try:
+            return float(normalized)
+        except ValueError:
+            pass
+    return normalized
 
 
 def _sqlite_value(value: Any) -> Any:

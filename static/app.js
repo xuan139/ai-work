@@ -201,7 +201,7 @@ const messages = {
       categories: {
         nas: { title: "NAS 與知識資料", copy: "存取 NAS 檔案、企業文件與內部知識庫。" },
         office: { title: "辦公與通訊", copy: "電子郵件、Google Workspace、行事曆與團隊訊息。" },
-        spreadsheet: { title: "試算表與 Excel", copy: "分析 NAS Excel、Google Sheets 與 Microsoft 365 活頁簿。" },
+        spreadsheet: { title: "試算表與 Excel", copy: "分析 NAS Excel、CSV、TSV、Google Sheets 與 Microsoft 365 活頁簿。" },
         finance: { title: "財務會計與 ERP", copy: "會計、付款、發票、財務報表與企業資源管理。" },
         project: { title: "專案管理與協作", copy: "專案、任務、Issue、里程碑與跨部門協作。" },
         technical: { title: "開發、雲端與資料庫", copy: "程式碼、部署、雲端基礎設施與資料庫工具。" },
@@ -301,7 +301,7 @@ const messages = {
       },
       upload: {
         title: "NAS 上傳",
-        copy: "上傳 audio、video、PDF、DOCX 等資料，NAS 收件後進入所選 ASR、影片分析或 RAG 流程。",
+        copy: "上傳 audio、video、文件與試算表，NAS 收件後進入 ASR、影片分析、RAG 或 SQL 查詢流程。",
       },
       meetings: {
         title: "資料庫查詢",
@@ -397,7 +397,7 @@ const messages = {
     upload: {
       eyebrow: "NAS 收件",
       title: "上傳 NAS 資料",
-      copy: "支援 audio、video、圖片、PDF、DOCX 與一般文件。NAS 收到圖片後會執行 OCR、建立向量與可追溯原圖的 RAG 索引。",
+      copy: "支援 audio、video、圖片、PDF、DOCX、Excel、CSV 與 TSV。試算表可透過 NAS Excel SQL MCP 查詢與分析。",
       fileLabel: "選擇檔案",
       titleLabel: "資料名稱",
       titlePlaceholder: "例如：董事會錄音、產品簡報 PDF",
@@ -1021,7 +1021,7 @@ const messages = {
       categories: {
         nas: { title: "NAS and Knowledge", copy: "Access NAS files, company documents, and internal knowledge bases." },
         office: { title: "Office and Communication", copy: "Email, Google Workspace, calendars, and team messaging." },
-        spreadsheet: { title: "Spreadsheets and Excel", copy: "Analyze NAS Excel, Google Sheets, and Microsoft 365 workbooks." },
+        spreadsheet: { title: "Spreadsheets and Excel", copy: "Analyze NAS Excel, CSV, TSV, Google Sheets, and Microsoft 365 workbooks." },
         finance: { title: "Accounting and ERP", copy: "Accounting, payments, invoices, financial reports, and enterprise resource planning." },
         project: { title: "Project Management and Collaboration", copy: "Projects, tasks, issues, milestones, and cross-team collaboration." },
         technical: { title: "Development, Cloud, and Databases", copy: "Code, deployments, cloud infrastructure, and database tools." },
@@ -1121,7 +1121,7 @@ const messages = {
       },
       upload: {
         title: "NAS Upload",
-        copy: "Upload audio, video, PDF, DOCX, and other assets into the selected ASR, video analysis, or RAG workflow.",
+        copy: "Upload audio, video, documents, and spreadsheets into ASR, video analysis, RAG, or SQL query workflows.",
       },
       meetings: {
         title: "Knowledge Search",
@@ -1217,7 +1217,7 @@ const messages = {
     upload: {
       eyebrow: "NAS Intake",
       title: "Upload NAS Assets",
-      copy: "Supports audio, video, images, PDF, DOCX, and general files. Images are OCR processed, embedded, and indexed for RAG with traceable source previews.",
+      copy: "Supports audio, video, images, PDF, DOCX, Excel, CSV, and TSV. Spreadsheet data can be queried through the NAS Excel SQL MCP.",
       fileLabel: "File",
       titleLabel: "Asset Name",
       titlePlaceholder: "Example: board audio, product PDF",

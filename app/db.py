@@ -18,8 +18,8 @@ MCP_CATALOG_TEMPLATES = (
         "slug": "nas-excel", "name": "NAS Excel SQL", "transport": "streamable_http",
         "endpoint": "http://127.0.0.1:8000/mcp/excel", "auth_type": "bearer",
         "auth_env_var": "NAS_EXCEL_LOCAL_MCP_KEY",
-        "description": "Ubuntu/NAS 內建 Excel 唯讀 MCP，可檢視、搜尋、統計及以 SELECT SQL 查詢使用者上傳的 XLSX/XLSM，不需安裝 Excel。",
-        "description_en": "Built-in Ubuntu/NAS read-only Excel MCP for inspecting, searching, profiling, and querying uploaded XLSX/XLSM files with SELECT SQL. Microsoft Excel is not required.",
+        "description": "Ubuntu/NAS 內建試算表唯讀 MCP，可檢視、搜尋、統計及以 SELECT SQL 查詢使用者上傳的 XLSX、XLSM、CSV 與 TSV，不需安裝 Excel。",
+        "description_en": "Built-in Ubuntu/NAS read-only spreadsheet MCP for inspecting, searching, profiling, and querying uploaded XLSX, XLSM, CSV, and TSV files with SELECT SQL. Microsoft Excel is not required.",
         "source_url": "https://openpyxl.readthedocs.io/en/stable/", "is_enabled": False,
     },
     {
@@ -739,6 +739,16 @@ def seed_admin(password_hash: str) -> None:
                 updated_at = CURRENT_TIMESTAMP
             WHERE slug = 'gmail'
               AND endpoint = 'https://gmailmcp.googleapis.com/mcp/v1'
+            """
+        )
+        conn.execute(
+            """
+            UPDATE mcp_servers
+            SET description = 'Ubuntu/NAS 內建試算表唯讀 MCP，可檢視、搜尋、統計及以 SELECT SQL 查詢使用者上傳的 XLSX、XLSM、CSV 與 TSV，不需安裝 Excel。',
+                description_en = 'Built-in Ubuntu/NAS read-only spreadsheet MCP for inspecting, searching, profiling, and querying uploaded XLSX, XLSM, CSV, and TSV files with SELECT SQL. Microsoft Excel is not required.',
+                updated_at = CURRENT_TIMESTAMP
+            WHERE slug = 'nas-excel'
+              AND description = 'Ubuntu/NAS 內建 Excel 唯讀 MCP，可檢視、搜尋、統計及以 SELECT SQL 查詢使用者上傳的 XLSX/XLSM，不需安裝 Excel。'
             """
         )
         conn.execute(

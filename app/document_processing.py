@@ -24,7 +24,7 @@ AUDIO_SUFFIXES = {".wav", ".mp3", ".m4a", ".webm", ".ogg", ".flac", ".aac"}
 VIDEO_SUFFIXES = {".mp4", ".mov", ".mkv", ".avi", ".webm", ".m4v"}
 PDF_SUFFIXES = {".pdf"}
 DOCX_SUFFIXES = {".docx"}
-EXCEL_SUFFIXES = {".xlsx", ".xlsm", ".xltx", ".xltm"}
+SPREADSHEET_SUFFIXES = {".xlsx", ".xlsm", ".xltx", ".xltm", ".csv", ".tsv"}
 IMAGE_SUFFIXES = {".jpg", ".jpeg", ".png", ".webp", ".tif", ".tiff", ".bmp"}
 PDF_RENDER_SCALE = 2.0
 
@@ -40,7 +40,11 @@ def classify_asset(path: Path, mime_type: str | None = None) -> str:
         return "pdf"
     if suffix in DOCX_SUFFIXES or "wordprocessingml.document" in mime:
         return "docx"
-    if suffix in EXCEL_SUFFIXES or "spreadsheetml" in mime:
+    if (
+        suffix in SPREADSHEET_SUFFIXES
+        or "spreadsheetml" in mime
+        or mime in {"text/csv", "text/tab-separated-values"}
+    ):
         return "excel"
     if suffix in IMAGE_SUFFIXES or mime.startswith("image/"):
         return "image"
@@ -111,8 +115,8 @@ async def process_nas_asset(
                 status="completed",
                 analyzer="NAS Excel MCP",
                 summary=(
-                    "Excel 活頁簿已保存至 NAS，可由 NAS Excel MCP 進行工作表檢視、搜尋、"
-                    "欄位統計及唯讀 SQL 查詢；原始檔不會被修改。"
+                    "試算表已保存至 NAS，可由 NAS Excel MCP 進行工作表檢視、搜尋、欄位統計"
+                    "及唯讀 SQL 查詢；支援 Excel、CSV 與 TSV，原始檔不會被修改。"
                 ),
                 chunk_count=0,
             )

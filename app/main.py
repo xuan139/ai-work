@@ -463,7 +463,7 @@ async def google_drive_mcp(request: Request, payload: dict) -> Response:
 @app.get("/mcp/excel")
 async def excel_mcp_info() -> dict:
     return {
-        "name": "AI Work NAS Excel SQL MCP",
+        "name": "AI Work NAS Excel/CSV SQL MCP",
         "transport": "streamable_http",
         "endpoint": "/mcp/excel",
         "protocol_version": "2025-06-18",

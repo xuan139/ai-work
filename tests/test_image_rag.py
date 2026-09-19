@@ -22,6 +22,11 @@ class ImageRagTests(unittest.TestCase):
             "excel",
         )
 
+    def test_classifies_csv_and_tsv_as_spreadsheets(self) -> None:
+        self.assertEqual(classify_asset(Path("sales.csv")), "excel")
+        self.assertEqual(classify_asset(Path("inventory.tsv")), "excel")
+        self.assertEqual(classify_asset(Path("upload.bin"), "text/csv"), "excel")
+
     @patch("app.document_processing.run_paddle_ocr", return_value="NAS 維護報告\n磁碟狀態正常")
     @patch("app.document_processing.paddle_ocr_engine", return_value=object())
     def test_builds_image_ocr_chunks_with_source_preview(self, _engine, _ocr) -> None:
