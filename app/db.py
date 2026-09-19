@@ -22,11 +22,11 @@ MCP_CATALOG_TEMPLATES = (
         "source_url": "https://developers.google.com/workspace/gmail/api/guides", "is_enabled": False,
     },
     {
-        "slug": "google-drive", "name": "Google Drive", "transport": "streamable_http",
-        "endpoint": "https://drivemcp.googleapis.com/mcp/v1", "auth_type": "oauth2", "auth_env_var": "GOOGLE_DRIVE_MCP_TOKEN",
-        "description": "Google Drive 官方遠端 MCP（Developer Preview），支援搜尋、讀取、建立與下載檔案。",
-        "description_en": "Official Google Drive remote MCP (Developer Preview) for file search, reading, creation, and download.",
-        "source_url": "https://developers.google.com/workspace/drive/api/guides/configure-mcp-server", "is_enabled": False,
+        "slug": "google-drive", "name": "Google Drive Read-only", "transport": "streamable_http",
+        "endpoint": "http://127.0.0.1:8000/mcp/google-drive", "auth_type": "bearer", "auth_env_var": "GOOGLE_DRIVE_LOCAL_MCP_KEY",
+        "description": "AI Work 受保護的 Google Drive 唯讀 MCP，透過正式 Drive API 搜尋、列出及讀取檔案。",
+        "description_en": "Protected AI Work read-only Google Drive MCP backed by the stable Drive API for file listing, search, metadata, and text reads.",
+        "source_url": "https://developers.google.com/drive/api/guides/about-sdk", "is_enabled": False,
     },
     {
         "slug": "google-docs", "name": "Google Docs", "transport": "streamable_http",
@@ -675,6 +675,27 @@ def seed_admin(password_hash: str) -> None:
                 last_checked_at = NULL,
                 updated_at = CURRENT_TIMESTAMP
             WHERE slug = 'linear' AND endpoint = 'https://mcp.linear.app/mcp'
+            """
+        )
+        conn.execute(
+            """
+            UPDATE mcp_servers
+            SET name = 'Google Drive Read-only',
+                description = 'AI Work 受保護的 Google Drive 唯讀 MCP，透過正式 Drive API 搜尋、列出及讀取檔案。',
+                description_en = 'Protected AI Work read-only Google Drive MCP backed by the stable Drive API for file listing, search, metadata, and text reads.',
+                endpoint = 'http://127.0.0.1:8000/mcp/google-drive',
+                source_url = 'https://developers.google.com/drive/api/guides/about-sdk',
+                auth_type = 'bearer',
+                auth_env_var = 'GOOGLE_DRIVE_LOCAL_MCP_KEY',
+                status = 'unchecked',
+                protocol_version = NULL,
+                tools_json = NULL,
+                tool_count = 0,
+                last_error = NULL,
+                last_checked_at = NULL,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE slug = 'google-drive'
+              AND endpoint = 'https://drivemcp.googleapis.com/mcp/v1'
             """
         )
         conn.execute(

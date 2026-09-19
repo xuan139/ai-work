@@ -91,6 +91,7 @@ from app.embedding_runtime import (
 from app.llm_catalog import PRICING_UPDATED_AT, get_model, model_summary, provider_summary
 from app.llm_cache import lookup_llm_cache, normalize_llm_prompt, store_llm_cache, suggest_llm_prompts
 from app.llm_runtime import LlmRuntimeError, company_api_key_for_model, run_llm
+from app.drive_mcp import DRIVE_MCP_TOOLS, handle_drive_mcp_request
 from app.gmail_mcp import GMAIL_MCP_TOOLS, handle_gmail_mcp_request
 from app.line_service import LineServiceError, list_line_groups
 from app.local_model_manager import (
@@ -305,6 +306,29 @@ async def lifespan(app: FastAPI):
             tool_count=len(GMAIL_MCP_TOOLS),
             last_error=None,
         )
+    drive_server = next((item for item in list_mcp_servers() if item.get("slug") == "google-drive"), None)
+    if (
+        drive_server
+        and drive_server.get("is_enabled")
+        and drive_server.get("endpoint") == "http://127.0.0.1:8000/mcp/google-drive"
+        and mcp_auth_configured(drive_server)
+        and all(
+            os.getenv(name)
+            for name in (
+                "GOOGLE_DRIVE_MCP_CLIENT_ID",
+                "GOOGLE_DRIVE_MCP_CLIENT_SECRET",
+                "GOOGLE_DRIVE_MCP_REFRESH_TOKEN",
+            )
+        )
+    ):
+        update_mcp_server_sync(
+            drive_server["id"],
+            status="connected",
+            protocol_version="2025-06-18",
+            tools_json=json.dumps(DRIVE_MCP_TOOLS, ensure_ascii=False),
+            tool_count=len(DRIVE_MCP_TOOLS),
+            last_error=None,
+        )
     await start_media_workers()
     tasks = [
         asyncio.create_task(nas_discovery_loop(BASE_DIR)),
@@ -385,6 +409,36 @@ async def gmail_mcp(request: Request, payload: dict) -> Response:
     except McpConnectionError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     result = await asyncio.to_thread(handle_gmail_mcp_request, payload, token)
+    if result is None:
+        return Response(status_code=204)
+    return JSONResponse(result)
+
+
+@app.get("/mcp/google-drive")
+async def google_drive_mcp_info() -> dict:
+    return {
+        "name": "AI Work Google Drive Read-only MCP",
+        "transport": "streamable_http",
+        "endpoint": "/mcp/google-drive",
+        "protocol_version": "2025-06-18",
+        "read_only": True,
+        "tools": [tool["name"] for tool in DRIVE_MCP_TOOLS],
+    }
+
+
+@app.post("/mcp/google-drive")
+async def google_drive_mcp(request: Request, payload: dict) -> Response:
+    expected_key = os.getenv("GOOGLE_DRIVE_LOCAL_MCP_KEY", "")
+    supplied = request.headers.get("authorization", "")
+    if not expected_key:
+        raise HTTPException(status_code=503, detail="Google Drive MCP 尚未設定內部存取金鑰")
+    if not hmac.compare_digest(supplied, f"Bearer {expected_key}"):
+        raise HTTPException(status_code=401, detail="Google Drive MCP authorization failed")
+    try:
+        token = await asyncio.to_thread(oauth_access_token, "GOOGLE_DRIVE_MCP_TOKEN")
+    except McpConnectionError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    result = await asyncio.to_thread(handle_drive_mcp_request, payload, token)
     if result is None:
         return Response(status_code=204)
     return JSONResponse(result)

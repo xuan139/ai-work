@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from app import db, main
 from app.auth import hash_password
+from app.drive_mcp import handle_drive_mcp_request
 from app.gmail_mcp import handle_gmail_mcp_request
 from app.mcp_runtime import (
     call_streamable_http_tool,
@@ -43,6 +44,10 @@ class McpRegistryTests(unittest.TestCase):
         self.assertEqual(gmail["endpoint"], "http://127.0.0.1:8000/mcp/gmail")
         self.assertEqual(gmail["auth_type"], "bearer")
         self.assertEqual(gmail["auth_env_var"], "GMAIL_LOCAL_MCP_KEY")
+        drive = next(server for server in servers if server["slug"] == "google-drive")
+        self.assertEqual(drive["endpoint"], "http://127.0.0.1:8000/mcp/google-drive")
+        self.assertEqual(drive["auth_type"], "bearer")
+        self.assertEqual(drive["auth_env_var"], "GOOGLE_DRIVE_LOCAL_MCP_KEY")
         monday = next(server for server in servers if server["slug"] == "monday")
         self.assertEqual(monday["endpoint"], "https://mcp.monday.com/mcp")
         self.assertEqual(monday["auth_type"], "bearer")
@@ -281,6 +286,32 @@ class McpRegistryTests(unittest.TestCase):
             )
         self.assertEqual(called["result"]["structuredContent"]["subject"], "Status")
         self.assertEqual(called["result"]["structuredContent"]["text"], "Test message")
+
+    def test_drive_mcp_lists_read_only_tools_and_reads_metadata(self) -> None:
+        listed = handle_drive_mcp_request(
+            {"jsonrpc": "2.0", "id": 1, "method": "tools/list"},
+            "access-token",
+        )
+        self.assertEqual(len(listed["result"]["tools"]), 4)
+        self.assertTrue(all(tool["annotations"]["readOnlyHint"] for tool in listed["result"]["tools"]))
+        response = {
+            "id": "file-1",
+            "name": "Plan",
+            "mimeType": "application/vnd.google-apps.document",
+            "modifiedTime": "2026-09-19T01:00:00Z",
+        }
+        with patch("app.drive_mcp._drive_json_request", return_value=response):
+            called = handle_drive_mcp_request(
+                {
+                    "jsonrpc": "2.0",
+                    "id": 2,
+                    "method": "tools/call",
+                    "params": {"name": "drive_get_file_metadata", "arguments": {"file_id": "file-1"}},
+                },
+                "access-token",
+            )
+        self.assertEqual(called["result"]["structuredContent"]["file_id"], "file-1")
+        self.assertEqual(called["result"]["structuredContent"]["name"], "Plan")
 
 
 if __name__ == "__main__":
