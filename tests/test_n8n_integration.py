@@ -98,6 +98,20 @@ class N8nIntegrationTests(unittest.TestCase):
             result = asyncio.run(main.n8n_push_result(payload, None))
         self.assertEqual(result, {"status": "skipped", "reason": "no_approved_line_group"})
 
+    def test_n8n_callback_records_line_failure_without_failing_execution(self) -> None:
+        payload = {"event": "nas.asset.completed", "asset_id": 21, "category": "audio"}
+        groups = [
+            {"source_id": "stale", "source_type": "group", "is_approved": 1, "display_name": "Old"},
+        ]
+        with (
+            patch.object(main, "list_line_sources", return_value=groups),
+            patch.object(main, "get_meeting_by_nas_asset_id", return_value=None),
+            patch.object(main, "push_line_messages", new=AsyncMock(side_effect=main.LineServiceError("Unknown LINE group"))),
+        ):
+            result = asyncio.run(main.n8n_push_result(payload, None))
+        self.assertEqual(result["status"], "skipped")
+        self.assertEqual(result["reason"], "line_push_failed")
+
     def test_compose_is_pinned_and_loopback_only(self) -> None:
         compose = (ROOT / "deploy" / "n8n" / "compose.yml").read_text(encoding="utf-8")
         self.assertIn("docker.n8n.io/n8nio/n8n:2.39.8", compose)

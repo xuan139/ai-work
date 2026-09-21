@@ -2325,11 +2325,9 @@ async def n8n_push_result(payload: dict, _: None = Depends(require_n8n_integrati
         if source["source_type"] == "group" and bool(source["is_approved"])
     ]
     configured_group_id = os.getenv("N8N_LINE_GROUP_ID", "").strip()
-    group = next(
-        (source for source in approved_groups if source["source_id"] == configured_group_id),
-        approved_groups[0] if approved_groups and not configured_group_id else None,
-    )
-    if not group:
+    if configured_group_id:
+        approved_groups = [source for source in approved_groups if source["source_id"] == configured_group_id]
+    if not approved_groups:
         return {"status": "skipped", "reason": "no_approved_line_group"}
 
     category_label = "音訊" if payload.get("category") == "audio" else "PDF"
@@ -2346,15 +2344,19 @@ async def n8n_push_result(payload: dict, _: None = Depends(require_n8n_integrati
             f"NAS 資產：{public_url}/#asset-{asset_id}",
         ]
     )
-    try:
-        await push_line_messages(group["source_id"], [message[:4500]])
-    except LineServiceError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
-    return {
-        "status": "pushed",
-        "group_id": group["source_id"],
-        "group_name": group.get("display_name"),
-    }
+    last_error = "LINE push failed"
+    for group in approved_groups:
+        try:
+            await push_line_messages(group["source_id"], [message[:4500]])
+        except LineServiceError as exc:
+            last_error = str(exc)
+            continue
+        return {
+            "status": "pushed",
+            "group_id": group["source_id"],
+            "group_name": group.get("display_name"),
+        }
+    return {"status": "skipped", "reason": "line_push_failed", "error": last_error}
 
 
 def line_integration_owner() -> dict:
