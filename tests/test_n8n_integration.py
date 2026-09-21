@@ -1,4 +1,5 @@
 import asyncio
+import json
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -44,6 +45,11 @@ class N8nIntegrationTests(unittest.TestCase):
         compose = (ROOT / "deploy" / "n8n" / "compose.yml").read_text(encoding="utf-8")
         self.assertIn("docker.n8n.io/n8nio/n8n:2.39.8", compose)
         self.assertIn('"127.0.0.1:5678:5678"', compose)
+
+        workflow = json.loads(
+            (ROOT / "deploy/n8n/bootstrap/ai-work-nas-test.json").read_text(encoding="utf-8")
+        )
+        self.assertTrue(workflow["id"])
         self.assertIn("N8N_PATH: /n8n/", compose)
 
 
