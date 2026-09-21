@@ -111,7 +111,7 @@
           "parameters": [
             {
               "name": "X-AI-Work-N8N-Token",
-              "value": "={{ $env.AI_WORK_N8N_TOKEN }}"
+              "value": "__AI_WORK_N8N_TOKEN__"
             }
           ]
         },

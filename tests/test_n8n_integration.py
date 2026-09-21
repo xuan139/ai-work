@@ -111,6 +111,7 @@ class N8nIntegrationTests(unittest.TestCase):
         self.assertTrue(workflow["id"])
         self.assertEqual(workflow["nodes"][0]["parameters"]["path"], "ai-work-nas-asset-completed")
         self.assertIn("/api/internal/n8n/push-result", json.dumps(workflow))
+        self.assertIn("__AI_WORK_N8N_TOKEN__", json.dumps(workflow))
         self.assertIn("N8N_PATH: /n8n/", compose)
 
         nginx = (ROOT / "deploy" / "n8n" / "nginx-location.conf").read_text(encoding="utf-8")
