@@ -11,7 +11,7 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png" />
     <link rel="apple-touch-icon" href="/static/icons/icon-192.png" />
-    <link rel="stylesheet" href="/static/styles.css?v=n8n-automation-v1" />
+    <link rel="stylesheet" href="/static/styles.css?v=n8n-nas-demo-v1" />
   </head>
   <body>
     <div id="globalBusyIndicator" class="global-busy-indicator" role="status" aria-live="polite" hidden>
@@ -847,14 +847,15 @@
             <div class="n8n-workflow-heading">
               <div>
                 <p class="eyebrow" data-i18n="n8n.trialEyebrow">已匯入範例</p>
-                <h3 id="n8nWorkflowName">AI Work NAS 測試流程</h3>
+                <h3 id="n8nWorkflowName">AI Work NAS 處理完成通知 Demo</h3>
               </div>
-              <span class="n8n-trial-badge" data-i18n="n8n.manualTest">手動測試</span>
+              <span class="n8n-trial-badge" data-i18n="n8n.manualTest">自動觸發</span>
             </div>
-            <div class="n8n-flow-preview" aria-label="n8n 測試流程" data-i18n-attr="aria-label:n8n.flowLabel">
-              <article><span>01</span><div><strong data-i18n="n8n.step1Title">手動啟動</strong><p data-i18n="n8n.step1Copy">在 n8n 編輯器按下 Execute workflow。</p></div></article>
-              <article><span>02</span><div><strong data-i18n="n8n.step2Title">建立測試結果</strong><p data-i18n="n8n.step2Copy">產生 AI Work 與 NAS 自動化連線成功訊息。</p></div></article>
-              <article><span>03</span><div><strong data-i18n="n8n.step3Title">查看執行資料</strong><p data-i18n="n8n.step3Copy">確認輸出與 Execution 記錄已保存。</p></div></article>
+            <div class="n8n-flow-preview" aria-label="n8n NAS 自動處理流程" data-i18n-attr="aria-label:n8n.flowLabel">
+              <article><span>01</span><div><strong data-i18n="n8n.step1Title">上傳至 NAS</strong><p data-i18n="n8n.step1Copy">上傳音訊或 PDF，不需進入 n8n 手動啟動。</p></div></article>
+              <article><span>02</span><div><strong data-i18n="n8n.step2Title">完成模型處理</strong><p data-i18n="n8n.step2Copy">音訊完成 ASR；PDF 完成文字抽取、OCR 與 RAG 建庫。</p></div></article>
+              <article><span>03</span><div><strong data-i18n="n8n.step3Title">建立 Execution</strong><p data-i18n="n8n.step3Copy">NAS 送出事件，n8n 保存每次執行的輸入與回傳結果。</p></div></article>
+              <article><span>04</span><div><strong data-i18n="n8n.step4Title">推送企業 LINE</strong><p data-i18n="n8n.step4Copy">將摘要或逐字稿預覽推送到已核准的企業群組。</p></div></article>
             </div>
             <div id="n8nNotice" class="n8n-notice" role="status"></div>
           </section>
@@ -1145,6 +1146,6 @@
       </section>
     </div>
 
-    <script src="/static/app.js?v=n8n-automation-v1"></script>
+    <script src="/static/app.js?v=n8n-nas-demo-v1"></script>
   </body>
 </html>

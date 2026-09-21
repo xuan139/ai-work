@@ -96,7 +96,7 @@ from app.llm_runtime import LlmRuntimeError, company_api_key_for_model, run_llm
 from app.drive_mcp import DRIVE_MCP_TOOLS, handle_drive_mcp_request
 from app.excel_mcp import EXCEL_MCP_TOOLS, handle_excel_mcp_request
 from app.gmail_mcp import GMAIL_MCP_TOOLS, handle_gmail_mcp_request
-from app.line_service import LineServiceError, list_line_groups
+from app.line_service import LineServiceError, list_line_groups, push_line_messages
 from app.local_model_manager import (
     cancel_download,
     download_in_progress,
@@ -2299,6 +2299,62 @@ def require_line_integration(x_ai_work_token: str | None = Header(default=None))
         raise HTTPException(status_code=503, detail="LINE integration is not configured")
     if not x_ai_work_token or not secrets.compare_digest(x_ai_work_token, expected):
         raise HTTPException(status_code=401, detail="Invalid LINE integration token")
+
+
+def require_n8n_integration(x_ai_work_n8n_token: str | None = Header(default=None)) -> None:
+    expected = os.getenv("N8N_WEBHOOK_TOKEN", "")
+    if not expected:
+        raise HTTPException(status_code=503, detail="n8n integration token is not configured")
+    if not x_ai_work_n8n_token or not secrets.compare_digest(x_ai_work_n8n_token, expected):
+        raise HTTPException(status_code=401, detail="Invalid n8n integration token")
+
+
+@app.post("/api/internal/n8n/push-result")
+async def n8n_push_result(payload: dict, _: None = Depends(require_n8n_integration)) -> dict:
+    if payload.get("event") != "nas.asset.completed":
+        raise HTTPException(status_code=400, detail="Unsupported n8n event")
+
+    asset_id = int(payload.get("asset_id") or 0)
+    meeting = get_meeting_by_nas_asset_id(asset_id) if asset_id else None
+    if meeting and meeting.get("line_push_enabled"):
+        return {"status": "delegated", "reason": "meeting_line_push_enabled"}
+
+    approved_groups = [
+        source
+        for source in list_line_sources()
+        if source["source_type"] == "group" and bool(source["is_approved"])
+    ]
+    configured_group_id = os.getenv("N8N_LINE_GROUP_ID", "").strip()
+    group = next(
+        (source for source in approved_groups if source["source_id"] == configured_group_id),
+        approved_groups[0] if approved_groups and not configured_group_id else None,
+    )
+    if not group:
+        return {"status": "skipped", "reason": "no_approved_line_group"}
+
+    category_label = "音訊" if payload.get("category") == "audio" else "PDF"
+    public_url = os.getenv("AI_WORK_PUBLIC_URL", "https://goldsys.io").rstrip("/")
+    preview = str(payload.get("result_preview") or payload.get("summary") or "處理已完成").strip()
+    message = "\n".join(
+        [
+            "AI Work NAS 自動處理完成",
+            f"類型：{category_label}",
+            f"檔案：{payload.get('title') or payload.get('filename') or '未命名'}",
+            f"處理模型：{payload.get('analyzer') or 'NAS 預設模型'}",
+            f"上傳者：{payload.get('uploader') or '未知'}",
+            f"結果：{preview[:3200]}",
+            f"NAS 資產：{public_url}/#asset-{asset_id}",
+        ]
+    )
+    try:
+        await push_line_messages(group["source_id"], [message[:4500]])
+    except LineServiceError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    return {
+        "status": "pushed",
+        "group_id": group["source_id"],
+        "group_name": group.get("display_name"),
+    }
 
 
 def line_integration_owner() -> dict:

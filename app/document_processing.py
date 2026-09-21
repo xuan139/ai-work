@@ -11,10 +11,11 @@ from typing import Any
 from app.asr_catalog import get_asr_model
 from app.asr_runtime import AsrRuntimeError
 from app.asr_service import run_segmented_asr_with_audit
-from app.db import get_nas_asset, replace_document_chunks, update_nas_asset
+from app.db import get_nas_asset, list_document_chunks, replace_document_chunks, update_nas_asset
 from app.embedding_runtime import attach_embeddings
 from app.llm_runtime import LlmRuntimeError
 from app.notifications import manager
+from app.n8n_service import notify_n8n_asset_completed
 from app.translation_service import translate_transcript_with_audit
 from app.video_catalog import get_video_model
 from app.video_runtime import VideoRuntimeError, analyze_segmented_video, build_video_detection_chunks
@@ -129,6 +130,8 @@ async def process_nas_asset(
                 chunk_count=0,
             )
         await _notify(asset, updated, "nas_asset_processed")
+        if updated and updated.get("status") == "completed":
+            await notify_n8n_asset_completed(updated, list_document_chunks(asset_id))
     except Exception as exc:
         updated = update_nas_asset(
             asset_id,

@@ -18,6 +18,7 @@ from app.embedding_runtime import attach_embeddings
 from app.llm_runtime import LlmRuntimeError
 from app.meeting_line import push_completed_meeting_to_line
 from app.notifications import manager
+from app.n8n_service import notify_n8n_asset_completed
 from app.translation_service import translate_transcript_with_audit
 
 
@@ -185,6 +186,7 @@ async def update_linked_asset(
                 "asset": asset,
             }
         )
+        await notify_n8n_asset_completed(asset, chunks)
 
 
 async def fail_linked_asset(meeting: dict[str, Any], model: dict[str, Any], status: str, error: str) -> None:

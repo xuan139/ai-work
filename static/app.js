@@ -176,15 +176,17 @@ const messages = {
       adminOnly: "只限管理員",
       latencyLabel: "服務回應",
       trialEyebrow: "已匯入範例",
-      manualTest: "手動測試",
-      flowLabel: "n8n 測試流程",
-      step1Title: "手動啟動",
-      step1Copy: "在 n8n 編輯器按下 Execute workflow。",
-      step2Title: "建立測試結果",
-      step2Copy: "產生 AI Work 與 NAS 自動化連線成功訊息。",
-      step3Title: "查看執行資料",
-      step3Copy: "確認輸出與 Execution 記錄已保存。",
-      readyNotice: "服務已就緒。開啟 n8n 後即可執行已匯入的測試流程。",
+      manualTest: "自動觸發",
+      flowLabel: "n8n NAS 自動處理流程",
+      step1Title: "上傳至 NAS",
+      step1Copy: "上傳音訊或 PDF，不需進入 n8n 手動啟動。",
+      step2Title: "完成模型處理",
+      step2Copy: "音訊完成 ASR；PDF 完成文字抽取、OCR 與 RAG 建庫。",
+      step3Title: "建立 Execution",
+      step3Copy: "NAS 送出事件，n8n 保存每次執行的輸入與回傳結果。",
+      step4Title: "推送企業 LINE",
+      step4Copy: "將摘要或逐字稿預覽推送到已核准的企業群組。",
+      readyNotice: "服務已就緒。上傳音訊或 PDF，處理完成後可在 n8n Executions 查看整條流程。",
       unavailableNotice: "n8n 服務目前無法連線，請重新檢查或查看伺服器狀態。",
     },
     odoo: {
@@ -1045,15 +1047,17 @@ const messages = {
       adminOnly: "Administrators Only",
       latencyLabel: "Response Time",
       trialEyebrow: "Imported Example",
-      manualTest: "Manual Test",
-      flowLabel: "n8n test workflow",
-      step1Title: "Manual Trigger",
-      step1Copy: "Select Execute workflow in the n8n editor.",
-      step2Title: "Create Test Result",
-      step2Copy: "Generate a message confirming the AI Work and NAS automation connection.",
-      step3Title: "Inspect Execution Data",
-      step3Copy: "Verify the output and saved execution record.",
-      readyNotice: "The service is ready. Open n8n to run the imported test workflow.",
+      manualTest: "Automatic Trigger",
+      flowLabel: "n8n NAS automated processing workflow",
+      step1Title: "Upload to NAS",
+      step1Copy: "Upload audio or a PDF without manually starting n8n.",
+      step2Title: "Complete Model Processing",
+      step2Copy: "Run ASR for audio, or extraction, OCR, and RAG indexing for PDFs.",
+      step3Title: "Create an Execution",
+      step3Copy: "The NAS emits an event and n8n stores the input and callback result.",
+      step4Title: "Push to Company LINE",
+      step4Copy: "Send the summary or transcript preview to an approved company group.",
+      readyNotice: "The service is ready. Upload audio or a PDF, then inspect the complete run in n8n Executions.",
       unavailableNotice: "The n8n service is unavailable. Check again or inspect the server status.",
     },
     odoo: {
@@ -2383,7 +2387,7 @@ function renderN8nStatus() {
   els.n8nVersion.textContent = status.version || "--";
   els.n8nEndpoint.textContent = status.public_url || "/n8n/";
   els.n8nLatency.textContent = Number.isFinite(status.response_ms) ? `${status.response_ms} ms` : "--";
-  els.n8nWorkflowName.textContent = status.test_workflow || "AI Work NAS 測試流程";
+  els.n8nWorkflowName.textContent = status.test_workflow || "AI Work NAS 處理完成通知 Demo";
   els.n8nNotice.textContent = t(connected ? "n8n.readyNotice" : "n8n.unavailableNotice");
   els.n8nNotice.classList.toggle("ready", connected);
   els.openN8nButton.setAttribute("aria-disabled", String(!connected));

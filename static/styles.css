@@ -3400,7 +3400,7 @@ button:disabled {
 
 .n8n-flow-preview {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   margin-top: 20px;
   border-top: 1px solid var(--line);
   border-bottom: 1px solid var(--line);

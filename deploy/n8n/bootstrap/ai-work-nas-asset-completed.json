@@ -1,0 +1,148 @@
+{
+  "id": "1da52e2e-2897-45cd-978c-a11f86cb7bdd",
+  "name": "AI Work NAS 處理完成通知 Demo",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "ai-work-nas-asset-completed",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "22b3d5ae-b0d0-4f92-9009-7a8de57ceff0",
+      "name": "接收 NAS 完成事件",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [220, 300],
+      "webhookId": "58144f5a-6669-48ac-bda2-1b1986d48861"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "b69e369d-fb6c-46d3-8655-62d7dac50e91",
+              "name": "event",
+              "value": "={{ $json.body.event }}",
+              "type": "string"
+            },
+            {
+              "id": "80b10e5c-3a2b-4788-abaa-7ba88b331ec1",
+              "name": "asset_id",
+              "value": "={{ $json.body.asset_id }}",
+              "type": "number"
+            },
+            {
+              "id": "3e004e1d-124f-4d9b-ab04-6a3eec8780b8",
+              "name": "category",
+              "value": "={{ $json.body.category }}",
+              "type": "string"
+            },
+            {
+              "id": "3ff27453-beb7-47f0-a49a-83ca5b57d2dd",
+              "name": "title",
+              "value": "={{ $json.body.title }}",
+              "type": "string"
+            },
+            {
+              "id": "9d727b43-a838-4dd4-b4fa-74c7654bd407",
+              "name": "filename",
+              "value": "={{ $json.body.filename }}",
+              "type": "string"
+            },
+            {
+              "id": "01f28f8b-0893-4adf-8c25-a57913138166",
+              "name": "analyzer",
+              "value": "={{ $json.body.analyzer }}",
+              "type": "string"
+            },
+            {
+              "id": "0de8eb0b-f07f-4996-a1f5-0fcf2f205f1f",
+              "name": "summary",
+              "value": "={{ $json.body.summary }}",
+              "type": "string"
+            },
+            {
+              "id": "b2c205b0-5080-493e-815f-b6940ed02d25",
+              "name": "chunk_count",
+              "value": "={{ $json.body.chunk_count }}",
+              "type": "number"
+            },
+            {
+              "id": "bf2846b7-9668-4175-8557-89bc3fd4c7ca",
+              "name": "uploader",
+              "value": "={{ $json.body.uploader }}",
+              "type": "string"
+            },
+            {
+              "id": "b9ee02de-290b-46f9-9fe1-3c2e576d1602",
+              "name": "completed_at",
+              "value": "={{ $json.body.completed_at }}",
+              "type": "string"
+            },
+            {
+              "id": "6ec59d90-050c-4c38-8420-2ad878509987",
+              "name": "result_preview",
+              "value": "={{ $json.body.result_preview }}",
+              "type": "string"
+            },
+            {
+              "id": "fdf7cbf1-7c48-445c-af0b-03ce4fd3301a",
+              "name": "asset_url",
+              "value": "={{ $json.body.asset_url }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "db46b543-a378-4b7e-bdae-f1ec5c24408d",
+      "name": "整理 NAS 處理結果",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [480, 300]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://host.docker.internal:8000/api/internal/n8n/push-result",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-AI-Work-N8N-Token",
+              "value": "={{ $env.AI_WORK_N8N_TOKEN }}"
+            }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "2e4bcf1f-8fe3-486c-a42f-0a7ba4ce062f",
+      "name": "推送企業 LINE",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [740, 300]
+    }
+  ],
+  "connections": {
+    "接收 NAS 完成事件": {
+      "main": [[{"node": "整理 NAS 處理結果", "type": "main", "index": 0}]]
+    },
+    "整理 NAS 處理結果": {
+      "main": [[{"node": "推送企業 LINE", "type": "main", "index": 0}]]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "ac5c2327-f53e-497f-b38a-328e3602a31d",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}
