@@ -4,10 +4,11 @@ import shutil
 import uuid
 from pathlib import Path
 
-from app.asr_catalog import get_asr_model
 from app.db import create_meeting, create_nas_asset, get_user_by_username
+from app.llm_runtime import company_api_key_for_model
 from app.media_worker import enqueue_media_job
 from app.notifications import manager
+from app.system_asr import current_asr_model
 
 AUDIO_SUFFIXES = {".wav", ".mp3", ".m4a", ".webm", ".ogg", ".flac", ".aac"}
 
@@ -61,7 +62,7 @@ async def import_nas_file(base_dir: Path, path: Path) -> None:
         processed_path = processed_path.with_name(f"{processed_path.stem}-{uuid.uuid4().hex[:8]}{processed_path.suffix}")
     shutil.move(str(path), processed_path)
 
-    asr_model = get_asr_model(None)
+    asr_model = current_asr_model()
     processor_config = {
         "asr_model_id": asr_model["id"],
         "asr_provider": asr_model["provider"],
@@ -105,7 +106,11 @@ async def import_nas_file(base_dir: Path, path: Path) -> None:
             "meeting": meeting,
         }
     )
-    await enqueue_media_job("meeting", meeting["id"])
+    await enqueue_media_job(
+        "meeting",
+        meeting["id"],
+        audio_api_key=company_api_key_for_model(asr_model),
+    )
 
 
 async def nas_discovery_loop(base_dir: Path, interval: float = 2.0) -> None:

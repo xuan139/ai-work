@@ -322,13 +322,15 @@ const messages = {
       asrModeLocal: "本地 NAS",
       asrModeCloud: "雲端 API",
       asrModelLabel: "語音模型",
+      systemAsrTitle: "系統語音模型",
+      systemAsrCopy: "此錄音會使用管理員在「設定與管理」選定的語音模型。",
       asrKeyPlaceholder: "只用於本次會議錄音",
       asrLanguages: "語言",
       asrBestFor: "適合",
       asrReady: "本地模型已就緒，可直接處理錄音。",
       asrDownloading: "模型正在下載：{progress}%。錄音可先保存，但轉寫需等下載完成。",
       asrNotReady: "本地模型尚未就緒，請到 NAS 模型管理完成安裝，或改選已就緒模型。",
-      asrCloud: "此模型由雲端處理，API Key 只用於本次錄音，不會寫入資料庫。",
+      asrCloud: "此模型由雲端處理，必須先由管理員設定公司 API Key。",
       asrKeyRequired: "{model} 需要 API Key，請先輸入後再開始錄音。",
       asrModelRequired: "請先選擇語音處理模型。",
       translationTitle: "步驟 2：逐字稿翻譯",
@@ -337,6 +339,7 @@ const messages = {
       translationTarget: "目標語言",
       translationMode: "翻譯位置",
       translationModel: "翻譯模型",
+      translationSystemModel: "系統翻譯模型",
       translationKey: "翻譯模型 API Key",
       translationKeyPlaceholder: "只用於本次翻譯",
       translationModelRequired: "請先選擇翻譯模型。",
@@ -407,6 +410,8 @@ const messages = {
       asrModeLocal: "本地 NAS",
       asrModeCloud: "雲端 API",
       asrModelLabel: "ASR 模型",
+      systemAsrTitle: "音訊轉寫模型",
+      systemAsrCopy: "Audio 會使用管理員在「設定與管理」選定的系統語音模型。",
       asrKeyLabel: "API Key",
       asrKeyPlaceholder: "只用於本次 audio 上傳",
       asrHint: "本地模型適合 NAS 私有化；雲端模型需要 API Key，Key 只用於本次上傳，不寫入資料庫。",
@@ -461,7 +466,7 @@ const messages = {
       connectionFailed: "上傳連線中斷，請檢查網路後重試",
       reprocess: "重新處理",
       reprocessing: "正在加入佇列...",
-      reprocessConfirm: "將沿用此資產原先的分析流程與模型重新處理原始檔。現有結果會保留到新結果完成，是否繼續？",
+      reprocessConfirm: "將使用目前的系統模型重新處理原始檔。現有結果會保留到新結果完成，是否繼續？",
       reprocessQueued: "原始檔已重新加入 NAS 媒體 Worker 佇列",
       openccTraditional: "OpenCC 簡轉繁",
       openccRunning: "正在轉換...",
@@ -545,7 +550,7 @@ const messages = {
       cacheSemantic: "語意相近",
       questionTitle: "用 LLM 處理此資產",
       questionEyebrow: "RAG 文件問答",
-      questionCopy: "圖片、文件或逐字稿已建立 RAG chunks，可選擇模型後對此資產提問。",
+      questionCopy: "圖片、文件或逐字稿已建立 RAG chunks，提問時會使用管理員指定的系統 LLM。",
       modelRequired: "需要先選擇模型",
       questionRequired: "請先輸入問題",
       ask: "處理文件",
@@ -610,10 +615,21 @@ const messages = {
         videoRagCopy: "把影片時間點、偵測物件、信心分數與畫面預覽寫入 chunks，並建立可檢索向量。",
         llmTitle: "文件問答",
         llmEngine: "向量相似度 75% + 關鍵字 25%",
-        llmCopy: "使用 Qwen3 query 向量與中英文關鍵字混合排序，將命中的頁碼與內容交給選定大模型回答。",
+        llmCopy: "使用 Qwen3 query 向量與中英文關鍵字混合排序，將命中的頁碼與內容交給系統 LLM 回答。",
       },
     },
     models: {
+      globalSetting: "全域模型設定",
+      systemLlmTitle: "系統 LLM 設定與費用",
+      systemLlmHeading: "系統預設 LLM",
+      systemLlmCopy: "管理員選定後，AI Work、RAG、翻譯、LINE 與 MCP 都使用同一個模型。",
+      systemAsrTitle: "系統語音模型設定",
+      systemAsrHeading: "系統預設語音轉寫模型",
+      systemAsrCopy: "設定一次後，會議錄音、NAS 上傳、網路音訊、熱資料夾與切片重轉都使用此模型。",
+      currentAsrLabel: "系統目前語音模型",
+      setSystemAsr: "設為系統語音模型",
+      settingSystemAsr: "正在套用...",
+      systemAsrSaved: "系統語音模型已更新",
       addModel: "新增模型",
       eyebrow: "NAS 模型登錄",
       title: "新增本地模型",
@@ -1142,13 +1158,15 @@ const messages = {
       asrModeLocal: "Local NAS",
       asrModeCloud: "Cloud API",
       asrModelLabel: "Speech Model",
+      systemAsrTitle: "System Speech Model",
+      systemAsrCopy: "This recording uses the speech model selected under Settings & Management.",
       asrKeyPlaceholder: "Used only for this meeting recording",
       asrLanguages: "Languages",
       asrBestFor: "Best for",
       asrReady: "The local model is ready and can process recordings.",
       asrDownloading: "Model download in progress: {progress}%. The recording can be saved, but transcription waits for completion.",
       asrNotReady: "The local model is not ready. Complete setup in NAS Model Management or choose a ready model.",
-      asrCloud: "This model runs in the cloud. The API key is used only for this recording and is not stored in the database.",
+      asrCloud: "This model runs in the cloud and requires a company API key configured by an administrator.",
       asrKeyRequired: "{model} requires an API key. Enter it before recording.",
       asrModelRequired: "Choose a speech model first.",
       translationTitle: "Step 2: Transcript Translation",
@@ -1157,6 +1175,7 @@ const messages = {
       translationTarget: "Target language",
       translationMode: "Translation location",
       translationModel: "Translation model",
+      translationSystemModel: "System Translation Model",
       translationKey: "Translation model API key",
       translationKeyPlaceholder: "Used only for this translation",
       translationModelRequired: "Choose a translation model first.",
@@ -1227,6 +1246,8 @@ const messages = {
       asrModeLocal: "Local NAS",
       asrModeCloud: "Cloud API",
       asrModelLabel: "ASR Model",
+      systemAsrTitle: "Audio Transcription Model",
+      systemAsrCopy: "Audio uses the system speech model selected under Settings & Management.",
       asrKeyLabel: "API Key",
       asrKeyPlaceholder: "Only used for this audio upload",
       asrHint: "Local models fit private NAS deployments. Cloud models need an API key, used only for this upload and not written to the database.",
@@ -1281,7 +1302,7 @@ const messages = {
       connectionFailed: "The upload connection was interrupted. Check the network and try again.",
       reprocess: "Reprocess",
       reprocessing: "Adding to queue...",
-      reprocessConfirm: "Reprocess the source file with its original analysis pipeline and model settings? Existing results remain available until the new result completes.",
+      reprocessConfirm: "Reprocess the source file with the current system models? Existing results remain available until the new result completes.",
       reprocessQueued: "The source file was added to the NAS media worker queue again.",
       openccTraditional: "OpenCC to Traditional",
       openccRunning: "Converting...",
@@ -1365,7 +1386,7 @@ const messages = {
       cacheSemantic: "Semantic match",
       questionTitle: "Use LLM on this asset",
       questionEyebrow: "RAG Document Q&A",
-      questionCopy: "This image, document, or transcript has RAG chunks. Select a model and ask a question.",
+      questionCopy: "This image, document, or transcript has RAG chunks. Questions use the system LLM selected by an administrator.",
       modelRequired: "A model is required",
       questionRequired: "Enter a question first",
       ask: "Process Document",
@@ -1430,10 +1451,21 @@ const messages = {
         videoRagCopy: "Stores timestamps, detected objects, confidence scores, and frame previews, then builds searchable vectors.",
         llmTitle: "Document Q&A",
         llmEngine: "75% vector similarity + 25% keywords",
-        llmCopy: "Ranks chunks with a Qwen3 query vector and multilingual keywords, then sends matched pages to the selected model.",
+        llmCopy: "Ranks chunks with a Qwen3 query vector and multilingual keywords, then sends matched pages to the system LLM.",
       },
     },
     models: {
+      globalSetting: "Global Model Settings",
+      systemLlmTitle: "System LLM Settings and Pricing",
+      systemLlmHeading: "Default System LLM",
+      systemLlmCopy: "Once selected by an administrator, AI Work, RAG, translation, LINE, and MCP use the same model.",
+      systemAsrTitle: "System Speech Model Settings",
+      systemAsrHeading: "Default Speech-to-Text Model",
+      systemAsrCopy: "Meeting recordings, NAS uploads, network audio, hot folders, and segment retranscription all use this model.",
+      currentAsrLabel: "Current System Speech Model",
+      setSystemAsr: "Set as System Speech Model",
+      settingSystemAsr: "Applying...",
+      systemAsrSaved: "System speech model updated",
       addModel: "Add Model",
       eyebrow: "NAS Model Registry",
       title: "Add Local Model",
@@ -1649,6 +1681,8 @@ const state = {
   lang: localStorage.getItem("ai-work-lang") || "zh-Hant",
   llmCatalog: null,
   asrCatalog: null,
+  currentAsrId: "local:whisper-cpp-small",
+  currentAsrModel: null,
   videoCatalog: null,
   localModels: null,
   localModelPollTimer: null,
@@ -1688,10 +1722,6 @@ const state = {
   dashboardAssetFilter: "all",
   selectedAssetId: null,
   selectedAsset: null,
-  assetSelectedLlmMode: "local",
-  assetSelectedProvider: "Local NAS",
-  assetSelectedLlmId: "local:qwen3-4b",
-  assetSelectedPricing: null,
   keyModalPricing: null,
   users: [],
   passwordResetUserId: null,
@@ -1750,6 +1780,13 @@ const els = {
   recordAsrKeyLabel: document.querySelector("#recordAsrKeyLabel"),
   recordAsrApiKeyInput: document.querySelector("#recordAsrApiKeyInput"),
   recordAsrRecommendation: document.querySelector("#recordAsrRecommendation"),
+  currentSystemAsrName: document.querySelector("#currentSystemAsrName"),
+  currentSystemAsrMeta: document.querySelector("#currentSystemAsrMeta"),
+  setCurrentAsrButton: document.querySelector("#setCurrentAsrButton"),
+  recordCurrentAsrName: document.querySelector("#recordCurrentAsrName"),
+  uploadCurrentAsrName: document.querySelector("#uploadCurrentAsrName"),
+  recordTranslationCurrentLlmName: document.querySelector("#recordTranslationCurrentLlmName"),
+  audioTranslationCurrentLlmName: document.querySelector("#audioTranslationCurrentLlmName"),
   recordTranslationToggle: document.querySelector("#recordTranslationToggle"),
   recordTranslationControls: document.querySelector("#recordTranslationControls"),
   recordTranslationTargetSelect: document.querySelector("#recordTranslationTargetSelect"),
@@ -2742,9 +2779,6 @@ async function loadLlmCatalog() {
   state.selectedLlmMode = current?.execution || "local";
   state.selectedProvider = current?.provider || "";
   state.selectedLlmId = current?.id || "";
-  state.assetSelectedLlmMode = state.selectedLlmMode;
-  state.assetSelectedProvider = state.selectedProvider;
-  state.assetSelectedLlmId = state.currentLlmId;
   state.recordTranslationMode = state.selectedLlmMode;
   state.recordTranslationModelId = state.currentLlmId;
   state.audioTranslationMode = state.selectedLlmMode;
@@ -2754,7 +2788,6 @@ async function loadLlmCatalog() {
   renderTranslationControls("audio");
   if (state.selectedLlmId) {
     await selectLlmModel(state.selectedLlmId);
-    state.assetSelectedPricing = state.selectedPricing;
   } else {
     renderPricingPanel();
     renderKeyStatus();
@@ -2763,6 +2796,13 @@ async function loadLlmCatalog() {
 
 async function loadAsrCatalog() {
   state.asrCatalog = await api("/api/asr/models");
+  const current = state.asrCatalog.current_model || state.asrCatalog.models?.[0] || null;
+  state.currentAsrModel = current;
+  state.currentAsrId = current?.id || "";
+  state.selectedRecordAsrMode = current?.id?.startsWith("cloud:") ? "cloud" : "local";
+  state.selectedRecordAsrModelId = state.currentAsrId;
+  state.selectedAsrMode = state.selectedRecordAsrMode;
+  state.selectedAsrModelId = state.currentAsrId;
   renderRecordingAsrControls();
   renderAsrControls();
 }
@@ -2988,29 +3028,14 @@ function apiKeyForProvider(provider) {
 
 function reprocessCredentials(asset) {
   const config = asset.processor_config || {};
-  let audioApiKey = apiKeyForProvider(config.asr_provider);
   let videoApiKey = apiKeyForProvider(config.video_provider);
-  let translationApiKey = apiKeyForProvider(config.translation_provider);
-
-  if (config.asr_model_id === state.selectedAsrModelId) {
-    audioApiKey ||= els.audioAsrApiKeyInput?.value.trim() || "";
-  }
-  if (config.asr_model_id === state.selectedRecordAsrModelId) {
-    audioApiKey ||= els.recordAsrApiKeyInput?.value.trim() || "";
-  }
   if (config.video_model_id === state.selectedVideoModelId) {
     videoApiKey ||= els.videoApiKeyInput?.value.trim() || "";
   }
-  if (config.translation_model_id === state.audioTranslationModelId) {
-    translationApiKey ||= els.audioTranslationApiKeyInput?.value.trim() || "";
-  }
-  if (config.translation_model_id === state.recordTranslationModelId) {
-    translationApiKey ||= els.recordTranslationApiKeyInput?.value.trim() || "";
-  }
   return {
-    audio_api_key: audioApiKey,
+    audio_api_key: "",
     video_api_key: videoApiKey,
-    translation_api_key: translationApiKey,
+    translation_api_key: "",
   };
 }
 
@@ -3111,7 +3136,6 @@ function renderNasAssetDetail() {
     ${chunks.length ? renderRagChunks(chunks) : ""}
     ${canAsk ? renderDocumentAskPanel() : `<div class="empty-state compact">${t("upload.noRag")}</div>`}
   `;
-  renderAssetLlmControls();
   scheduleAssetSegmentPolling();
 }
 
@@ -3388,9 +3412,10 @@ function renderRecordingAsrControls() {
   }
   els.recordAsrModelSelect.value = state.selectedRecordAsrModelId;
   const selected = models.find((model) => model.id === state.selectedRecordAsrModelId);
-  els.recordAsrKeyField.hidden = !selected?.requires_api_key;
+  els.recordAsrKeyField.hidden = true;
   if (selected) els.recordAsrKeyLabel.textContent = selected.api_key_label || t("upload.asrKeyLabel");
   renderAsrRecommendation(els.recordAsrRecommendation, selected);
+  renderSystemAsrSetting();
 }
 
 function renderAsrControls() {
@@ -3405,9 +3430,45 @@ function renderAsrControls() {
   }
   els.audioAsrModelSelect.value = state.selectedAsrModelId;
   const selected = models.find((model) => model.id === state.selectedAsrModelId);
-  els.audioAsrKeyField.hidden = !selected?.requires_api_key;
+  els.audioAsrKeyField.hidden = true;
   if (selected) els.audioAsrKeyLabel.textContent = selected.api_key_label || t("upload.asrKeyLabel");
   renderAsrRecommendation(els.audioAsrRecommendation, selected);
+}
+
+function renderSystemAsrSetting() {
+  const current = state.currentAsrModel;
+  const label = current ? `${current.provider} · ${current.name}` : "-";
+  if (els.currentSystemAsrName) els.currentSystemAsrName.textContent = label;
+  if (els.recordCurrentAsrName) els.recordCurrentAsrName.textContent = label;
+  if (els.uploadCurrentAsrName) els.uploadCurrentAsrName.textContent = label;
+  if (els.currentSystemAsrMeta) {
+    const updatedBy = state.asrCatalog?.current_model_updated_by;
+    const updatedAt = state.asrCatalog?.current_model_updated_at;
+    els.currentSystemAsrMeta.textContent = updatedBy && updatedAt
+      ? t("aiwork.systemModelUpdated", { user: updatedBy, time: formatDate(updatedAt) })
+      : t("aiwork.systemModelDefault");
+  }
+  if (els.setCurrentAsrButton) {
+    els.setCurrentAsrButton.hidden = state.user?.role !== "admin";
+    els.setCurrentAsrButton.disabled = !state.selectedRecordAsrModelId || state.selectedRecordAsrModelId === state.currentAsrId;
+    els.setCurrentAsrButton.textContent = t("models.setSystemAsr");
+  }
+}
+
+async function saveCurrentAsrModel() {
+  if (!state.selectedRecordAsrModelId) return;
+  els.setCurrentAsrButton.disabled = true;
+  els.setCurrentAsrButton.textContent = t("models.settingSystemAsr");
+  try {
+    await api("/api/admin/asr/current-model", {
+      method: "PUT",
+      body: JSON.stringify({ model_id: state.selectedRecordAsrModelId }),
+    });
+    showToast(t("models.systemAsrSaved"), t("models.systemAsrTitle"));
+    await loadAsrCatalog();
+  } finally {
+    renderSystemAsrSetting();
+  }
 }
 
 function renderTranslationControls(surface) {
@@ -3444,8 +3505,7 @@ function renderTranslationControls(surface) {
     .join("");
   modelSelect.value = currentId;
   const selected = models.find((model) => model.id === currentId);
-  const needsKey = Boolean(selected?.free_tier?.requires_api_key_for_real_call && !selected?.server_key_configured);
-  keyField.hidden = !enabled || !needsKey;
+  keyField.hidden = true;
   renderTranslationRecommendation(recommendation, selected, target);
 }
 
@@ -3502,10 +3562,9 @@ function validateTranslationSelection(surface) {
   const enabled = isRecord ? state.recordTranslationEnabled : state.audioTranslationEnabled;
   if (!enabled) return;
   const modelId = isRecord ? state.recordTranslationModelId : state.audioTranslationModelId;
-  const keyInput = isRecord ? els.recordTranslationApiKeyInput : els.audioTranslationApiKeyInput;
   const model = (state.llmCatalog?.models || []).find((item) => item.id === modelId);
   if (!model) throw new Error(t("record.translationModelRequired"));
-  if (model.free_tier?.requires_api_key_for_real_call && !model.server_key_configured && !keyInput.value.trim()) {
+  if (model.free_tier?.requires_api_key_for_real_call && !model.server_key_configured) {
     throw new Error(t("record.translationKeyRequired", { model: model.name }));
   }
 }
@@ -3942,61 +4001,6 @@ function renderDocumentAskPanel() {
   `;
 }
 
-function renderAssetLlmControls() {
-  const providerSelect = document.querySelector("#assetLlmProviderSelect");
-  const modelSelect = document.querySelector("#assetLlmModelSelect");
-  if (!providerSelect || !modelSelect) return;
-  if (!state.llmCatalog) {
-    providerSelect.innerHTML = `<option value="">${t("aiwork.loading")}</option>`;
-    modelSelect.innerHTML = `<option value="">${t("aiwork.loading")}</option>`;
-    return;
-  }
-
-  document.querySelectorAll("[data-asset-llm-mode]").forEach((button) => {
-    const active = button.dataset.assetLlmMode === state.assetSelectedLlmMode;
-    button.classList.toggle("active", active);
-    button.setAttribute("aria-pressed", String(active));
-  });
-  const modeModels = llmModelsForMode(state.assetSelectedLlmMode);
-  const providers = [...new Set(modeModels.map((model) => model.provider))];
-  providerSelect.innerHTML = [
-    `<option value="">${t("aiwork.allProviders")}</option>`,
-    ...providers.map((provider) => `<option value="${escapeHtml(provider)}">${escapeHtml(provider)}</option>`),
-  ].join("");
-  providerSelect.value = state.assetSelectedProvider;
-
-  const models = state.assetSelectedProvider
-    ? modeModels.filter((model) => model.provider === state.assetSelectedProvider)
-    : modeModels;
-  modelSelect.innerHTML = [
-    `<option value="">${t("aiwork.selectModel")}</option>`,
-    ...models.map((model) => `<option value="${escapeHtml(model.id)}">${escapeHtml(model.provider)} · ${escapeHtml(model.name)}</option>`),
-  ].join("");
-  modelSelect.value = state.assetSelectedLlmId;
-}
-
-async function selectAssetLlmMode(mode) {
-  state.assetSelectedLlmMode = mode;
-  const fallback = defaultLlmModelForMode(mode);
-  state.assetSelectedProvider = fallback?.provider || "";
-  state.assetSelectedLlmId = fallback?.id || "";
-  state.assetSelectedPricing = null;
-  renderAssetLlmControls();
-  if (fallback) await selectAssetLlmModel(fallback.id);
-}
-
-async function selectAssetLlmModel(modelId) {
-  state.assetSelectedLlmId = modelId;
-  state.assetSelectedPricing = null;
-  if (!modelId) return;
-  state.assetSelectedPricing = await api(`/api/llm/pricing/${encodeURIComponent(modelId)}`);
-  const model = state.assetSelectedPricing.model;
-  const hasKey = modelHasApiAccess(model);
-  if (model.free_tier.requires_api_key_for_real_call && !hasKey) {
-    openKeyModalForPricing(state.assetSelectedPricing);
-  }
-}
-
 async function uploadNasAsset(event) {
   event.preventDefault();
   const file = els.nasFileInput.files[0];
@@ -4005,11 +4009,6 @@ async function uploadNasAsset(event) {
     return;
   }
   const isAudio = file.type.startsWith("audio/") || /\.(wav|mp3|m4a|webm|ogg|flac|aac)$/i.test(file.name);
-  const selectedAsr = (state.asrCatalog?.models || []).find((model) => model.id === state.selectedAsrModelId);
-  if (isAudio && selectedAsr?.requires_api_key && !els.audioAsrApiKeyInput.value.trim()) {
-    showToast(t("record.asrKeyRequired", { model: selectedAsr.name }), t("upload.asrTitle"));
-    return;
-  }
   if (isAudio) {
     try {
       validateTranslationSelection("audio");
@@ -4022,12 +4021,12 @@ async function uploadNasAsset(event) {
   const formData = new FormData();
   formData.append("file", file);
   formData.append("title", els.nasAssetTitleInput.value.trim());
-  formData.append("audio_model_id", state.selectedAsrModelId);
-  formData.append("audio_api_key", els.audioAsrApiKeyInput.value.trim());
+  formData.append("audio_model_id", state.currentAsrId);
+  formData.append("audio_api_key", "");
   formData.append("audio_translation_enabled", String(state.audioTranslationEnabled));
   formData.append("audio_translation_target", state.audioTranslationTarget);
   formData.append("audio_translation_model_id", state.audioTranslationModelId);
-  formData.append("audio_translation_api_key", els.audioTranslationApiKeyInput.value.trim());
+  formData.append("audio_translation_api_key", "");
   formData.append("video_model_id", state.selectedVideoModelId);
   formData.append("video_api_key", els.videoApiKeyInput.value.trim());
   els.nasUploadSubmit.disabled = true;
@@ -4072,7 +4071,7 @@ async function askSelectedAsset() {
   const questionInput = document.querySelector("#assetQuestionInput");
   const answerBox = document.querySelector("#assetAnswerBox");
   const question = questionInput?.value.trim() || "";
-  if (!state.assetSelectedLlmId) {
+  if (!state.currentLlmModel) {
     showToast(t("upload.modelRequired"), t("upload.questionTitle"));
     return;
   }
@@ -4081,25 +4080,12 @@ async function askSelectedAsset() {
     return;
   }
 
-  if (!state.assetSelectedPricing) {
-    await selectAssetLlmModel(state.assetSelectedLlmId);
-  }
-  const model = state.assetSelectedPricing?.model;
-  const hasKey = modelHasApiAccess(model);
-  const canUseFreeQuota = Boolean(model?.free_tier.available && !model.free_tier.requires_api_key_for_real_call);
-  if (model && !hasKey && !canUseFreeQuota) {
-    showToast(t("upload.modelNeedsKey"), model.provider);
-    openKeyModalForPricing(state.assetSelectedPricing);
-    return;
-  }
-
   try {
     const result = await api(`/api/nas-assets/${state.selectedAsset.id}/ask`, {
       method: "POST",
       body: JSON.stringify({
-        model_id: state.assetSelectedLlmId,
         question,
-        api_key: model ? state.apiKeys[providerKeyId(model.provider)] || "" : "",
+        api_key: "",
       }),
     });
     answerBox.hidden = false;
@@ -4211,7 +4197,10 @@ function renderLlmControls() {
 function renderSystemLlmSetting() {
   if (!els.currentSystemModelName) return;
   const model = state.currentLlmModel;
-  els.currentSystemModelName.textContent = model ? `${model.provider} · ${model.name}` : "-";
+  const label = model ? `${model.provider} · ${model.name}` : "-";
+  els.currentSystemModelName.textContent = label;
+  if (els.recordTranslationCurrentLlmName) els.recordTranslationCurrentLlmName.textContent = label;
+  if (els.audioTranslationCurrentLlmName) els.audioTranslationCurrentLlmName.textContent = label;
   const updatedBy = state.llmCatalog?.current_model_updated_by;
   const updatedAt = state.llmCatalog?.current_model_updated_at;
   els.currentSystemModelMeta.textContent = updatedBy && updatedAt
@@ -4512,7 +4501,6 @@ function saveApiKeyForSession() {
   state.apiKeys[providerKeyId(model.provider)] = key;
   renderKeyStatus();
   renderModelUsePanel();
-  renderAssetLlmControls();
   closeKeyModal();
   showToast(t("keyModal.saved"), model.provider);
 }
@@ -4813,11 +4801,8 @@ function closeWebSocket() {
 async function startRecording() {
   const availabilityError = recordingAvailabilityError();
   if (availabilityError) throw new Error(availabilityError);
-  const model = (state.asrCatalog?.models || []).find((item) => item.id === state.selectedRecordAsrModelId);
+  const model = state.currentAsrModel;
   if (!model) throw new Error(t("record.asrModelRequired"));
-  if (model.requires_api_key && !els.recordAsrApiKeyInput.value.trim()) {
-    throw new Error(t("record.asrKeyRequired", { model: model.name }));
-  }
   validateTranslationSelection("record");
   if (state.recordLinePushEnabled && !state.recordLineGroupId) {
     throw new Error(t("record.lineGroupRequired"));
@@ -4890,12 +4875,12 @@ async function uploadRecording() {
   const formData = new FormData();
   const timestamp = new Date().toISOString().slice(0, 19).replaceAll(":", "-");
   formData.append("title", els.meetingTitleInput.value.trim() || `${t("record.defaultTitle")} ${timestamp}`);
-  formData.append("asr_model_id", state.selectedRecordAsrModelId);
-  formData.append("asr_api_key", els.recordAsrApiKeyInput.value.trim());
+  formData.append("asr_model_id", state.currentAsrId);
+  formData.append("asr_api_key", "");
   formData.append("translation_enabled", String(state.recordTranslationEnabled));
   formData.append("translation_target", state.recordTranslationTarget);
   formData.append("translation_model_id", state.recordTranslationModelId);
-  formData.append("translation_api_key", els.recordTranslationApiKeyInput.value.trim());
+  formData.append("translation_api_key", "");
   const lineGroup = state.lineGroups.find((group) => group.id === state.recordLineGroupId);
   formData.append("line_push_enabled", String(state.recordLinePushEnabled));
   formData.append("line_group_id", state.recordLineGroupId);
@@ -5253,17 +5238,6 @@ els.nasAssetList.addEventListener("click", (event) => {
   const row = event.target.closest("[data-asset-id]");
   if (row) selectNasAsset(Number(row.dataset.assetId), { scroll: true });
 });
-els.nasAssetDetail.addEventListener("change", (event) => {
-  if (event.target.id === "assetLlmProviderSelect") {
-    state.assetSelectedProvider = event.target.value;
-    state.assetSelectedLlmId = "";
-    state.assetSelectedPricing = null;
-    renderAssetLlmControls();
-  }
-  if (event.target.id === "assetLlmModelSelect") {
-    selectAssetLlmModel(event.target.value).catch((error) => showToast(error.message, t("errors.requestFailed")));
-  }
-});
 els.nasAssetDetail.addEventListener("click", (event) => {
   if (event.target.id === "reprocessAssetButton") {
     reprocessSelectedAsset().catch((error) => showToast(error.message, t("upload.actionFailed")));
@@ -5277,11 +5251,6 @@ els.nasAssetDetail.addEventListener("click", (event) => {
   if (segmentButton) {
     transcribeAudioSegment(Number(segmentButton.dataset.transcribeSegment))
       .catch((error) => showToast(error.message, t("upload.segmentTranscriptionFailed")));
-    return;
-  }
-  const modeButton = event.target.closest("[data-asset-llm-mode]");
-  if (modeButton) {
-    selectAssetLlmMode(modeButton.dataset.assetLlmMode).catch((error) => showToast(error.message, t("errors.requestFailed")));
     return;
   }
   if (event.target.id === "askAssetButton") {
@@ -5312,6 +5281,7 @@ els.closeKeyModal.addEventListener("click", closeKeyModal);
 els.cancelKeyButton.addEventListener("click", closeKeyModal);
 els.saveKeyButton.addEventListener("click", saveApiKeyForSession);
 els.setCurrentLlmButton.addEventListener("click", () => saveCurrentLlmModel().catch((error) => showToast(error.message, t("errors.requestFailed"))));
+els.setCurrentAsrButton.addEventListener("click", () => saveCurrentAsrModel().catch((error) => showToast(error.message, t("errors.requestFailed"))));
 els.runModelButton.addEventListener("click", () => runSelectedModel().catch((error) => showToast(error.message, t("errors.requestFailed"))));
 els.forceRunModelButton.addEventListener("click", () => runSelectedModel(true).catch((error) => showToast(error.message, t("errors.requestFailed"))));
 els.useMcpToggle.addEventListener("change", () => {

@@ -1419,6 +1419,7 @@ button:disabled {
 
 .model-management-view {
   width: 100%;
+  gap: 18px;
 }
 
 .model-management-view .local-model-panel {
@@ -2447,6 +2448,60 @@ button:disabled {
 
 .system-llm-setting small {
   margin-top: 3px;
+}
+
+.system-asr-panel {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 0;
+}
+
+.active-system-model {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.active-system-model p {
+  margin-bottom: 0;
+}
+
+.active-system-model-name {
+  flex: 0 0 auto;
+  color: #126da8;
+  text-align: right;
+}
+
+.active-system-model.inline-model {
+  display: grid;
+  align-content: center;
+  justify-items: start;
+  padding: 10px 12px;
+  border: 1px solid #cfe3f1;
+  border-radius: 7px;
+  background: #f4faff;
+}
+
+.active-system-model.inline-model span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.active-system-model.inline-model strong {
+  color: var(--ink);
+  text-align: left;
+}
+
+@media (max-width: 760px) {
+  .active-system-model {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .active-system-model-name {
+    text-align: left;
+  }
 }
 
 .asset-system-model {

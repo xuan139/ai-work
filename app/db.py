@@ -1302,6 +1302,28 @@ def update_meeting_line_push(
     return _row_to_dict(row)
 
 
+def update_meeting_asr_selection(
+    meeting_id: int,
+    *,
+    model_id: str,
+    provider: str,
+    model_name: str,
+    engine: str,
+) -> dict[str, Any] | None:
+    with connect() as conn:
+        conn.execute(
+            """
+            UPDATE meetings
+            SET asr_model_id = ?, asr_provider = ?, asr_model = ?, asr_engine = ?,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (model_id, provider, model_name, engine, meeting_id),
+        )
+        row = conn.execute("SELECT * FROM meetings WHERE id = ?", (meeting_id,)).fetchone()
+    return _row_to_dict(row)
+
+
 def list_meetings(*, user_id: int, role: str, q: str | None = None) -> list[dict[str, Any]]:
     params: list[Any] = []
     where = []
@@ -1420,6 +1442,25 @@ def update_nas_asset(
             WHERE id = ?
             """,
             (status, analyzer, summary, error_message, chunk_count, asset_id),
+        )
+        row = conn.execute("SELECT * FROM nas_assets WHERE id = ?", (asset_id,)).fetchone()
+    return _row_to_dict(row)
+
+
+def update_nas_asset_processor_config(
+    asset_id: int,
+    *,
+    analyzer: str,
+    processor_config_json: str,
+) -> dict[str, Any] | None:
+    with connect() as conn:
+        conn.execute(
+            """
+            UPDATE nas_assets
+            SET analyzer = ?, processor_config_json = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (analyzer, processor_config_json, asset_id),
         )
         row = conn.execute("SELECT * FROM nas_assets WHERE id = ?", (asset_id,)).fetchone()
     return _row_to_dict(row)

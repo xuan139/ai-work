@@ -11,7 +11,7 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png" />
     <link rel="apple-touch-icon" href="/static/icons/icon-192.png" />
-    <link rel="stylesheet" href="/static/styles.css?v=asset-upload-meta-v1" />
+    <link rel="stylesheet" href="/static/styles.css?v=global-model-settings-v1" />
   </head>
   <body>
     <div id="globalBusyIndicator" class="global-busy-indicator" role="status" aria-live="polite" hidden>
@@ -194,35 +194,18 @@
                 <span data-i18n="record.meetingTitle">會議標題</span>
                 <input id="meetingTitleInput" placeholder="例如：產品週會 09/09" data-i18n-attr="placeholder:record.titlePlaceholder" />
               </label>
-              <section class="asr-config-panel recorder-asr-panel">
+              <section class="asr-config-panel active-system-model">
                 <div>
-                  <strong data-i18n="record.asrTitle">步驟 1：選擇轉寫模型</strong>
-                  <p data-i18n="record.asrCopy">錄音停止後，NAS 會使用此模型建立逐字稿、向量與 RAG 索引。</p>
+                  <strong data-i18n="record.systemAsrTitle">系統語音模型</strong>
+                  <p data-i18n="record.systemAsrCopy">此錄音會使用管理員在「設定與管理」選定的語音模型。</p>
                 </div>
-                <div class="llm-form-grid compact">
-                  <label>
-                    <span data-i18n="record.asrModeLabel">執行位置</span>
-                    <select id="recordAsrModeSelect">
-                      <option value="local" data-i18n="record.asrModeLocal">本地 NAS</option>
-                      <option value="cloud" data-i18n="record.asrModeCloud">雲端 API</option>
-                    </select>
-                  </label>
-                  <label>
-                    <span data-i18n="record.asrModelLabel">語音模型</span>
-                    <select id="recordAsrModelSelect"></select>
-                  </label>
-                </div>
-                <label id="recordAsrKeyField" hidden>
-                  <span id="recordAsrKeyLabel">API Key</span>
-                  <input id="recordAsrApiKeyInput" type="password" placeholder="API Key" data-i18n-attr="placeholder:record.asrKeyPlaceholder" autocomplete="off" />
-                </label>
-                <div id="recordAsrRecommendation" class="asr-recommendation"></div>
+                <strong id="recordCurrentAsrName" class="active-system-model-name">載入中...</strong>
               </section>
               <section class="asr-config-panel translation-config-panel">
                 <div class="config-panel-heading">
                   <div>
                     <strong data-i18n="record.translationTitle">步驟 2：逐字稿翻譯</strong>
-                    <p data-i18n="record.translationCopy">可選擇目標語言與本地或雲端 LLM；原文與譯文會分開保存。</p>
+                    <p data-i18n="record.translationCopy">可選擇目標語言；翻譯固定使用系統目前 LLM，原文與譯文分開保存。</p>
                   </div>
                   <label class="switch-control">
                     <input id="recordTranslationToggle" type="checkbox" />
@@ -244,14 +227,18 @@
                         <option value="de" data-i18n="record.languages.de">德文</option>
                       </select>
                     </label>
-                    <label>
+                    <div class="active-system-model inline-model">
+                      <span data-i18n="record.translationSystemModel">翻譯模型</span>
+                      <strong id="recordTranslationCurrentLlmName">載入中...</strong>
+                    </div>
+                    <label hidden>
                       <span data-i18n="record.translationMode">翻譯位置</span>
                       <select id="recordTranslationModeSelect">
                         <option value="local" data-i18n="record.asrModeLocal">本地 NAS</option>
                         <option value="cloud" data-i18n="record.asrModeCloud">雲端 API</option>
                       </select>
                     </label>
-                    <label>
+                    <label hidden>
                       <span data-i18n="record.translationModel">翻譯模型</span>
                       <select id="recordTranslationModelSelect"></select>
                     </label>
@@ -260,7 +247,7 @@
                     <span data-i18n="record.translationKey">翻譯模型 API Key</span>
                     <input id="recordTranslationApiKeyInput" type="password" placeholder="只用於本次翻譯" data-i18n-attr="placeholder:record.translationKeyPlaceholder" autocomplete="off" />
                   </label>
-                  <div id="recordTranslationRecommendation" class="translation-recommendation"></div>
+                  <div id="recordTranslationRecommendation" class="translation-recommendation" hidden></div>
                 </div>
               </section>
               <section class="asr-config-panel line-push-config-panel">
@@ -328,12 +315,13 @@
                   <span data-i18n="upload.titleLabel">資料名稱</span>
                   <input id="nasAssetTitleInput" placeholder="例如：董事會錄音、產品簡報 PDF" data-i18n-attr="placeholder:upload.titlePlaceholder" />
                 </label>
-                <section class="asr-config-panel">
+                <section class="asr-config-panel active-system-model">
                   <div>
-                    <strong data-i18n="upload.asrTitle">步驟 1：音訊轉寫模型</strong>
-                    <p data-i18n="upload.asrCopy">上傳 audio 時可選本地或雲端 ASR；其他檔案會自動略過此設定。</p>
+                    <strong data-i18n="upload.systemAsrTitle">音訊轉寫模型</strong>
+                    <p data-i18n="upload.systemAsrCopy">Audio 會使用管理員在「設定與管理」選定的系統語音模型。</p>
                   </div>
-                  <div class="llm-form-grid compact">
+                  <strong id="uploadCurrentAsrName" class="active-system-model-name">載入中...</strong>
+                  <div class="llm-form-grid compact" hidden>
                     <label>
                       <span data-i18n="upload.asrModeLabel">執行位置</span>
                       <select id="audioAsrModeSelect">
@@ -350,14 +338,13 @@
                     <span id="audioAsrKeyLabel" data-i18n="upload.asrKeyLabel">API Key</span>
                     <input id="audioAsrApiKeyInput" type="password" placeholder="sk-..." data-i18n-attr="placeholder:upload.asrKeyPlaceholder" autocomplete="off" />
                   </label>
-                  <div id="audioAsrRecommendation" class="asr-recommendation"></div>
-                  <p class="hint-text" data-i18n="upload.asrHint">本地模型適合 NAS 私有化；雲端模型需要 API Key，Key 只用於本次上傳，不寫入資料庫。</p>
+                  <div id="audioAsrRecommendation" class="asr-recommendation" hidden></div>
                 </section>
                 <section class="asr-config-panel translation-config-panel">
                   <div class="config-panel-heading">
                     <div>
                       <strong data-i18n="upload.translationTitle">步驟 2：逐字稿翻譯</strong>
-                      <p data-i18n="upload.translationCopy">只套用於 audio；可指定目標語言與翻譯 LLM。</p>
+                      <p data-i18n="upload.translationCopy">只套用於 audio；可指定目標語言，翻譯固定使用系統目前 LLM。</p>
                     </div>
                     <label class="switch-control">
                       <input id="audioTranslationToggle" type="checkbox" />
@@ -379,14 +366,18 @@
                           <option value="de" data-i18n="record.languages.de">德文</option>
                         </select>
                       </label>
-                      <label>
+                      <div class="active-system-model inline-model">
+                        <span data-i18n="record.translationSystemModel">翻譯模型</span>
+                        <strong id="audioTranslationCurrentLlmName">載入中...</strong>
+                      </div>
+                      <label hidden>
                         <span data-i18n="record.translationMode">翻譯位置</span>
                         <select id="audioTranslationModeSelect">
                           <option value="local" data-i18n="record.asrModeLocal">本地 NAS</option>
                           <option value="cloud" data-i18n="record.asrModeCloud">雲端 API</option>
                         </select>
                       </label>
-                      <label>
+                      <label hidden>
                         <span data-i18n="record.translationModel">翻譯模型</span>
                         <select id="audioTranslationModelSelect"></select>
                       </label>
@@ -395,7 +386,7 @@
                       <span data-i18n="record.translationKey">翻譯模型 API Key</span>
                       <input id="audioTranslationApiKeyInput" type="password" placeholder="只用於本次翻譯" data-i18n-attr="placeholder:record.translationKeyPlaceholder" autocomplete="off" />
                     </label>
-                    <div id="audioTranslationRecommendation" class="translation-recommendation"></div>
+                    <div id="audioTranslationRecommendation" class="translation-recommendation" hidden></div>
                   </div>
                 </section>
                 <section class="asr-config-panel">
@@ -520,6 +511,101 @@
         </section>
 
         <section id="modelsSection" class="view-section model-management-view" hidden>
+          <details class="model-setup-disclosure" open>
+            <summary>
+              <span data-i18n="models.systemLlmTitle">系統 LLM 設定與費用</span>
+              <span class="disclosure-state disclosure-state-open" data-i18n="aiwork.collapseSetup">收合</span>
+              <span class="disclosure-state disclosure-state-closed" data-i18n="aiwork.expandSetup">展開</span>
+            </summary>
+            <div class="model-setup-grid">
+              <section class="llm-config-panel">
+                <div class="section-heading">
+                  <p class="eyebrow" data-i18n="models.globalSetting">全域模型設定</p>
+                  <h3 data-i18n="models.systemLlmHeading">系統預設 LLM</h3>
+                  <p data-i18n="models.systemLlmCopy">管理員選定後，AI Work、RAG、翻譯、LINE 與 MCP 都使用同一個模型。</p>
+                </div>
+
+                <div class="model-mode-group">
+                  <span data-i18n="aiwork.executionLabel">執行位置</span>
+                  <div class="model-mode-switch" role="group" aria-label="模型執行位置" data-i18n-attr="aria-label:aiwork.executionLabel">
+                    <button class="active" type="button" data-llm-mode="local" aria-pressed="true" data-i18n="aiwork.localModels">本地 NAS</button>
+                    <button type="button" data-llm-mode="cloud" aria-pressed="false" data-i18n="aiwork.cloudModels">雲端 API</button>
+                  </div>
+                </div>
+
+                <div class="llm-form-grid">
+                  <label>
+                    <span data-i18n="aiwork.providerLabel">模型供應商</span>
+                    <select id="llmProviderSelect"><option value="" data-i18n="aiwork.loading">載入中...</option></select>
+                  </label>
+                  <label>
+                    <span data-i18n="aiwork.modelLabel">模型</span>
+                    <select id="llmModelSelect" disabled><option value="" data-i18n="aiwork.selectProviderFirst">請先選擇供應商</option></select>
+                  </label>
+                </div>
+
+                <div class="llm-toolbar">
+                  <button id="openKeyModalButton" class="primary-button" type="button" disabled data-i18n="aiwork.configureKey">設定 API Key</button>
+                  <span id="keyStatus" class="key-status" data-i18n="aiwork.keyNotSet">尚未設定 API Key</span>
+                </div>
+
+                <div class="system-llm-setting">
+                  <div>
+                    <span data-i18n="aiwork.systemModelLabel">系統目前模型</span>
+                    <strong id="currentSystemModelName">載入中...</strong>
+                    <small id="currentSystemModelMeta"></small>
+                  </div>
+                  <button id="setCurrentLlmButton" class="secondary-button" type="button" data-i18n="aiwork.setSystemModel" hidden>設為系統目前模型</button>
+                </div>
+              </section>
+
+              <section id="pricingPanel" class="pricing-panel">
+                <div class="empty-state" data-i18n="aiwork.emptyPricing">選擇模型後顯示費用資訊</div>
+              </section>
+            </div>
+          </details>
+
+          <details class="model-setup-disclosure system-asr-disclosure" open>
+            <summary>
+              <span data-i18n="models.systemAsrTitle">系統語音模型設定</span>
+              <span class="disclosure-state disclosure-state-open" data-i18n="aiwork.collapseSetup">收合</span>
+              <span class="disclosure-state disclosure-state-closed" data-i18n="aiwork.expandSetup">展開</span>
+            </summary>
+            <section class="llm-config-panel system-asr-panel">
+              <div class="section-heading">
+                <p class="eyebrow" data-i18n="models.globalSetting">全域模型設定</p>
+                <h3 data-i18n="models.systemAsrHeading">系統預設語音轉寫模型</h3>
+                <p data-i18n="models.systemAsrCopy">設定一次後，會議錄音、NAS 上傳、網路音訊、熱資料夾與切片重轉都使用此模型。</p>
+              </div>
+              <div class="llm-form-grid compact">
+                <label>
+                  <span data-i18n="record.asrModeLabel">執行位置</span>
+                  <select id="recordAsrModeSelect">
+                    <option value="local" data-i18n="record.asrModeLocal">本地 NAS</option>
+                    <option value="cloud" data-i18n="record.asrModeCloud">雲端 API</option>
+                  </select>
+                </label>
+                <label>
+                  <span data-i18n="record.asrModelLabel">語音模型</span>
+                  <select id="recordAsrModelSelect"></select>
+                </label>
+              </div>
+              <div id="recordAsrRecommendation" class="asr-recommendation"></div>
+              <div class="system-llm-setting">
+                <div>
+                  <span data-i18n="models.currentAsrLabel">系統目前語音模型</span>
+                  <strong id="currentSystemAsrName">載入中...</strong>
+                  <small id="currentSystemAsrMeta"></small>
+                </div>
+                <button id="setCurrentAsrButton" class="secondary-button" type="button" data-i18n="models.setSystemAsr" hidden>設為系統語音模型</button>
+              </div>
+              <label id="recordAsrKeyField" hidden>
+                <span id="recordAsrKeyLabel">API Key</span>
+                <input id="recordAsrApiKeyInput" type="password" autocomplete="off" />
+              </label>
+            </section>
+          </details>
+
           <section class="local-model-panel">
             <div class="model-manager-head">
               <div>
@@ -556,65 +642,6 @@
 
         <section id="aiworkSection" class="view-section" hidden>
           <div class="aiwork-layout">
-            <details class="model-setup-disclosure" open>
-              <summary>
-                <span data-i18n="aiwork.setupTitle">模型設定與費用</span>
-                <span class="disclosure-state disclosure-state-open" data-i18n="aiwork.collapseSetup">收合</span>
-                <span class="disclosure-state disclosure-state-closed" data-i18n="aiwork.expandSetup">展開</span>
-              </summary>
-              <div class="model-setup-grid">
-                <section class="llm-config-panel">
-                  <div class="section-heading">
-                    <p class="eyebrow" data-i18n="aiwork.eyebrow">模型接入</p>
-                    <h3>AI Work</h3>
-                    <p data-i18n="aiwork.copy">選擇主流大模型後，系統會查詢該模型目前的公開費用，並提示輸入對應供應商 API Key。</p>
-                  </div>
-
-                  <div class="model-mode-group">
-                    <span data-i18n="aiwork.executionLabel">執行位置</span>
-                    <div class="model-mode-switch" role="group" aria-label="模型執行位置" data-i18n-attr="aria-label:aiwork.executionLabel">
-                      <button class="active" type="button" data-llm-mode="local" aria-pressed="true" data-i18n="aiwork.localModels">本地 NAS</button>
-                      <button type="button" data-llm-mode="cloud" aria-pressed="false" data-i18n="aiwork.cloudModels">雲端 API</button>
-                    </div>
-                  </div>
-
-                  <div class="llm-form-grid">
-                    <label>
-                      <span data-i18n="aiwork.providerLabel">模型供應商</span>
-                      <select id="llmProviderSelect">
-                        <option value="" data-i18n="aiwork.loading">載入中...</option>
-                      </select>
-                    </label>
-                    <label>
-                      <span data-i18n="aiwork.modelLabel">模型</span>
-                      <select id="llmModelSelect" disabled>
-                        <option value="" data-i18n="aiwork.selectProviderFirst">請先選擇供應商</option>
-                      </select>
-                    </label>
-                  </div>
-
-                  <div class="llm-toolbar">
-                    <button id="openKeyModalButton" class="primary-button" type="button" disabled data-i18n="aiwork.configureKey">設定 API Key</button>
-                    <span id="keyStatus" class="key-status" data-i18n="aiwork.keyNotSet">尚未設定 API Key</span>
-                  </div>
-
-                  <div class="system-llm-setting">
-                    <div>
-                      <span data-i18n="aiwork.systemModelLabel">系統目前模型</span>
-                      <strong id="currentSystemModelName">載入中...</strong>
-                      <small id="currentSystemModelMeta"></small>
-                    </div>
-                    <button id="setCurrentLlmButton" class="secondary-button" type="button" data-i18n="aiwork.setSystemModel" hidden>設為系統目前模型</button>
-                  </div>
-
-                </section>
-
-                <section id="pricingPanel" class="pricing-panel">
-                  <div class="empty-state" data-i18n="aiwork.emptyPricing">選擇模型後顯示費用資訊</div>
-                </section>
-              </div>
-            </details>
-
             <section id="modelUsePanel" class="model-use-panel">
               <div class="use-panel-header">
                 <div>
@@ -1036,6 +1063,6 @@
       </section>
     </div>
 
-    <script src="/static/app.js?v=spreadsheet-csv-v1"></script>
+    <script src="/static/app.js?v=global-model-settings-v1"></script>
   </body>
 </html>

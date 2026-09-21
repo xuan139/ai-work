@@ -175,15 +175,21 @@ ASR_MODELS = {
 DEFAULT_ASR_MODEL_ID = "local:whisper-cpp-small"
 
 
-def get_asr_model(model_id: str | None) -> dict:
+def find_asr_model(model_id: str | None) -> dict | None:
     if not model_id:
-        return ASR_MODELS[DEFAULT_ASR_MODEL_ID]
+        return None
     if model_id in ASR_MODELS:
         return ASR_MODELS[model_id]
     from app.model_registry import get_custom_catalog_model
 
     custom = get_custom_catalog_model(model_id)
-    return custom if custom and custom.get("engine") == "whisper.cpp" else ASR_MODELS[DEFAULT_ASR_MODEL_ID]
+    return custom if custom and custom.get("engine") == "whisper.cpp" else None
+
+
+def get_asr_model(model_id: str | None) -> dict:
+    if not model_id:
+        return ASR_MODELS[DEFAULT_ASR_MODEL_ID]
+    return find_asr_model(model_id) or ASR_MODELS[DEFAULT_ASR_MODEL_ID]
 
 
 def asr_model_summary() -> list[dict]:

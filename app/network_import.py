@@ -8,10 +8,11 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
-from app.asr_catalog import get_asr_model
 from app.db import finalize_network_asset, get_nas_asset, update_nas_asset
 from app.media_worker import enqueue_media_job
 from app.notifications import manager
+from app.llm_runtime import company_api_key_for_model
+from app.system_asr import current_asr_model
 from app.video_catalog import get_video_model
 
 
@@ -139,7 +140,7 @@ async def download_youtube_asset(asset_id: int, url: str, media_type: str, reque
     try:
         downloaded = await asyncio.to_thread(_download_youtube, asset_id, url, media_type)
         if media_type == "audio":
-            model = get_asr_model("local:whisper-cpp-small")
+            model = current_asr_model()
             analyzer = model["name"]
             processor_config = {
                 "asr_model_id": model["id"],
@@ -179,7 +180,11 @@ async def download_youtube_asset(asset_id: int, url: str, media_type: str, reque
                 "asset": updated or asset,
             }
         )
-        await enqueue_media_job("asset", asset_id)
+        await enqueue_media_job(
+            "asset",
+            asset_id,
+            audio_api_key=company_api_key_for_model(model) if media_type == "audio" else None,
+        )
     except Exception as exc:
         failed = update_nas_asset(
             asset_id,

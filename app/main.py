@@ -21,7 +21,7 @@ from fastapi.staticfiles import StaticFiles
 from app.auth import SESSION_COOKIE, authenticate, create_session_token, current_user, hash_password, require_admin, require_meeting_access, websocket_user
 from app.analysis_persistence import persist_cloud_asset_analysis
 from app.asset_normalization import convert_asset_to_traditional
-from app.asr_catalog import asr_model_summary, get_asr_model
+from app.asr_catalog import asr_model_summary, find_asr_model
 from app.asr_service import run_asr_with_audit
 from app.db import (
     create_mcp_audit_log,
@@ -70,10 +70,12 @@ from app.db import (
     update_user_access,
     update_line_source_policy,
     update_custom_model_validation,
+    update_meeting_asr_selection,
     update_meeting_status,
     update_mcp_server,
     update_mcp_server_sync,
     update_nas_asset,
+    update_nas_asset_processor_config,
     upsert_line_source,
     user_owned_record_count,
 )
@@ -129,6 +131,7 @@ from app.network_import import download_youtube_asset, validate_youtube_url
 from app.notifications import manager
 from app.rag_cache import lookup_rag_cache, normalize_query, store_rag_cache
 from app.segment_transcriptions import list_audio_segment_transcriptions, update_audio_segment_transcription
+from app.system_asr import current_asr_model, current_asr_state, update_current_asr
 from app.system_llm import current_llm_model, current_llm_state, update_current_llm
 from app.translation_service import TARGET_LANGUAGES
 from app.upload_storage import UploadTooLargeError, save_upload_stream
@@ -814,10 +817,10 @@ async def upload_meeting(
     audio: UploadFile = File(...),
     user: dict = Depends(current_user),
 ) -> dict:
-    asr_model = get_asr_model(asr_model_id.strip() or None)
-    selected_key = asr_api_key.strip() or None
+    asr_model = current_asr_model()
+    selected_key = server_api_key_for_model(asr_model)
     if asr_model["requires_api_key"] and not selected_key:
-        raise HTTPException(status_code=400, detail=f"{asr_model['name']} 需要 {asr_model.get('api_key_label') or 'API Key'}")
+        raise HTTPException(status_code=400, detail=f"系統語音模型 {asr_model['name']} 需要公司 API Key")
     translate, translation_model, selected_translation_key = validate_translation_selection(
         enabled=translation_enabled,
         target=translation_target,
@@ -982,9 +985,10 @@ async def upload_nas_asset(
     selected_video_key = video_api_key.strip() or None
     selected_translation_key = None
     if category == "audio":
-        asr_model = get_asr_model(audio_model_id.strip() or None)
+        asr_model = current_asr_model()
+        selected_audio_key = server_api_key_for_model(asr_model)
         if asr_model["requires_api_key"] and not selected_audio_key:
-            raise HTTPException(status_code=400, detail=f"{asr_model['name']} 需要 {asr_model.get('api_key_label') or 'API Key'}")
+            raise HTTPException(status_code=400, detail=f"系統語音模型 {asr_model['name']} 需要公司 API Key")
         translate, translation_model, selected_translation_key = validate_translation_selection(
             enabled=audio_translation_enabled,
             target=audio_translation_target,
@@ -1139,7 +1143,29 @@ async def nas_assets(q: str | None = None, user: dict = Depends(current_user)) -
 
 @app.get("/api/asr/models")
 async def asr_models(user: dict = Depends(current_user)) -> dict:
-    return {"models": asr_model_summary()}
+    current = current_asr_state()
+    return {
+        "models": [with_server_key_status(model) for model in asr_model_summary()],
+        "current_model": with_server_key_status(current["model"]),
+        "current_model_updated_at": current["updated_at"],
+        "current_model_updated_by": current["updated_by"],
+        "current_model_is_default": current["is_default"],
+    }
+
+
+@app.put("/api/admin/asr/current-model")
+async def set_current_asr(payload: dict, admin: dict = Depends(require_admin)) -> dict:
+    model_id = str(payload.get("model_id", "")).strip()
+    model = find_asr_model(model_id)
+    if not model:
+        raise HTTPException(status_code=404, detail="ASR model not found")
+    if model["requires_api_key"] and not server_api_key_for_model(model):
+        raise HTTPException(status_code=400, detail="此雲端語音模型尚未設定公司 API Key")
+    if model["id"].startswith("local:"):
+        status = local_model_status(model["id"])
+        if not status.get("installed"):
+            raise HTTPException(status_code=400, detail="此本地語音模型尚未安裝完成")
+    return update_current_asr(model_id, admin["id"])
 
 
 @app.get("/api/video/models")
@@ -1511,11 +1537,10 @@ async def transcribe_nas_audio_segment(
     job_key = (asset_id, segment_index)
     if job_key in ACTIVE_SEGMENT_TRANSCRIPTIONS:
         raise HTTPException(status_code=409, detail="此音訊切片正在轉寫")
-    config = parse_processor_config(asset)
-    model = get_asr_model(str(payload.get("model_id") or config.get("asr_model_id") or ""))
-    api_key = str(payload.get("api_key") or "").strip() or None
+    model = current_asr_model()
+    api_key = server_api_key_for_model(model)
     if model["requires_api_key"] and not api_key:
-        raise HTTPException(status_code=400, detail=f"{model['name']} 需要 {model.get('api_key_label') or 'API Key'}")
+        raise HTTPException(status_code=400, detail=f"系統語音模型 {model['name']} 需要公司 API Key")
 
     record = update_audio_segment_transcription(
         asset_id,
@@ -1611,10 +1636,24 @@ async def reprocess_nas_asset(
     translation_api_key = str(payload.get("translation_api_key", "")).strip() or None
 
     if asset["category"] == "audio":
-        asr_model = get_asr_model(config.get("asr_model_id"))
-        audio_api_key = audio_api_key or server_api_key_for_model(asr_model)
+        asr_model = current_asr_model()
+        audio_api_key = server_api_key_for_model(asr_model)
         if asr_model["requires_api_key"] and not audio_api_key:
-            raise HTTPException(status_code=400, detail=f"重新處理需要 {asr_model.get('api_key_label') or 'API Key'}")
+            raise HTTPException(status_code=400, detail=f"系統語音模型 {asr_model['name']} 需要公司 API Key")
+        config.update(
+            {
+                "asr_model_id": asr_model["id"],
+                "asr_provider": asr_model["provider"],
+                "asr_model": asr_model["name"],
+                "asr_engine": asr_model["engine"],
+                "asr_requires_api_key": asr_model["requires_api_key"],
+            }
+        )
+        asset = update_nas_asset_processor_config(
+            asset_id,
+            analyzer=asr_model["name"],
+            processor_config_json=json.dumps(config, ensure_ascii=False),
+        ) or asset
         if config.get("translation_enabled"):
             translation_model = current_llm_model()
             translation_api_key = translation_api_key or server_api_key_for_model(translation_model)
@@ -1636,6 +1675,13 @@ async def reprocess_nas_asset(
     )
     meeting = get_meeting_by_nas_asset_id(asset_id) if asset["category"] == "audio" else None
     if meeting:
+        update_meeting_asr_selection(
+            meeting["id"],
+            model_id=asr_model["id"],
+            provider=asr_model["provider"],
+            model_name=asr_model["name"],
+            engine=asr_model["engine"],
+        )
         update_meeting_status(meeting["id"], status="processing", error_message=None)
         await enqueue_media_job(
             "meeting",
