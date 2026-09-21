@@ -91,7 +91,14 @@ class SegmentTranscriptionApiTests(unittest.IsolatedAsyncioTestCase):
             ), patch("app.main.list_audio_segment_transcriptions", return_value={}), patch(
                 "app.main.update_audio_segment_transcription",
                 return_value=queued,
-            ) as update:
+            ) as update, patch(
+                "app.main.current_asr_model",
+                return_value={
+                    "id": "local:whisper-cpp-small",
+                    "name": "whisper.cpp small",
+                    "requires_api_key": False,
+                },
+            ):
                 result = await transcribe_nas_audio_segment(
                     36,
                     0,
