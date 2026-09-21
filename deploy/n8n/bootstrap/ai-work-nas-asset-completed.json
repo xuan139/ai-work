@@ -105,7 +105,7 @@
     {
       "parameters": {
         "method": "POST",
-        "url": "http://host.docker.internal:8000/api/internal/n8n/push-result",
+        "url": "https://goldsys.io/api/internal/n8n/push-result",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
