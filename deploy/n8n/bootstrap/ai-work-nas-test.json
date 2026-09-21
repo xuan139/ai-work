@@ -1,0 +1,62 @@
+{
+  "name": "AI Work NAS 測試流程",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "1c4df419-d65d-4e6f-9bbd-b4482ddd94be",
+      "name": "手動啟動",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [260, 300]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "86a0c69b-a637-44db-b0c1-a6ee5842fd93",
+              "name": "message",
+              "value": "AI Work 已成功連接 n8n",
+              "type": "string"
+            },
+            {
+              "id": "ea44bd06-b28f-46e5-87c4-e4a2d3488b4f",
+              "name": "source",
+              "value": "NAS Automation",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a20e8844-ff9c-4d2c-ab8c-14117db3d32a",
+      "name": "建立測試結果",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [520, 300]
+    }
+  ],
+  "connections": {
+    "手動啟動": {
+      "main": [
+        [
+          {
+            "node": "建立測試結果",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "e7909e48-8b9c-41c9-a43c-c7fe0954b299",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "tags": []
+}
+

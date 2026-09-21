@@ -25,6 +25,7 @@ const messages = {
       aiwork: "AI Work",
       settings: "設定與管理",
       mcp: "MCP 管理",
+      n8n: "n8n 自動化",
       lineAdmin: "LINE 企業管理",
       accounts: "帳號管理",
     },
@@ -155,6 +156,36 @@ const messages = {
       saved: "LINE 群組政策已更新",
       saveFailed: "無法更新 LINE 群組政策",
       personalBlocked: "個人聊天室固定禁止使用公司 NAS、RAG 與公司 API Key。",
+    },
+    n8n: {
+      eyebrow: "NAS 工作流程自動化",
+      title: "n8n 自動化",
+      copy: "將 NAS 檔案事件、模型處理結果與企業服務串成可追蹤的工作流程。n8n 獨立執行，入口只對 AI Work 管理員開放。",
+      serviceLabel: "服務狀態",
+      checking: "檢查中",
+      connected: "運行中",
+      unavailable: "無法連線",
+      consoleEyebrow: "AUTOMATION CONSOLE",
+      consoleTitle: "開啟流程設計器",
+      consoleCopy: "首次進入需建立 n8n Owner 帳號；之後可在視覺化編輯器建立、測試與查看每次執行結果。",
+      refresh: "重新檢查",
+      open: "開啟 n8n",
+      versionLabel: "部署版本",
+      endpointLabel: "企業入口",
+      accessLabel: "存取政策",
+      adminOnly: "只限管理員",
+      latencyLabel: "服務回應",
+      trialEyebrow: "已匯入範例",
+      manualTest: "手動測試",
+      flowLabel: "n8n 測試流程",
+      step1Title: "手動啟動",
+      step1Copy: "在 n8n 編輯器按下 Execute workflow。",
+      step2Title: "建立測試結果",
+      step2Copy: "產生 AI Work 與 NAS 自動化連線成功訊息。",
+      step3Title: "查看執行資料",
+      step3Copy: "確認輸出與 Execution 記錄已保存。",
+      readyNotice: "服務已就緒。開啟 n8n 後即可執行已匯入的測試流程。",
+      unavailableNotice: "n8n 服務目前無法連線，請重新檢查或查看伺服器狀態。",
     },
     odoo: {
       eyebrow: "企業流程連接器",
@@ -863,6 +894,7 @@ const messages = {
       aiwork: "AI Work",
       settings: "Settings & Management",
       mcp: "MCP Management",
+      n8n: "n8n Automation",
       lineAdmin: "LINE Enterprise",
       accounts: "Account Management",
     },
@@ -993,6 +1025,36 @@ const messages = {
       saved: "LINE group policy updated",
       saveFailed: "Unable to update the LINE group policy",
       personalBlocked: "Direct chats are always blocked from company NAS, RAG, and company API keys.",
+    },
+    n8n: {
+      eyebrow: "NAS Workflow Automation",
+      title: "n8n Automation",
+      copy: "Connect NAS file events, model results, and business services into traceable workflows. n8n runs independently and is available only to AI Work administrators.",
+      serviceLabel: "Service status",
+      checking: "Checking",
+      connected: "Running",
+      unavailable: "Unavailable",
+      consoleEyebrow: "AUTOMATION CONSOLE",
+      consoleTitle: "Open the workflow editor",
+      consoleCopy: "Create the n8n Owner account on first access, then build, test, and inspect every execution in the visual editor.",
+      refresh: "Check Again",
+      open: "Open n8n",
+      versionLabel: "Deployed Version",
+      endpointLabel: "Company Entry Point",
+      accessLabel: "Access Policy",
+      adminOnly: "Administrators Only",
+      latencyLabel: "Response Time",
+      trialEyebrow: "Imported Example",
+      manualTest: "Manual Test",
+      flowLabel: "n8n test workflow",
+      step1Title: "Manual Trigger",
+      step1Copy: "Select Execute workflow in the n8n editor.",
+      step2Title: "Create Test Result",
+      step2Copy: "Generate a message confirming the AI Work and NAS automation connection.",
+      step3Title: "Inspect Execution Data",
+      step3Copy: "Verify the output and saved execution record.",
+      readyNotice: "The service is ready. Open n8n to run the imported test workflow.",
+      unavailableNotice: "The n8n service is unavailable. Check again or inspect the server status.",
     },
     odoo: {
       eyebrow: "Enterprise Workflow Connector",
@@ -1738,6 +1800,7 @@ const state = {
   selectedMcpServerId: "auto",
   editingMcpServerId: null,
   mcpSearchQuery: "",
+  n8nStatus: null,
 };
 
 const els = {
@@ -1763,6 +1826,7 @@ const els = {
     meetings: document.querySelector("#meetingsSection"),
     aiwork: document.querySelector("#aiworkSection"),
     mcp: document.querySelector("#mcpSection"),
+    n8n: document.querySelector("#n8nSection"),
     lineAdmin: document.querySelector("#lineAdminSection"),
     accounts: document.querySelector("#accountsSection"),
   },
@@ -1905,6 +1969,7 @@ const els = {
   accountNav: document.querySelector("#accountNav"),
   lineAdminNav: document.querySelector("#lineAdminNav"),
   mcpNav: document.querySelector("#mcpNav"),
+  n8nNav: document.querySelector("#n8nNav"),
   modelNav: document.querySelector("#modelNav"),
   lineGroupTotal: document.querySelector("#lineGroupTotal"),
   lineGroupApproved: document.querySelector("#lineGroupApproved"),
@@ -1937,6 +2002,15 @@ const els = {
   mcpServerDescription: document.querySelector("#mcpServerDescription"),
   mcpServerDescriptionEn: document.querySelector("#mcpServerDescriptionEn"),
   mcpServerFormError: document.querySelector("#mcpServerFormError"),
+  refreshN8nStatus: document.querySelector("#refreshN8nStatus"),
+  openN8nButton: document.querySelector("#openN8nButton"),
+  n8nStatusDot: document.querySelector("#n8nStatusDot"),
+  n8nStatusText: document.querySelector("#n8nStatusText"),
+  n8nVersion: document.querySelector("#n8nVersion"),
+  n8nEndpoint: document.querySelector("#n8nEndpoint"),
+  n8nLatency: document.querySelector("#n8nLatency"),
+  n8nWorkflowName: document.querySelector("#n8nWorkflowName"),
+  n8nNotice: document.querySelector("#n8nNotice"),
   accountTotal: document.querySelector("#accountTotal"),
   accountActive: document.querySelector("#accountActive"),
   accountAdmins: document.querySelector("#accountAdmins"),
@@ -2012,6 +2086,7 @@ function applyLanguage(lang) {
   renderVideoControls();
   renderLocalModelManager();
   renderMcpServers();
+  renderN8nStatus();
   renderLineAdmin();
   renderAccountList();
   if (state.passwordResetUserId) {
@@ -2158,6 +2233,7 @@ async function showApp() {
   els.accountNav.hidden = !isAdmin;
   els.lineAdminNav.hidden = !isAdmin;
   els.mcpNav.hidden = !isAdmin;
+  els.n8nNav.hidden = !isAdmin;
   els.addCustomModelButton.hidden = !isAdmin;
   setManagementMenuExpanded(false);
   switchView("dashboard");
@@ -2183,8 +2259,8 @@ function renderCurrentUser() {
 }
 
 function switchView(name) {
-  if (["models", "mcp", "lineAdmin", "accounts"].includes(name) && state.user?.role !== "admin") name = "dashboard";
-  const isManagementView = ["models", "mcp", "lineAdmin", "accounts"].includes(name);
+  if (["models", "mcp", "n8n", "lineAdmin", "accounts"].includes(name) && state.user?.role !== "admin") name = "dashboard";
+  const isManagementView = ["models", "mcp", "n8n", "lineAdmin", "accounts"].includes(name);
   Object.entries(els.sections).forEach(([key, section]) => {
     section.hidden = key !== name;
   });
@@ -2203,6 +2279,7 @@ async function refreshViewData(name) {
   if (name === "meetings") return loadMeetings();
   if (name === "aiwork") return Promise.all([loadLlmCatalog(), loadLlmCalls(), loadAvailableMcpServers()]);
   if (name === "mcp") return loadMcpServers();
+  if (name === "n8n") return loadN8nStatus();
   if (name === "lineAdmin") return loadLineAdmin();
   if (name === "accounts") return loadAccounts();
 }
@@ -2280,6 +2357,37 @@ async function loadMcpServers() {
   const result = await api("/api/admin/mcp/servers");
   state.mcpServers = result.servers || [];
   renderMcpServers();
+}
+
+async function loadN8nStatus() {
+  if (state.user?.role !== "admin") return;
+  state.n8nStatus = await api("/api/admin/n8n/status");
+  renderN8nStatus();
+}
+
+function renderN8nStatus() {
+  if (!els.n8nStatusText) return;
+  if (!state.n8nStatus) {
+    els.n8nStatusDot.classList.remove("connected", "unavailable");
+    els.n8nStatusText.textContent = t("n8n.checking");
+    els.n8nNotice.textContent = "";
+    els.openN8nButton.setAttribute("aria-disabled", "true");
+    els.openN8nButton.classList.add("disabled");
+    return;
+  }
+  const status = state.n8nStatus;
+  const connected = status.status === "connected";
+  els.n8nStatusDot.classList.toggle("connected", connected);
+  els.n8nStatusDot.classList.toggle("unavailable", !connected);
+  els.n8nStatusText.textContent = t(connected ? "n8n.connected" : "n8n.unavailable");
+  els.n8nVersion.textContent = status.version || "--";
+  els.n8nEndpoint.textContent = status.public_url || "/n8n/";
+  els.n8nLatency.textContent = Number.isFinite(status.response_ms) ? `${status.response_ms} ms` : "--";
+  els.n8nWorkflowName.textContent = status.test_workflow || "AI Work NAS 測試流程";
+  els.n8nNotice.textContent = t(connected ? "n8n.readyNotice" : "n8n.unavailableNotice");
+  els.n8nNotice.classList.toggle("ready", connected);
+  els.openN8nButton.setAttribute("aria-disabled", String(!connected));
+  els.openN8nButton.classList.toggle("disabled", !connected);
 }
 
 async function loadAvailableMcpServers() {
@@ -5085,6 +5193,14 @@ els.llmCallSearch.addEventListener("input", debounce(loadLlmCalls, 220));
 els.nasAssetSearch.addEventListener("input", debounce(loadNasAssets, 220));
 els.accountSearch.addEventListener("input", renderAccountList);
 els.refreshLineAdmin.addEventListener("click", () => loadLineAdmin().catch((error) => showToast(error.message, t("lineAdmin.serviceUnavailable"))));
+els.refreshN8nStatus.addEventListener("click", () => {
+  loadN8nStatus().catch((error) => showToast(error.message, t("errors.requestFailed")));
+});
+els.openN8nButton.addEventListener("click", (event) => {
+  if (state.n8nStatus?.status === "connected") return;
+  event.preventDefault();
+  showToast(t("n8n.unavailableNotice"), t("nav.n8n"));
+});
 els.lineAdminList.addEventListener("click", (event) => {
   const button = event.target.closest("[data-line-action='save']");
   if (button && !button.disabled) saveLineSourcePolicy(button);

@@ -128,6 +128,7 @@ from app.model_registry import custom_model_to_catalog, register_custom_model
 from app.nas import ensure_storage_dirs, nas_discovery_loop
 from app.nas_mcp import NAS_MCP_TOOLS, handle_nas_mcp_request
 from app.network_import import download_youtube_asset, validate_youtube_url
+from app.n8n_service import n8n_service_status
 from app.notifications import manager
 from app.rag_cache import lookup_rag_cache, normalize_query, store_rag_cache
 from app.segment_transcriptions import list_audio_segment_transcriptions, update_audio_segment_transcription
@@ -545,6 +546,11 @@ async def me(user: dict = Depends(current_user)) -> dict:
     return {"id": user["id"], "username": user["username"], "role": user["role"]}
 
 
+@app.get("/auth/n8n", include_in_schema=False)
+async def n8n_proxy_auth(admin: dict = Depends(require_admin)) -> Response:
+    return Response(status_code=204)
+
+
 USERNAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{2,31}$")
 VALID_ROLES = {"admin", "user"}
 MCP_SLUG_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{1,63}$")
@@ -577,6 +583,11 @@ def validate_role(value: object) -> str:
 @app.get("/api/admin/users")
 async def admin_users(q: str | None = None, admin: dict = Depends(require_admin)) -> list[dict]:
     return list_users(q=q)
+
+
+@app.get("/api/admin/n8n/status")
+async def admin_n8n_status(admin: dict = Depends(require_admin)) -> dict:
+    return await asyncio.to_thread(n8n_service_status)
 
 
 @app.post("/api/admin/users", status_code=201)

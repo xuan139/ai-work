@@ -11,7 +11,7 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png" />
     <link rel="apple-touch-icon" href="/static/icons/icon-192.png" />
-    <link rel="stylesheet" href="/static/styles.css?v=recorder-layout-v1" />
+    <link rel="stylesheet" href="/static/styles.css?v=n8n-automation-v1" />
   </head>
   <body>
     <div id="globalBusyIndicator" class="global-busy-indicator" role="status" aria-live="polite" hidden>
@@ -69,6 +69,7 @@
           <div id="managementNavGroup" class="nav-submenu" hidden>
             <button id="modelNav" class="nav-item nav-subitem" type="button" data-view="models" data-i18n="nav.models">模型管理</button>
             <button id="mcpNav" class="nav-item nav-subitem" type="button" data-view="mcp" data-i18n="nav.mcp" hidden>MCP 管理</button>
+            <button id="n8nNav" class="nav-item nav-subitem" type="button" data-view="n8n" data-i18n="nav.n8n" hidden>n8n 自動化</button>
             <button id="lineAdminNav" class="nav-item nav-subitem" type="button" data-view="lineAdmin" data-i18n="nav.lineAdmin" hidden>LINE 企業管理</button>
             <button id="accountNav" class="nav-item nav-subitem" type="button" data-view="accounts" data-i18n="nav.accounts" hidden>帳號管理</button>
           </div>
@@ -794,6 +795,71 @@
           </section>
         </section>
 
+        <section id="n8nSection" class="view-section" hidden>
+          <div class="n8n-hero">
+            <div>
+              <p class="eyebrow" data-i18n="n8n.eyebrow">NAS 工作流程自動化</p>
+              <h1 data-i18n="n8n.title">n8n 自動化</h1>
+              <p data-i18n="n8n.copy">將 NAS 檔案事件、模型處理結果與企業服務串成可追蹤的工作流程。n8n 獨立執行，入口只對 AI Work 管理員開放。</p>
+            </div>
+            <div class="n8n-service-status" aria-live="polite">
+              <span id="n8nStatusDot" class="n8n-status-dot"></span>
+              <div>
+                <small data-i18n="n8n.serviceLabel">服務狀態</small>
+                <strong id="n8nStatusText" data-i18n="n8n.checking">檢查中</strong>
+              </div>
+            </div>
+          </div>
+
+          <section class="n8n-control-band">
+            <div class="n8n-control-heading">
+              <div>
+                <p class="eyebrow" data-i18n="n8n.consoleEyebrow">AUTOMATION CONSOLE</p>
+                <h3 data-i18n="n8n.consoleTitle">開啟流程設計器</h3>
+                <p data-i18n="n8n.consoleCopy">首次進入需建立 n8n Owner 帳號；之後可在視覺化編輯器建立、測試與查看每次執行結果。</p>
+              </div>
+              <div class="n8n-actions">
+                <button id="refreshN8nStatus" class="secondary-button" type="button" data-i18n="n8n.refresh">重新檢查</button>
+                <a id="openN8nButton" class="primary-button button-link" href="/n8n/" target="_blank" rel="noopener" data-i18n="n8n.open">開啟 n8n</a>
+              </div>
+            </div>
+            <div class="n8n-facts">
+              <article>
+                <span data-i18n="n8n.versionLabel">部署版本</span>
+                <strong id="n8nVersion">--</strong>
+              </article>
+              <article>
+                <span data-i18n="n8n.endpointLabel">企業入口</span>
+                <strong id="n8nEndpoint">/n8n/</strong>
+              </article>
+              <article>
+                <span data-i18n="n8n.accessLabel">存取政策</span>
+                <strong data-i18n="n8n.adminOnly">只限管理員</strong>
+              </article>
+              <article>
+                <span data-i18n="n8n.latencyLabel">服務回應</span>
+                <strong id="n8nLatency">--</strong>
+              </article>
+            </div>
+          </section>
+
+          <section class="n8n-workflow-panel">
+            <div class="n8n-workflow-heading">
+              <div>
+                <p class="eyebrow" data-i18n="n8n.trialEyebrow">已匯入範例</p>
+                <h3 id="n8nWorkflowName">AI Work NAS 測試流程</h3>
+              </div>
+              <span class="n8n-trial-badge" data-i18n="n8n.manualTest">手動測試</span>
+            </div>
+            <div class="n8n-flow-preview" aria-label="n8n 測試流程" data-i18n-attr="aria-label:n8n.flowLabel">
+              <article><span>01</span><div><strong data-i18n="n8n.step1Title">手動啟動</strong><p data-i18n="n8n.step1Copy">在 n8n 編輯器按下 Execute workflow。</p></div></article>
+              <article><span>02</span><div><strong data-i18n="n8n.step2Title">建立測試結果</strong><p data-i18n="n8n.step2Copy">產生 AI Work 與 NAS 自動化連線成功訊息。</p></div></article>
+              <article><span>03</span><div><strong data-i18n="n8n.step3Title">查看執行資料</strong><p data-i18n="n8n.step3Copy">確認輸出與 Execution 記錄已保存。</p></div></article>
+            </div>
+            <div id="n8nNotice" class="n8n-notice" role="status"></div>
+          </section>
+        </section>
+
         <section id="accountsSection" class="view-section" hidden>
           <div class="account-summary-band">
             <div>
@@ -1079,6 +1145,6 @@
       </section>
     </div>
 
-    <script src="/static/app.js?v=recorder-layout-v1"></script>
+    <script src="/static/app.js?v=n8n-automation-v1"></script>
   </body>
 </html>
