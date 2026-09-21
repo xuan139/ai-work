@@ -52,6 +52,9 @@ class N8nIntegrationTests(unittest.TestCase):
         self.assertTrue(workflow["id"])
         self.assertIn("N8N_PATH: /n8n/", compose)
 
+        nginx = (ROOT / "deploy" / "n8n" / "nginx-location.conf").read_text(encoding="utf-8")
+        self.assertIn("proxy_pass http://127.0.0.1:5678/;", nginx)
+
 
 if __name__ == "__main__":
     unittest.main()
