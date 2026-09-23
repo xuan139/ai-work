@@ -106,18 +106,23 @@
 }
 
 .wiki-directory {
+  min-width: 0;
   padding: 22px 18px 22px 0;
+  overflow: hidden;
   border-right: 1px solid var(--line);
 }
 
 .wiki-page-list {
   display: grid;
+  min-width: 0;
   gap: 8px;
 }
 
 .wiki-page-row {
   width: 100%;
+  min-width: 0;
   padding: 15px;
+  overflow: hidden;
   color: var(--ink);
   text-align: left;
   background: #fff;
@@ -135,6 +140,14 @@
 .wiki-page-row span,
 .wiki-page-row small {
   display: block;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.wiki-page-row strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .wiki-page-row p {
@@ -144,6 +157,8 @@
   color: var(--muted);
   font-size: 13px;
   line-height: 1.55;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 3;
 }
@@ -162,6 +177,7 @@
 .wiki-page-detail {
   min-width: 0;
   padding: 28px 0 40px 32px;
+  overflow: hidden;
 }
 
 .wiki-article-header {
@@ -213,6 +229,8 @@
 .wiki-markdown p {
   margin: 8px 0;
   line-height: 1.75;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .wiki-markdown .wiki-bullet {
@@ -277,6 +295,8 @@
 .wiki-source-list details p {
   color: var(--muted);
   line-height: 1.7;
+  overflow-wrap: anywhere;
+  word-break: break-word;
 }
 
 .wiki-source-list img {
@@ -301,7 +321,7 @@
   border-radius: 5px;
 }
 
-@media (max-width: 980px) {
+@media (max-width: 1180px) {
   .wiki-hero,
   .wiki-workspace {
     grid-template-columns: 1fr;

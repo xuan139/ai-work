@@ -4,6 +4,7 @@ import asyncio
 import hashlib
 import json
 import re
+import unicodedata
 from collections import Counter
 from typing import Any
 
@@ -223,7 +224,27 @@ def _page_body(
 
 
 def _clean_excerpt(text: str) -> str:
-    cleaned = re.sub(r"\s+", " ", text).strip()
+    normalized = unicodedata.normalize("NFKC", str(text or ""))
+    normalized = "".join(
+        character
+        if character in "\n\t" or not unicodedata.category(character).startswith("C")
+        else " "
+        for character in normalized
+    )
+    normalized = re.sub(r"(.)\1{5,}", " ", normalized)
+    tokens = []
+    for token in normalized.split():
+        characters = [character for character in token if not character.isspace()]
+        if len(characters) >= 12:
+            counts = Counter(characters)
+            dominant_ratio = counts.most_common(1)[0][1] / len(characters)
+            unique_ratio = len(counts) / len(characters)
+            if dominant_ratio >= 0.45 and unique_ratio <= 0.35:
+                continue
+        tokens.append(token)
+    cleaned = " ".join(tokens).strip()
+    if not cleaned:
+        cleaned = "此來源未抽取到可讀文字。"
     return cleaned[:WIKI_EXCERPT_CHARS].rstrip() + ("…" if len(cleaned) > WIKI_EXCERPT_CHARS else "")
 
 

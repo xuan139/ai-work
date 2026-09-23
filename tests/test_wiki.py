@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 from app import db
 from app.auth import hash_password
-from app.wiki_service import search_wiki, upsert_wiki_for_asset
+from app.wiki_service import _clean_excerpt, search_wiki, upsert_wiki_for_asset
 
 
 class WikiTests(unittest.IsolatedAsyncioTestCase):
@@ -59,6 +59,16 @@ class WikiTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual([page["title"] for page in employee_results], ["员工知识"])
         self.assertEqual({page["title"] for page in admin_results}, {"员工知识", "管理知识"})
         self.assertEqual(employee_results[0]["retrieval_method"], "hybrid")
+
+    def test_excerpt_removes_repeated_extraction_noise(self) -> None:
+        noisy = f"正常開頭 {'อ' * 40} 可讀結尾"
+
+        self.assertEqual(_clean_excerpt(noisy), "正常開頭 可讀結尾")
+
+    def test_excerpt_keeps_normal_unspaced_chinese(self) -> None:
+        content = "企業知識庫會保留來源引用與權限設定"
+
+        self.assertEqual(_clean_excerpt(content), content)
 
     def _asset(self, user_id: int, title: str) -> dict:
         return db.create_nas_asset(
