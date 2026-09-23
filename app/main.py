@@ -494,7 +494,10 @@ async def excel_mcp(request: Request, payload: dict) -> Response:
 
 @app.get("/")
 async def index() -> FileResponse:
-    return FileResponse(STATIC_DIR / "index.html")
+    return FileResponse(
+        STATIC_DIR / "index.html",
+        headers={"Cache-Control": "no-cache"},
+    )
 
 
 @app.get("/manifest.webmanifest", include_in_schema=False)
