@@ -23,11 +23,40 @@ const messages = {
       models: "模型管理",
       meetings: "資料庫查詢",
       aiwork: "AI Work",
+      wiki: "企業 Wiki",
       settings: "設定與管理",
       mcp: "MCP 管理",
       n8n: "n8n 自動化",
       lineAdmin: "LINE 企業管理",
       accounts: "帳號管理",
+    },
+    wiki: {
+      eyebrow: "NAS 企業知識",
+      title: "企業 Wiki",
+      copy: "由 NAS 已處理資料自動生成並增量更新。每項內容保留來源、頁碼與處理版本，並沿用原始資料權限。",
+      metricsLabel: "Wiki 摘要",
+      pages: "知識頁面",
+      sources: "來源資料",
+      versions: "歷史版本",
+      searchLabel: "全文／向量搜尋",
+      searchPlaceholder: "輸入主題、人物、專案或文件內容",
+      refresh: "重新載入",
+      directoryLabel: "Wiki 頁面目錄",
+      selectPage: "選擇頁面查看內容、來源引用與相關知識。",
+      empty: "尚無 Wiki 頁面。完成文件、音訊、影片或圖片處理後，系統會自動建立。",
+      noMatch: "找不到符合條件的 Wiki 頁面。",
+      sourceCount: "{count} 份來源",
+      version: "版本 {version}",
+      owner: "擁有者",
+      updated: "更新時間",
+      retrieval: "混合檢索 {score}",
+      sourceTitle: "來源引用",
+      relatedTitle: "相關頁面",
+      openAsset: "查看 NAS 資產",
+      pageNumber: "第 {page} 頁",
+      chunk: "片段 {chunk}",
+      imagePreview: "來源圖片預覽",
+      loading: "正在載入 Wiki...",
     },
     nas: {
       title: "NAS 發現服務",
@@ -894,11 +923,40 @@ const messages = {
       models: "Model Management",
       meetings: "Knowledge Search",
       aiwork: "AI Work",
+      wiki: "Enterprise Wiki",
       settings: "Settings & Management",
       mcp: "MCP Management",
       n8n: "n8n Automation",
       lineAdmin: "LINE Enterprise",
       accounts: "Account Management",
+    },
+    wiki: {
+      eyebrow: "NAS Enterprise Knowledge",
+      title: "Enterprise Wiki",
+      copy: "Automatically generated and incrementally updated from processed NAS assets, with source citations, page references, version history, and inherited access control.",
+      metricsLabel: "Wiki summary",
+      pages: "Knowledge Pages",
+      sources: "Source Assets",
+      versions: "Versions",
+      searchLabel: "Full-text / vector search",
+      searchPlaceholder: "Search topics, people, projects, or document content",
+      refresh: "Reload",
+      directoryLabel: "Wiki page directory",
+      selectPage: "Select a page to view its content, citations, and related knowledge.",
+      empty: "No Wiki pages yet. The system creates them after a document, audio, video, or image asset is processed.",
+      noMatch: "No Wiki pages match this query.",
+      sourceCount: "{count} sources",
+      version: "Version {version}",
+      owner: "Owner",
+      updated: "Updated",
+      retrieval: "Hybrid score {score}",
+      sourceTitle: "Source Citations",
+      relatedTitle: "Related Pages",
+      openAsset: "Open NAS Asset",
+      pageNumber: "Page {page}",
+      chunk: "Chunk {chunk}",
+      imagePreview: "Source image preview",
+      loading: "Loading Wiki...",
     },
     nas: {
       title: "NAS Discovery Service",
@@ -1805,6 +1863,9 @@ const state = {
   editingMcpServerId: null,
   mcpSearchQuery: "",
   n8nStatus: null,
+  wikiPages: [],
+  selectedWikiPageId: null,
+  selectedWikiPage: null,
 };
 
 const els = {
@@ -1823,6 +1884,7 @@ const els = {
   managementNavGroup: document.querySelector("#managementNavGroup"),
   sections: {
     dashboard: document.querySelector("#dashboardSection"),
+    wiki: document.querySelector("#wikiSection"),
     record: document.querySelector("#recordSection"),
     upload: document.querySelector("#uploadSection"),
     network: document.querySelector("#networkSection"),
@@ -1834,6 +1896,13 @@ const els = {
     lineAdmin: document.querySelector("#lineAdminSection"),
     accounts: document.querySelector("#accountsSection"),
   },
+  wikiSearchInput: document.querySelector("#wikiSearchInput"),
+  refreshWiki: document.querySelector("#refreshWiki"),
+  wikiPageTotal: document.querySelector("#wikiPageTotal"),
+  wikiSourceTotal: document.querySelector("#wikiSourceTotal"),
+  wikiVersionTotal: document.querySelector("#wikiVersionTotal"),
+  wikiPageList: document.querySelector("#wikiPageList"),
+  wikiPageDetail: document.querySelector("#wikiPageDetail"),
   totalMeetings: document.querySelector("#totalMeetings"),
   processingMeetings: document.querySelector("#processingMeetings"),
   completedMeetings: document.querySelector("#completedMeetings"),
@@ -2276,6 +2345,7 @@ function switchView(name) {
 
 async function refreshViewData(name) {
   if (name === "dashboard") return Promise.all([loadMeetings(), loadNasAssets()]);
+  if (name === "wiki") return loadWikiPages();
   if (name === "record") return Promise.all([loadAsrCatalog(), loadLineGroups()]);
   if (name === "upload") return loadNasAssets();
   if (name === "network") return loadNetworkAssets();
@@ -2955,6 +3025,121 @@ async function loadNasAssets({ background = false } = {}) {
     const stillExists = state.nasAssets.some((asset) => asset.id === state.selectedAssetId);
     if (stillExists) await selectNasAsset(state.selectedAssetId);
   }
+}
+
+async function loadWikiPages({ background = false } = {}) {
+  const query = els.wikiSearchInput.value.trim();
+  const result = await api(`/api/wiki/pages${query ? `?q=${encodeURIComponent(query)}` : ""}`, { busy: !background });
+  state.wikiPages = result.pages || [];
+  renderWikiDirectory();
+  const selectedExists = state.wikiPages.some((page) => page.id === state.selectedWikiPageId);
+  if (!selectedExists) {
+    state.selectedWikiPageId = state.wikiPages[0]?.id || null;
+    state.selectedWikiPage = null;
+  }
+  if (state.selectedWikiPageId) await selectWikiPage(state.selectedWikiPageId, { background });
+  else renderWikiDetail();
+}
+
+function renderWikiDirectory() {
+  els.wikiPageTotal.textContent = state.wikiPages.length.toLocaleString(state.lang);
+  els.wikiSourceTotal.textContent = state.wikiPages
+    .reduce((sum, page) => sum + Number(page.source_count || 0), 0)
+    .toLocaleString(state.lang);
+  els.wikiVersionTotal.textContent = state.wikiPages
+    .reduce((sum, page) => sum + Number(page.version_count || page.version || 0), 0)
+    .toLocaleString(state.lang);
+  if (!state.wikiPages.length) {
+    els.wikiPageList.innerHTML = `<div class="empty-state compact">${escapeHtml(els.wikiSearchInput.value.trim() ? t("wiki.noMatch") : t("wiki.empty"))}</div>`;
+    return;
+  }
+  els.wikiPageList.innerHTML = state.wikiPages.map((page) => `
+    <button class="wiki-page-row ${page.id === state.selectedWikiPageId ? "active" : ""}" type="button" data-wiki-page-id="${Number(page.id)}">
+      <strong>${escapeHtml(page.title)}</strong>
+      <p>${escapeHtml(page.summary)}</p>
+      <span>${escapeHtml(t("wiki.sourceCount", { count: Number(page.source_count || 0) }))} · ${escapeHtml(t("wiki.version", { version: Number(page.version || 1) }))}</span>
+      ${page.retrieval_score == null ? "" : `<small>${escapeHtml(t("wiki.retrieval", { score: Number(page.retrieval_score).toFixed(2) }))}</small>`}
+    </button>
+  `).join("");
+}
+
+async function selectWikiPage(pageId, { background = false } = {}) {
+  state.selectedWikiPageId = Number(pageId);
+  renderWikiDirectory();
+  state.selectedWikiPage = await api(`/api/wiki/pages/${state.selectedWikiPageId}`, { busy: !background });
+  renderWikiDetail();
+}
+
+function renderWikiDetail() {
+  const page = state.selectedWikiPage;
+  if (!page) {
+    els.wikiPageDetail.innerHTML = `<div class="empty-state">${escapeHtml(t("wiki.selectPage"))}</div>`;
+    return;
+  }
+  const sources = page.sources || [];
+  const groupedSources = sources.reduce((groups, source) => {
+    if (!groups[source.asset_id]) groups[source.asset_id] = [];
+    groups[source.asset_id].push(source);
+    return groups;
+  }, {});
+  els.wikiPageDetail.innerHTML = `
+    <header class="wiki-article-header">
+      <div>
+        <p class="eyebrow">${escapeHtml(page.keywords?.slice(0, 4).join(" · ") || "NAS WIKI")}</p>
+        <h2>${escapeHtml(page.title)}</h2>
+        <p>${escapeHtml(page.summary)}</p>
+      </div>
+      <div class="wiki-page-meta">
+        <span>${escapeHtml(t("wiki.owner"))}: ${escapeHtml(page.owner_username || "-")}</span>
+        <span>${escapeHtml(t("wiki.updated"))}: ${escapeHtml(formatDate(page.updated_at))}</span>
+        <span>${escapeHtml(t("wiki.version", { version: Number(page.version || 1) }))}</span>
+      </div>
+    </header>
+    <div class="wiki-markdown">${renderWikiMarkdown(page.body)}</div>
+    <section class="wiki-citations">
+      <h3>${escapeHtml(t("wiki.sourceTitle"))}</h3>
+      ${Object.values(groupedSources).map((assetSources) => {
+        const first = assetSources[0];
+        return `
+          <article class="wiki-source-group">
+            <div class="wiki-source-heading">
+              <div><strong>${escapeHtml(first.asset_title)}</strong><span>${escapeHtml(first.original_filename)} · ${escapeHtml(first.category.toUpperCase())}</span></div>
+              <button class="secondary-button compact-button" type="button" data-wiki-asset-id="${Number(first.asset_id)}">${escapeHtml(t("wiki.openAsset"))}</button>
+            </div>
+            <div class="wiki-source-list">
+              ${assetSources.map((source) => `
+                <details>
+                  <summary><b>[${escapeHtml(source.citation_key)}]</b> ${escapeHtml(source.page_number ? t("wiki.pageNumber", { page: source.page_number }) : t("wiki.chunk", { chunk: source.chunk_id }))} · ${escapeHtml(source.chunk_type)}</summary>
+                  <p>${escapeHtml(source.excerpt)}</p>
+                  ${source.image_url ? `<img src="${escapeHtml(source.image_url)}" alt="${escapeHtml(t("wiki.imagePreview"))}" loading="lazy" />` : ""}
+                </details>
+              `).join("")}
+            </div>
+          </article>
+        `;
+      }).join("")}
+    </section>
+    ${(page.related_pages || []).length ? `
+      <section class="wiki-related">
+        <h3>${escapeHtml(t("wiki.relatedTitle"))}</h3>
+        <div>${page.related_pages.map((related) => `<button type="button" data-related-wiki-id="${Number(related.id)}">${escapeHtml(related.title)}</button>`).join("")}</div>
+      </section>
+    ` : ""}
+  `;
+}
+
+function renderWikiMarkdown(markdown) {
+  return String(markdown || "").split("\n").map((line) => {
+    if (line.startsWith("### ")) return `<h4>${renderWikiInline(line.slice(4))}</h4>`;
+    if (line.startsWith("## ")) return `<h3>${renderWikiInline(line.slice(3))}</h3>`;
+    if (line.startsWith("# ")) return "";
+    if (line.startsWith("- ")) return `<p class="wiki-bullet">${renderWikiInline(line.slice(2))}</p>`;
+    return line.trim() ? `<p>${renderWikiInline(line)}</p>` : "";
+  }).join("");
+}
+
+function renderWikiInline(text) {
+  return escapeHtml(text).replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
 }
 
 async function loadNetworkAssets({ background = false } = {}) {
@@ -4894,6 +5079,7 @@ function connectWebSocket() {
     if (payload.type.startsWith("nas_asset_")) {
       await loadNasAssets({ background: true });
       if (currentViewName() === "network") await loadNetworkAssets({ background: true });
+      if (currentViewName() === "wiki") await loadWikiPages({ background: true });
       return;
     }
     await loadMeetings({ background: true });
@@ -5156,6 +5342,26 @@ els.settingsNav.addEventListener("click", () => {
   setManagementMenuExpanded(els.settingsNav.getAttribute("aria-expanded") !== "true");
 });
 els.networkImportForm.addEventListener("submit", submitNetworkImport);
+els.wikiSearchInput.addEventListener("input", debounce(() => {
+  state.selectedWikiPageId = null;
+  loadWikiPages().catch((error) => showToast(error.message, t("errors.requestFailed")));
+}, 260));
+els.refreshWiki.addEventListener("click", () => {
+  loadWikiPages().catch((error) => showToast(error.message, t("errors.requestFailed")));
+});
+els.wikiPageList.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-wiki-page-id]");
+  if (button) selectWikiPage(Number(button.dataset.wikiPageId)).catch((error) => showToast(error.message, t("errors.requestFailed")));
+});
+els.wikiPageDetail.addEventListener("click", (event) => {
+  const assetButton = event.target.closest("[data-wiki-asset-id]");
+  if (assetButton) {
+    openNasAsset(Number(assetButton.dataset.wikiAssetId)).catch((error) => showToast(error.message, t("upload.actionFailed")));
+    return;
+  }
+  const relatedButton = event.target.closest("[data-related-wiki-id]");
+  if (relatedButton) selectWikiPage(Number(relatedButton.dataset.relatedWikiId)).catch((error) => showToast(error.message, t("errors.requestFailed")));
+});
 els.refreshNetworkAssets.addEventListener("click", () => {
   loadNetworkAssets().catch((error) => showToast(error.message, t("errors.requestFailed")));
 });

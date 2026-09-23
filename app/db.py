@@ -392,6 +392,61 @@ def init_db() -> None:
         )
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS wiki_pages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                owner_user_id INTEGER NOT NULL,
+                slug TEXT NOT NULL,
+                title TEXT NOT NULL,
+                summary TEXT NOT NULL,
+                body TEXT NOT NULL,
+                keywords_json TEXT NOT NULL DEFAULT '[]',
+                embedding BLOB,
+                embedding_model TEXT,
+                source_count INTEGER NOT NULL DEFAULT 0,
+                version INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(owner_user_id, slug),
+                FOREIGN KEY(owner_user_id) REFERENCES users(id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS wiki_sources (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                page_id INTEGER NOT NULL,
+                asset_id INTEGER NOT NULL,
+                chunk_id INTEGER NOT NULL,
+                citation_key TEXT NOT NULL,
+                excerpt TEXT NOT NULL,
+                page_number INTEGER,
+                chunk_type TEXT NOT NULL,
+                image_path TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(page_id, asset_id, chunk_id),
+                FOREIGN KEY(page_id) REFERENCES wiki_pages(id),
+                FOREIGN KEY(asset_id) REFERENCES nas_assets(id),
+                FOREIGN KEY(chunk_id) REFERENCES document_chunks(id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS wiki_page_versions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                page_id INTEGER NOT NULL,
+                version INTEGER NOT NULL,
+                summary TEXT NOT NULL,
+                body TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(page_id, version),
+                FOREIGN KEY(page_id) REFERENCES wiki_pages(id)
+            )
+            """
+        )
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS rag_query_cache (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 asset_id INTEGER NOT NULL,
@@ -623,6 +678,9 @@ def init_db() -> None:
         conn.execute("CREATE INDEX IF NOT EXISTS idx_nas_assets_created_at ON nas_assets(created_at)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_nas_assets_source_type ON nas_assets(source_type, created_at)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_document_chunks_asset_id ON document_chunks(asset_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_wiki_pages_owner ON wiki_pages(owner_user_id, updated_at)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_wiki_sources_page ON wiki_sources(page_id, asset_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_wiki_sources_asset ON wiki_sources(asset_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_rag_query_cache_asset_model ON rag_query_cache(asset_id, model_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_llm_query_cache_user_model ON llm_query_cache(user_id, model_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_asset_ai_analyses_asset ON asset_ai_analyses(asset_id, created_at)")
@@ -2105,6 +2163,183 @@ def get_document_chunk(chunk_id: int) -> dict[str, Any] | None:
             (chunk_id,),
         ).fetchone()
     return _row_to_dict(row)
+
+
+def get_wiki_page_by_owner_slug(owner_user_id: int, slug: str) -> dict[str, Any] | None:
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT * FROM wiki_pages WHERE owner_user_id = ? AND slug = ?",
+            (owner_user_id, slug),
+        ).fetchone()
+    return _row_to_dict(row)
+
+
+def list_wiki_asset_ids(page_id: int) -> list[int]:
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT DISTINCT asset_id FROM wiki_sources WHERE page_id = ? ORDER BY asset_id",
+            (page_id,),
+        ).fetchall()
+    return [int(row["asset_id"]) for row in rows]
+
+
+def save_wiki_page(
+    *,
+    owner_user_id: int,
+    slug: str,
+    title: str,
+    summary: str,
+    body: str,
+    keywords_json: str,
+    embedding: bytes | None,
+    embedding_model: str | None,
+    sources: list[dict[str, Any]],
+) -> dict[str, Any]:
+    with connect() as conn:
+        existing = conn.execute(
+            "SELECT * FROM wiki_pages WHERE owner_user_id = ? AND slug = ?",
+            (owner_user_id, slug),
+        ).fetchone()
+        changed = existing is None or existing["summary"] != summary or existing["body"] != body
+        if existing is None:
+            cursor = conn.execute(
+                """
+                INSERT INTO wiki_pages (
+                    owner_user_id, slug, title, summary, body, keywords_json,
+                    embedding, embedding_model, source_count, version
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1)
+                """,
+                (
+                    owner_user_id, slug, title, summary, body, keywords_json,
+                    embedding, embedding_model, len({source["asset_id"] for source in sources}),
+                ),
+            )
+            page_id = int(cursor.lastrowid)
+            version = 1
+        else:
+            page_id = int(existing["id"])
+            version = int(existing["version"]) + (1 if changed else 0)
+            conn.execute(
+                """
+                UPDATE wiki_pages
+                SET title = ?, summary = ?, body = ?, keywords_json = ?,
+                    embedding = COALESCE(?, embedding),
+                    embedding_model = COALESCE(?, embedding_model),
+                    source_count = ?, version = ?, updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (
+                    title, summary, body, keywords_json, embedding, embedding_model,
+                    len({source["asset_id"] for source in sources}), version, page_id,
+                ),
+            )
+
+        conn.execute("DELETE FROM wiki_sources WHERE page_id = ?", (page_id,))
+        conn.executemany(
+            """
+            INSERT INTO wiki_sources (
+                page_id, asset_id, chunk_id, citation_key, excerpt,
+                page_number, chunk_type, image_path
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            [
+                (
+                    page_id, source["asset_id"], source["chunk_id"], source["citation_key"],
+                    source["excerpt"], source.get("page_number"), source["chunk_type"],
+                    source.get("image_path"),
+                )
+                for source in sources
+            ],
+        )
+        if changed:
+            conn.execute(
+                """
+                INSERT INTO wiki_page_versions (page_id, version, summary, body)
+                VALUES (?, ?, ?, ?)
+                """,
+                (page_id, version, summary, body),
+            )
+        row = conn.execute(
+            """
+            SELECT wiki_pages.*, users.username AS owner_username
+            FROM wiki_pages JOIN users ON users.id = wiki_pages.owner_user_id
+            WHERE wiki_pages.id = ?
+            """,
+            (page_id,),
+        ).fetchone()
+    if row is None:
+        raise RuntimeError("Wiki page persistence failed")
+    return dict(row)
+
+
+def list_wiki_pages(*, user_id: int, role: str) -> list[dict[str, Any]]:
+    where = "" if role == "admin" else "WHERE wiki_pages.owner_user_id = ?"
+    params: tuple[Any, ...] = () if role == "admin" else (user_id,)
+    with connect() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT wiki_pages.*, users.username AS owner_username,
+                   (SELECT COUNT(*) FROM wiki_page_versions WHERE page_id = wiki_pages.id) AS version_count
+            FROM wiki_pages
+            JOIN users ON users.id = wiki_pages.owner_user_id
+            {where}
+            ORDER BY datetime(wiki_pages.updated_at) DESC, wiki_pages.id DESC
+            """,
+            params,
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def get_wiki_page(page_id: int) -> dict[str, Any] | None:
+    with connect() as conn:
+        row = conn.execute(
+            """
+            SELECT wiki_pages.*, users.username AS owner_username,
+                   (SELECT COUNT(*) FROM wiki_page_versions WHERE page_id = wiki_pages.id) AS version_count
+            FROM wiki_pages
+            JOIN users ON users.id = wiki_pages.owner_user_id
+            WHERE wiki_pages.id = ?
+            """,
+            (page_id,),
+        ).fetchone()
+    return _row_to_dict(row)
+
+
+def list_wiki_sources(page_id: int) -> list[dict[str, Any]]:
+    with connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT wiki_sources.*, nas_assets.title AS asset_title,
+                   nas_assets.original_filename, nas_assets.category,
+                   nas_assets.user_id AS asset_user_id, users.username AS owner_username
+            FROM wiki_sources
+            JOIN nas_assets ON nas_assets.id = wiki_sources.asset_id
+            JOIN users ON users.id = nas_assets.user_id
+            WHERE wiki_sources.page_id = ?
+            ORDER BY wiki_sources.asset_id, wiki_sources.chunk_id
+            """,
+            (page_id,),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def list_completed_assets_without_wiki(limit: int = 10) -> list[dict[str, Any]]:
+    with connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT nas_assets.*
+            FROM nas_assets
+            WHERE nas_assets.status = 'completed'
+              AND nas_assets.chunk_count > 0
+              AND NOT EXISTS (
+                  SELECT 1 FROM wiki_sources WHERE wiki_sources.asset_id = nas_assets.id
+              )
+            ORDER BY nas_assets.id
+            LIMIT ?
+            """,
+            (limit,),
+        ).fetchall()
+    return [dict(row) for row in rows]
 
 
 def search_document_chunks(asset_id: int, query: str, limit: int = 5) -> list[dict[str, Any]]:

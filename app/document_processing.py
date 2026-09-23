@@ -19,6 +19,7 @@ from app.n8n_service import notify_n8n_asset_completed
 from app.translation_service import translate_transcript_with_audit
 from app.video_catalog import get_video_model
 from app.video_runtime import VideoRuntimeError, analyze_segmented_video, build_video_detection_chunks
+from app.wiki_service import upsert_wiki_for_asset
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 AUDIO_SUFFIXES = {".wav", ".mp3", ".m4a", ".webm", ".ogg", ".flac", ".aac"}
@@ -129,9 +130,13 @@ async def process_nas_asset(
                 summary="檔案已保存並完成 NAS 索引。此類型目前只保留原始檔與中繼資料。",
                 chunk_count=0,
             )
-        await _notify(asset, updated, "nas_asset_processed")
         if updated and updated.get("status") == "completed":
+            try:
+                await upsert_wiki_for_asset(asset_id)
+            except Exception:
+                pass
             await notify_n8n_asset_completed(updated, list_document_chunks(asset_id))
+        await _notify(asset, updated, "nas_asset_processed")
     except Exception as exc:
         updated = update_nas_asset(
             asset_id,

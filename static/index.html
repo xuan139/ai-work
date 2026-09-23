@@ -58,6 +58,7 @@
         </div>
         <nav class="nav-list" aria-label="主導覽" data-i18n-attr="aria-label:sidebar.navLabel">
           <button class="nav-item" type="button" data-view="aiwork">AI Work</button>
+          <button class="nav-item" type="button" data-view="wiki" data-i18n="nav.wiki">企業 Wiki</button>
           <button class="nav-item active" type="button" data-view="dashboard" data-i18n="nav.dashboard">總覽</button>
           <button class="nav-item" type="button" data-view="record" data-i18n="nav.record">會議記錄</button>
           <button class="nav-item" type="button" data-view="upload" data-i18n="nav.upload">NAS 上傳</button>
@@ -181,6 +182,36 @@
               <strong>AI Work</strong>
               <span data-i18n="modules.aiwork.copy">預留入口，後續接會議摘要、行動項和問答。</span>
             </button>
+          </div>
+        </section>
+
+        <section id="wikiSection" class="view-section" hidden>
+          <div class="wiki-hero">
+            <div>
+              <p class="eyebrow" data-i18n="wiki.eyebrow">NAS 企業知識</p>
+              <h1 data-i18n="wiki.title">企業 Wiki</h1>
+              <p data-i18n="wiki.copy">由 NAS 已處理資料自動生成並增量更新。每項內容保留來源、頁碼與處理版本，並沿用原始資料權限。</p>
+            </div>
+            <div class="wiki-metrics" aria-label="Wiki 摘要" data-i18n-attr="aria-label:wiki.metricsLabel">
+              <article><span id="wikiPageTotal">0</span><strong data-i18n="wiki.pages">知識頁面</strong></article>
+              <article><span id="wikiSourceTotal">0</span><strong data-i18n="wiki.sources">來源資料</strong></article>
+              <article><span id="wikiVersionTotal">0</span><strong data-i18n="wiki.versions">歷史版本</strong></article>
+            </div>
+          </div>
+          <section class="wiki-search-band">
+            <label class="wiki-search-box">
+              <span data-i18n="wiki.searchLabel">全文／向量搜尋</span>
+              <input id="wikiSearchInput" type="search" placeholder="輸入主題、人物、專案或文件內容" data-i18n-attr="placeholder:wiki.searchPlaceholder" />
+            </label>
+            <button id="refreshWiki" class="secondary-button" type="button" data-i18n="wiki.refresh">重新載入</button>
+          </section>
+          <div class="wiki-workspace">
+            <section class="wiki-directory" aria-label="Wiki 页面目录" data-i18n-attr="aria-label:wiki.directoryLabel">
+              <div id="wikiPageList" class="wiki-page-list"></div>
+            </section>
+            <article id="wikiPageDetail" class="wiki-page-detail">
+              <div class="empty-state" data-i18n="wiki.selectPage">选择页面查看内容、来源引用与相关知识。</div>
+            </article>
           </div>
         </section>
 

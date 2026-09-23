@@ -137,6 +137,7 @@ from app.system_llm import current_llm_model, current_llm_state, update_current_
 from app.translation_service import TARGET_LANGUAGES
 from app.upload_storage import UploadTooLargeError, save_upload_stream
 from app.video_catalog import get_video_model, video_model_summary
+from app.wiki_service import search_wiki, wiki_backfill_loop, wiki_detail
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = BASE_DIR / "static"
@@ -353,6 +354,7 @@ async def lifespan(app: FastAPI):
     tasks = [
         asyncio.create_task(nas_discovery_loop(BASE_DIR)),
         asyncio.create_task(embedding_backfill_loop()),
+        asyncio.create_task(wiki_backfill_loop()),
     ]
     for asset in list_pending_network_assets():
         config = parse_processor_config(asset)
@@ -1150,6 +1152,19 @@ def validate_translation_selection(
 @app.get("/api/nas-assets")
 async def nas_assets(q: str | None = None, user: dict = Depends(current_user)) -> list[dict]:
     return list_nas_assets(user_id=user["id"], role=user["role"], q=q)
+
+
+@app.get("/api/wiki/pages")
+async def wiki_pages(q: str = "", user: dict = Depends(current_user)) -> dict:
+    return {"pages": await search_wiki(user, q, limit=50), "query": q}
+
+
+@app.get("/api/wiki/pages/{page_id}")
+async def wiki_page_detail(page_id: int, user: dict = Depends(current_user)) -> dict:
+    page = await wiki_detail(page_id, user)
+    if not page:
+        raise HTTPException(status_code=404, detail="Wiki page not found")
+    return page
 
 
 @app.get("/api/asr/models")

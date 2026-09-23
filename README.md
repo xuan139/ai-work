@@ -82,6 +82,17 @@ The NAS Upload page accepts audio, video, image, PDF, DOCX, text, and general fi
 - If no model is selected for document Q&A, the UI prompts for a model before sending.
 - For scanned or image-based PDFs, install the optional OCR engine with `pip install -r requirements-ocr.txt`; without it the asset status shows that an OCR engine is required. On macOS arm64, use Python 3.12 for PaddlePaddle support.
 
+## NAS Enterprise Wiki
+
+The Enterprise Wiki turns completed NAS assets into readable, traceable knowledge pages instead of exposing raw RAG chunks.
+
+- Completed audio, video, PDF, DOCX, text, and image assets automatically generate or update Wiki pages. Existing completed assets are backfilled by a background task after startup.
+- Assets with the same normalized title and owner update the existing page, retain the page URL, and create a new version only when the generated content changes.
+- Wiki articles contain an overview and structured source sections. Every indexed chunk remains available as an expandable citation with its source file, page number, content type, excerpt, and page image when present.
+- Wiki permissions inherit from the source NAS assets: administrators can search all pages, while standard users can access only pages generated from their own assets.
+- Search combines full-text keyword relevance with Qwen embeddings when the local embedding service is available. Keyword search remains available when the embedding service is offline.
+- The demo publishes updates immediately and does not include an approval workflow.
+
 ## License
 
 This project is proprietary and is not open-source software. No permission is
