@@ -62,8 +62,10 @@ class WikiTests(unittest.IsolatedAsyncioTestCase):
 
     def test_excerpt_removes_repeated_extraction_noise(self) -> None:
         noisy = f"正常開頭 {'อ' * 40} 可讀結尾"
+        prefixed_noise = f"ස්{'ව' * 40}\u0d80{'ව' * 40} 09:47 正常內容"
 
         self.assertEqual(_clean_excerpt(noisy), "正常開頭 可讀結尾")
+        self.assertEqual(_clean_excerpt(prefixed_noise), "09:47 正常內容")
 
     def test_excerpt_keeps_normal_unspaced_chinese(self) -> None:
         content = "企業知識庫會保留來源引用與權限設定"
