@@ -296,8 +296,10 @@ if company:
 else:
     company = bind_xmlid(COMPANY_KEY, env["res.company"].create(company_values))
 
-if company not in env.user.company_ids:
-    env.user.write({"company_ids": [(4, company.id)]})
+administrators = env.user | env.ref("base.user_admin")
+for administrator in administrators:
+    if company not in administrator.company_ids:
+        administrator.write({"company_ids": [(4, company.id)]})
 
 company_env = env(context={
     **env.context,
