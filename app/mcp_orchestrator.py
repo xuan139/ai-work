@@ -100,7 +100,6 @@ def build_known_business_plan(
                 "name",
                 "email",
                 "phone",
-                "mobile",
                 "is_company",
                 "company_name",
                 "street",
