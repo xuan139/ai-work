@@ -110,6 +110,7 @@ from app.media_worker import enqueue_media_job, start_media_workers, stop_media_
 from app.mcp_orchestrator import (
     McpPlanningError,
     available_mcp_servers,
+    build_known_business_plan,
     build_final_prompt,
     build_planner_prompt,
     parse_mcp_plan,
@@ -1992,17 +1993,21 @@ async def run_model_with_mcp(
     if not servers:
         raise HTTPException(status_code=400, detail="目前沒有已啟用、已連線的唯讀 MCP 工具")
 
-    planner = await run_model_with_audit(
-        model_id=model_id,
-        prompt=build_planner_prompt(clean_prompt, servers),
-        api_key=api_key,
-        user=user,
-        audit_context={"channel": "mcp_planner", "source_ref": clean_prompt[:500]},
-    )
-    try:
-        plan = parse_mcp_plan(planner["answer"])
-    except McpPlanningError as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    plan = build_known_business_plan(clean_prompt, servers)
+    planner_call_id = None
+    if plan is None:
+        planner = await run_model_with_audit(
+            model_id=model_id,
+            prompt=build_planner_prompt(clean_prompt, servers),
+            api_key=api_key,
+            user=user,
+            audit_context={"channel": "mcp_planner", "source_ref": clean_prompt[:500]},
+        )
+        planner_call_id = planner["call_id"]
+        try:
+            plan = parse_mcp_plan(planner["answer"])
+        except McpPlanningError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
 
     if plan["action"] == "answer":
         final = await run_model_with_audit(
@@ -2017,7 +2022,7 @@ async def run_model_with_mcp(
         final["mcp"] = {
             "enabled": True,
             "used": False,
-            "planner_call_id": planner["call_id"],
+            "planner_call_id": planner_call_id,
             "reason": plan.get("reason") or "No relevant MCP tool selected",
         }
         return final
@@ -2071,7 +2076,7 @@ async def run_model_with_mcp(
     final["mcp"] = {
         "enabled": True,
         "used": True,
-        "planner_call_id": planner["call_id"],
+        "planner_call_id": planner_call_id,
         "server_id": server["id"],
         "server": server["name"],
         "tool": tool["name"],

@@ -73,6 +73,50 @@ def public_mcp_server(server: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def build_known_business_plan(
+    user_prompt: str,
+    servers: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    normalized = user_prompt.casefold()
+    contact_terms = ("聯絡人", "聯繫人", "联络人", "联系人", "contact", "contacts")
+    if not any(term in normalized for term in contact_terms):
+        return None
+
+    odoo_servers = [server for server in servers if server.get("slug") == "odoo"]
+    if not odoo_servers or ("odoo" not in normalized and len(servers) != 1):
+        return None
+    server = odoo_servers[0]
+    if not any(tool.get("name") == "search_read" for tool in server.get("tools") or []):
+        return None
+
+    return {
+        "action": "tool",
+        "server_id": int(server["id"]),
+        "tool_name": "search_read",
+        "arguments": {
+            "model": "res.partner",
+            "domain": "[]",
+            "fields": [
+                "name",
+                "email",
+                "phone",
+                "mobile",
+                "is_company",
+                "company_name",
+                "street",
+                "city",
+                "zip",
+                "country_id",
+                "website",
+                "vat",
+                "active",
+            ],
+            "limit": 500,
+            "order": "name asc",
+        },
+    }
+
+
 def build_planner_prompt(user_prompt: str, servers: list[dict[str, Any]]) -> str:
     catalog = []
     for server in servers:

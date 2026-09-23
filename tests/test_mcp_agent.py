@@ -10,6 +10,7 @@ from app.auth import hash_password
 from app.mcp_orchestrator import (
     McpPlanningError,
     available_mcp_servers,
+    build_known_business_plan,
     build_final_prompt,
     parse_mcp_plan,
     resolve_planned_tool,
@@ -78,6 +79,24 @@ class McpAgentTests(unittest.TestCase):
         }
         tools = available_mcp_servers([odoo])[0]["tools"]
         self.assertEqual([tool["name"] for tool in tools], ["search_read", "whoami"])
+
+    def test_odoo_contact_request_routes_directly_to_res_partner(self) -> None:
+        odoo = {
+            **self.server,
+            "slug": "odoo",
+            "endpoint": "https://odoo.example.com/mcp",
+            "tools_json": json.dumps([{"name": "search_read", "annotations": {}}]),
+        }
+        servers = available_mcp_servers([odoo])
+
+        plan = build_known_business_plan("查詢目前 Odoo 的所有聯絡人資訊", servers)
+
+        self.assertIsNotNone(plan)
+        assert plan is not None
+        self.assertEqual(plan["tool_name"], "search_read")
+        self.assertEqual(plan["arguments"]["model"], "res.partner")
+        self.assertEqual(plan["arguments"]["domain"], "[]")
+        self.assertIn("email", plan["arguments"]["fields"])
 
     def test_plan_parser_handles_model_reasoning_and_rejects_unknown_tool(self) -> None:
         plan = parse_mcp_plan(
