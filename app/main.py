@@ -144,11 +144,19 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_DIR = BASE_DIR / "static"
 RECORDINGS_DIR = BASE_DIR / "storage" / "recordings"
 NAS_ASSETS_DIR = BASE_DIR / "storage" / "nas_assets"
+APP_VERSION = os.getenv("AI_WORK_VERSION", "development")
 LLM_RUN_LOCKS: dict[tuple[int, str], asyncio.Lock] = {}
 VIDEO_PREVIEWS_DIR = BASE_DIR / "storage" / "video_previews"
 NATIVE_BROWSER_VIDEO_SUFFIXES = {".mp4", ".m4v", ".mov", ".webm"}
 VIDEO_PLAYBACK_LOCKS: dict[int, asyncio.Lock] = {}
 ACTIVE_SEGMENT_TRANSCRIPTIONS: set[tuple[int, int]] = set()
+
+
+def initial_admin_password() -> str:
+    password = os.getenv("AI_WORK_ADMIN_PASSWORD", "").strip()
+    if password and len(password) < 12:
+        raise RuntimeError("AI_WORK_ADMIN_PASSWORD must contain at least 12 characters")
+    return password or "admin123"
 
 
 def save_uploaded_file(upload: UploadFile, destination: Path) -> int:
@@ -286,7 +294,7 @@ def with_server_key_status(model: dict) -> dict:
 async def lifespan(app: FastAPI):
     ensure_storage_dirs(BASE_DIR)
     init_db()
-    seed_admin(hash_password("admin123"))
+    seed_admin(hash_password(initial_admin_password()))
     nas_demo_server = next((item for item in list_mcp_servers() if item.get("slug") == "nas-demo"), None)
     if nas_demo_server:
         update_mcp_server_sync(
@@ -382,8 +390,13 @@ async def lifespan(app: FastAPI):
         await stop_media_workers()
 
 
-app = FastAPI(title="AI Work Meeting Demo", lifespan=lifespan)
+app = FastAPI(title="AI Work NAS", version=APP_VERSION, lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
+
+
+@app.get("/healthz", include_in_schema=False)
+async def healthz() -> dict:
+    return {"status": "ok", "service": "ai-work-nas", "version": APP_VERSION}
 
 
 @app.get("/mcp/nas")

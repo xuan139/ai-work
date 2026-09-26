@@ -1,4 +1,4 @@
-# AI Work Meeting Demo
+# AI Work NAS
 
 FastAPI demo for authenticated NAS-style meeting audio intake, browser recording, file upload, file discovery, transcription status, searchable meeting history, document RAG, and LLM call auditing.
 
@@ -7,6 +7,21 @@ FastAPI demo for authenticated NAS-style meeting audio intake, browser recording
 > is prohibited without prior written permission. See [LICENSE](LICENSE).
 
 Administrators can manage Portal accounts from the Account Management view: create users, assign roles, enable or disable access, reset passwords, and safely remove unused standard accounts. Access or password changes revoke existing sessions.
+
+## Self-hosted product
+
+The first distributable product is **AI Work Core Self-hosted** for a single Ubuntu server. Authorized customers can install a GitHub Release package or deploy the published container image with Docker Compose.
+
+- Product scope: [docs/PRODUCT-LINE.md](docs/PRODUCT-LINE.md)
+- Ubuntu installation: [docs/UBUNTU-SELF-HOSTED.md](docs/UBUNTU-SELF-HOSTED.md)
+
+Quick installation from an authorized source checkout:
+
+```bash
+./deploy/self-hosted/install.sh
+```
+
+The installer generates a random application secret and initial administrator password, creates persistent NAS directories, starts the container, and verifies `/healthz`. Local LLM, embedding, ASR, OCR, video analysis, n8n, and enterprise connectors remain optional services.
 
 ## Run
 

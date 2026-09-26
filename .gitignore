@@ -6,9 +6,12 @@ __pycache__/
 
 .env
 .env.*
+!.env.example
+!deploy/**/.env.example
 
 data/
 storage/
 mock_nas/inbox/
 mock_nas/processed/
 tmp/
+backups/
