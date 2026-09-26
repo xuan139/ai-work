@@ -27,8 +27,13 @@ class SystemLlmTests(unittest.TestCase):
         self.directory.cleanup()
 
     def test_default_model_is_local_qwen(self) -> None:
-        self.assertEqual(current_llm_model()["id"], "local:qwen3-4b")
-        self.assertTrue(current_llm_state()["is_default"])
+        with patch.dict(os.environ, {}, clear=True):
+            self.assertEqual(current_llm_model()["id"], "local:qwen3-4b")
+            self.assertTrue(current_llm_state()["is_default"])
+
+    def test_installer_can_select_smaller_default_local_model(self) -> None:
+        with patch.dict(os.environ, {"AI_WORK_DEFAULT_LLM_MODEL_ID": "local:qwen3-1.7b"}):
+            self.assertEqual(current_llm_model()["id"], "local:qwen3-1.7b")
 
     def test_admin_can_set_company_model(self) -> None:
         with patch.dict(os.environ, {"DASHSCOPE_API_KEY": "company-key"}):

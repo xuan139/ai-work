@@ -1,0 +1,26 @@
+[Unit]
+Description=AI Work Local llama.cpp LLM Service
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=aiwork
+Group=aiwork
+WorkingDirectory=/opt/ai-work
+EnvironmentFile=/etc/ai-work/local-llm.env
+Environment=HOME=/var/lib/ai-work
+ExecStart=/opt/ai-work/runtime/llama.cpp/build/bin/llama-server --model ${LLAMA_MODEL_PATH} --alias ${LLAMA_MODEL_ALIAS} --host 127.0.0.1 --port 8080 --ctx-size ${LLAMA_CONTEXT_SIZE} --parallel 1 --n-gpu-layers ${LLAMA_GPU_LAYERS} --jinja
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=900
+TimeoutStopSec=60
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/ai-work
+
+[Install]
+WantedBy=multi-user.target

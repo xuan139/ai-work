@@ -118,7 +118,7 @@ def _call_local_nas(
     if system_prompt:
         effective_system_prompt = f"{effective_system_prompt}\n\nAdditional instructions:\n{system_prompt}"
     tokenizer_content = f"{effective_system_prompt}\n\n{prompt}"
-    tokenizer_used = bool(model.get("supports_tokenize", model.get("id") == "local:qwen3-4b"))
+    tokenizer_used = bool(model.get("supports_tokenize", model.get("provider") == "Local NAS"))
     if tokenizer_used:
         token_payload, _ = _request_json(
             _json_request(f"{base_url}/tokenize", {"content": tokenizer_content}, {}),
@@ -144,7 +144,7 @@ def _call_local_nas(
         ],
         "max_tokens": 800,
     }
-    if model.get("id") == "local:qwen3-4b":
+    if str(model.get("id", "")).startswith("local:qwen3-"):
         request_payload["chat_template_kwargs"] = {"enable_thinking": False}
 
     payload, headers = _request_json(

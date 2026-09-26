@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from typing import Any
 
 from app.db import get_system_setting, set_system_setting
@@ -10,12 +11,17 @@ CURRENT_LLM_SETTING = "current_llm_model_id"
 DEFAULT_LLM_MODEL_ID = "local:qwen3-4b"
 
 
+def default_llm_model_id() -> str:
+    return os.getenv("AI_WORK_DEFAULT_LLM_MODEL_ID", DEFAULT_LLM_MODEL_ID).strip() or DEFAULT_LLM_MODEL_ID
+
+
 def current_llm_model() -> dict[str, Any]:
     setting = get_system_setting(CURRENT_LLM_SETTING)
-    model = get_model(str((setting or {}).get("value") or DEFAULT_LLM_MODEL_ID))
+    default_model_id = default_llm_model_id()
+    model = get_model(str((setting or {}).get("value") or default_model_id))
     if model:
         return model
-    fallback = get_model(DEFAULT_LLM_MODEL_ID)
+    fallback = get_model(default_model_id) or get_model(DEFAULT_LLM_MODEL_ID)
     if not fallback:
         raise RuntimeError("The default system LLM is unavailable")
     return fallback

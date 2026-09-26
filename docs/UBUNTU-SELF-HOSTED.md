@@ -35,6 +35,42 @@ sudo ./deploy/self-hosted/install.sh
 - 生成隨機 Session 金鑰和首次管理員密碼。
 - 安裝並啟用 `ai-work.service`。
 - 等待 `/healthz` 健康檢查通過。
+- 在首次互動安裝時提示選擇 OCR、Embedding、Whisper 與本地 LLM。
+
+### 可選 AI 模組
+
+首次安裝提供以下方案。PDF、DOCX 與純文字解析已包含在 Core，不需要另外下載模型。
+
+| 方案 | 安裝內容 | 適用情境 |
+| --- | --- | --- |
+| Core | Core 內建 PDF／DOCX 解析 | 先使用雲端模型或稍後配置 |
+| Knowledge | PaddleOCR、Qwen3 Embedding 0.6B | 掃描 PDF、圖片 OCR、向量檢索 |
+| Meetings | whisper.cpp small、Qwen3 Embedding 0.6B | 會議錄音轉寫與語意查詢 |
+| Complete | OCR、Embedding、Whisper，並提示選擇本地 LLM | 完整單機展示 |
+| Custom | 逐項詢問 | 自訂資源用量 |
+
+本地 LLM 可選 Qwen3 0.6B Q8_0（約 0.7 GB）、Qwen3 1.7B Q8_0（約 1.9 GB）或 Qwen3 4B Q4_K_M（約 2.6 GB）。模型由 llama.cpp 提供 OpenAI 相容 API，且只綁定 `127.0.0.1:8080`。Embedding 服務只綁定 `127.0.0.1:8081`。
+
+模組下載會在終端顯示進度。中斷後可重新執行：
+
+```bash
+sudo /opt/ai-work/deploy/self-hosted/install-modules.sh
+```
+
+安裝器不會自動安裝 NVIDIA 驅動或 CUDA。預設以 CPU 建置 llama.cpp；主機已安裝 CUDA toolkit 時，可設定 `AI_WORK_LLAMA_CUDA=1` 使用 GPU。
+
+### 無人值守安裝
+
+自動化部署可用環境變數略過互動問答：
+
+```bash
+sudo env \
+  AI_WORK_INSTALL_PROFILE=complete \
+  AI_WORK_LOCAL_LLM=qwen3-1.7b \
+  ./deploy/self-hosted/install.sh
+```
+
+支援的 profile 為 `core`、`knowledge`、`meeting`、`complete`、`custom`。也可用 `AI_WORK_INSTALL_OCR=1`、`AI_WORK_INSTALL_EMBEDDING=1`、`AI_WORK_INSTALL_WHISPER=1` 個別啟用模組。本地模型值為 `none`、`qwen3-0.6b`、`qwen3-1.7b` 或 `qwen3-4b`。
 
 安裝完成後開啟：
 
@@ -58,6 +94,7 @@ sudo ./deploy/self-hosted/install.sh
 
 ```text
 /opt/ai-work/                 程式、靜態檔案與 Python venv
+/opt/ai-work/runtime/         whisper.cpp、llama.cpp runtime
 /var/lib/ai-work/data/        SQLite 資料庫
 /var/lib/ai-work/storage/     NAS 資產、模型與處理結果
 /var/lib/ai-work/mock_nas/    NAS 收件與歸檔目錄
@@ -92,6 +129,8 @@ EMBEDDING_BASE_URL=http://127.0.0.1:8081
 
 ```bash
 sudo systemctl status ai-work
+sudo systemctl status ai-work-embedding
+sudo systemctl status ai-work-llm
 sudo systemctl restart ai-work
 sudo journalctl -u ai-work -f
 sudo ./deploy/self-hosted/status.sh
@@ -139,4 +178,4 @@ proxy_read_timeout 3600s;
 
 ## 可選能力
 
-Core 啟動不要求本地 LLM、Embedding、Whisper、PaddleOCR 或 YOLO。管理員可以先在 Web 後臺配置雲端模型；需要資料留在本地時，再分別安裝本地模型服務和可選依賴。
+Core 啟動不要求本地 LLM、Embedding、Whisper、PaddleOCR 或 YOLO。選配模組安裝失敗不會刪除 Core 與 NAS 資料；修正網路、磁碟或套件問題後，可重跑 `install-modules.sh`。YOLO 與第三方雲端模型仍由管理介面配置。

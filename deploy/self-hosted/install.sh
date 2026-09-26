@@ -41,7 +41,7 @@ rm -rf "$INSTALL_DIR/app" "$INSTALL_DIR/static" "$INSTALL_DIR/deploy" "$INSTALL_
 install -d -o root -g root -m 0755 "$INSTALL_DIR/deploy"
 cp -a "$SOURCE_DIR/app" "$SOURCE_DIR/static" "$SOURCE_DIR/docs" "$INSTALL_DIR/"
 cp -a "$SOURCE_DIR/deploy/self-hosted" "$INSTALL_DIR/deploy/"
-cp -a "$SOURCE_DIR/deploy/nginx-ai-work-upload.conf" "$SOURCE_DIR/deploy/ai-work-embedding.service" "$INSTALL_DIR/deploy/"
+cp -a "$SOURCE_DIR/deploy/nginx-ai-work-upload.conf" "$INSTALL_DIR/deploy/"
 cp -a "$SOURCE_DIR"/requirements*.txt "$SOURCE_DIR/README.md" "$SOURCE_DIR/LICENSE" "$SOURCE_DIR/VERSION" "$INSTALL_DIR/"
 
 rm -rf "$INSTALL_DIR/data" "$INSTALL_DIR/storage" "$INSTALL_DIR/mock_nas"
@@ -89,6 +89,7 @@ systemctl enable --now ai-work.service
 port="$(sed -n 's/^AI_WORK_HTTP_PORT=//p' "$CONFIG_FILE" | tail -n 1)"
 port="${port:-8000}"
 printf 'Waiting for AI Work Core on port %s' "$port"
+healthy=0
 for _ in $(seq 1 40); do
   if curl --fail --silent "http://127.0.0.1:${port}/healthz" >/dev/null; then
     printf '\nAI Work Core is ready: %s\n' "${public_url:-http://localhost:$port}"
@@ -97,12 +98,22 @@ for _ in $(seq 1 40); do
       printf 'Initial password: %s\n' "$admin_password"
       printf 'Change the password immediately after the first login.\n'
     fi
-    exit 0
+    healthy=1
+    break
   fi
   printf '.'
   sleep 3
 done
 
-printf '\nAI Work did not become healthy. Recent logs:\n' >&2
-journalctl -u ai-work.service -n 100 --no-pager >&2
-exit 1
+if [[ "$healthy" != "1" ]]; then
+  printf '\nAI Work did not become healthy. Recent logs:\n' >&2
+  journalctl -u ai-work.service -n 100 --no-pager >&2
+  exit 1
+fi
+
+if [[ "$credentials_created" == "1" || -n "${AI_WORK_INSTALL_PROFILE:-}" ]]; then
+  "$INSTALL_DIR/deploy/self-hosted/install-modules.sh"
+else
+  printf 'Existing installation detected; optional AI modules were left unchanged.\n'
+  printf 'Run sudo %s/deploy/self-hosted/install-modules.sh to manage them.\n' "$INSTALL_DIR"
+fi

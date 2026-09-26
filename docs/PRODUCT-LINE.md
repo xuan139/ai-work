@@ -25,6 +25,8 @@ AI Work NAS 是部署在客戶自有 Ubuntu 伺服器或 NAS 主機上的企業 
 
 預設不包含大型模型權重、GPU 驅動或第三方商業 API 額度。
 
+原生安裝器會在首次安裝時提供 Core、Knowledge、Meetings、Complete 與 Custom 方案，讓客戶明確選擇要下載的本地 AI 模組；升級時預設保留既有選擇。
+
 ### 可選能力包
 
 以下能力與 Core 解耦，客戶有需要時再安裝：
