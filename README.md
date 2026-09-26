@@ -10,7 +10,7 @@ Administrators can manage Portal accounts from the Account Management view: crea
 
 ## Self-hosted product
 
-The first distributable product is **AI Work Core Self-hosted** for a single Ubuntu server. Authorized customers can install a GitHub Release package or deploy the published container image with Docker Compose.
+The first distributable product is **AI Work Core Self-hosted** for a single Ubuntu server. Authorized customers download a GitHub Release package and install it directly into Ubuntu with a Python virtual environment and systemd service. Docker is not required.
 
 - Product scope: [docs/PRODUCT-LINE.md](docs/PRODUCT-LINE.md)
 - Ubuntu installation: [docs/UBUNTU-SELF-HOSTED.md](docs/UBUNTU-SELF-HOSTED.md)
@@ -18,10 +18,10 @@ The first distributable product is **AI Work Core Self-hosted** for a single Ubu
 Quick installation from an authorized source checkout:
 
 ```bash
-./deploy/self-hosted/install.sh
+sudo ./deploy/self-hosted/install.sh
 ```
 
-The installer generates a random application secret and initial administrator password, creates persistent NAS directories, starts the container, and verifies `/healthz`. Local LLM, embedding, ASR, OCR, video analysis, n8n, and enterprise connectors remain optional services.
+The installer generates a random application secret and initial administrator password, creates persistent NAS directories, installs Python dependencies, starts `ai-work.service`, and verifies `/healthz`. Local LLM, embedding, ASR, OCR, video analysis, n8n, and enterprise connectors remain optional services.
 
 ## Run
 

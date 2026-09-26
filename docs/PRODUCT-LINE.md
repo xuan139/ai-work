@@ -36,7 +36,7 @@ AI Work NAS 是部署在客戶自有 Ubuntu 伺服器或 NAS 主機上的企業 
 | Speech | whisper.cpp、faster-whisper、SenseVoice | FFmpeg；GPU 可選 |
 | OCR | PaddleOCR 掃描 PDF 與圖片識別 | Python 擴充套件與模型空間 |
 | Video | YOLO 影片物件分析 | CPU 可執行，GPU 建議 |
-| Automation | n8n 固定跨系統流程 | Docker、獨立資料庫建議 |
+| Automation | n8n 固定跨系統流程 | 可部署為獨立服務 |
 | Enterprise Connectors | Odoo、Google、Monday、LINE 等 | 對應賬號、API 或 OAuth 授權 |
 
 ## 釋出方式
@@ -45,7 +45,7 @@ AI Work NAS 是部署在客戶自有 Ubuntu 伺服器或 NAS 主機上的企業 
 
 1. `ai-work-VERSION-ubuntu.tar.gz` 安裝包。
 2. 對應 SHA-256 校驗檔案。
-3. `ghcr.io/xuan139/ai-work:VERSION` 容器映象。
+3. 原生 Ubuntu 安裝、升級、備份與狀態檢查指令碼。
 4. 版本說明和升級注意事項。
 
 本專案採用專有授權。公開 GitHub 倉庫的 Release 無法限制下載者；商業釋出應使用私有 GitHub 倉庫、客戶專用倉庫或需要登入的下載門戶，並在合同中授予客戶指定伺服器的安裝權。
@@ -55,9 +55,8 @@ AI Work NAS 是部署在客戶自有 Ubuntu 伺服器或 NAS 主機上的企業 
 第一版支援：
 
 - Ubuntu 22.04 LTS 和 24.04 LTS。
-- Docker Engine 與 Docker Compose v2。
-- 單機部署。
-- x86_64；ARM64 映象需在釋出流程中另行驗證。
+- Python 虛擬環境與 systemd 原生單機部署。
+- x86_64；ARM64 套件相容性需在釋出流程中另行驗證。
 - SQLite 作為 Core 單機資料庫。
 
 第一版暫不承諾：

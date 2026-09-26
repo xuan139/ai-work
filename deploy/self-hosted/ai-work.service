@@ -1,0 +1,28 @@
+[Unit]
+Description=AI Work NAS Core
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=aiwork
+Group=aiwork
+WorkingDirectory=/opt/ai-work
+EnvironmentFile=/etc/ai-work/ai-work.env
+Environment=HOME=/var/lib/ai-work
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/ai-work/.venv/bin/uvicorn app.main:app --host ${AI_WORK_BIND_HOST} --port ${AI_WORK_HTTP_PORT} --proxy-headers --forwarded-allow-ips=*
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=120
+TimeoutStopSec=60
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/ai-work
+
+[Install]
+WantedBy=multi-user.target

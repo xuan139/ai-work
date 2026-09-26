@@ -1,21 +1,28 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-ENV_FILE="$SCRIPT_DIR/.env"
-COMPOSE_FILE="$SCRIPT_DIR/compose.yml"
-BACKUP_DIR="$ROOT_DIR/backups"
+STATE_DIR="/var/lib/ai-work"
+CONFIG_DIR="/etc/ai-work"
+BACKUP_DIR="/var/backups/ai-work"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
 ARCHIVE="$BACKUP_DIR/ai-work-$STAMP.tar.gz"
 
-[[ -f "$ENV_FILE" ]] || { printf 'Run install.sh first.\n' >&2; exit 1; }
-mkdir -p "$BACKUP_DIR"
+[[ "${EUID:-$(id -u)}" == "0" ]] || { printf 'Run this script with sudo.\n' >&2; exit 1; }
+[[ -d "$STATE_DIR" && -f "$CONFIG_DIR/ai-work.env" ]] || { printf 'AI Work is not installed.\n' >&2; exit 1; }
 
-cd "$SCRIPT_DIR"
-docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" stop ai-work
-trap 'docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" start ai-work >/dev/null' EXIT
+install -d -o root -g root -m 0700 "$BACKUP_DIR"
+was_active=0
+if systemctl is-active --quiet ai-work.service; then
+  was_active=1
+  systemctl stop ai-work.service
+fi
+restore_service() {
+  if [[ "$was_active" == "1" ]]; then
+    systemctl start ai-work.service
+  fi
+}
+trap restore_service EXIT
 
-tar -C "$ROOT_DIR" -czf "$ARCHIVE" data storage mock_nas deploy/self-hosted/.env
-chmod 600 "$ARCHIVE"
+tar -C / -czf "$ARCHIVE" var/lib/ai-work etc/ai-work
+chmod 0600 "$ARCHIVE"
 printf 'Backup created: %s\n' "$ARCHIVE"
