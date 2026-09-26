@@ -1,4 +1,5 @@
 import os
+import subprocess
 import unittest
 from pathlib import Path
 from unittest.mock import patch
@@ -46,3 +47,23 @@ class SelfHostedDeploymentTests(unittest.IsolatedAsyncioTestCase):
         llm = (ROOT / "deploy/self-hosted/ai-work-llm.service").read_text()
         self.assertIn("--host 127.0.0.1 --port 8081", embedding)
         self.assertIn("--host 127.0.0.1 --port 8080", llm)
+
+    def test_hardware_recommendation_selects_model_by_available_resources(self) -> None:
+        script = ROOT / "deploy/self-hosted/hardware-recommendation.sh"
+        scenarios = (
+            ({"AI_WORK_DETECTED_RAM_MB": "2048", "AI_WORK_DETECTED_DISK_MB": "10000"}, "none"),
+            ({"AI_WORK_DETECTED_RAM_MB": "8192", "AI_WORK_DETECTED_DISK_MB": "10000"}, "qwen3-1.7b"),
+            ({"AI_WORK_DETECTED_RAM_MB": "16384", "AI_WORK_DETECTED_DISK_MB": "10000"}, "qwen3-4b"),
+            ({"AI_WORK_DETECTED_RAM_MB": "4096", "AI_WORK_DETECTED_GPU_VRAM_MB": "4096", "AI_WORK_DETECTED_CUDA_AVAILABLE": "0", "AI_WORK_DETECTED_DISK_MB": "10000"}, "qwen3-0.6b"),
+            ({"AI_WORK_DETECTED_RAM_MB": "4096", "AI_WORK_DETECTED_GPU_VRAM_MB": "4096", "AI_WORK_DETECTED_CUDA_AVAILABLE": "1", "AI_WORK_DETECTED_DISK_MB": "10000"}, "qwen3-4b"),
+        )
+        for overrides, expected in scenarios:
+            environment = {**os.environ, "AI_WORK_DETECTED_GPU_VRAM_MB": "0", **overrides}
+            result = subprocess.run(
+                ["bash", str(script)],
+                check=True,
+                capture_output=True,
+                text=True,
+                env=environment,
+            )
+            self.assertIn(f"Recommendation:  {expected}", result.stdout)

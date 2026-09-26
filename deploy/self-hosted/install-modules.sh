@@ -5,6 +5,10 @@ INSTALL_DIR="/opt/ai-work"
 STATE_DIR="/var/lib/ai-work"
 CONFIG_FILE="/etc/ai-work/ai-work.env"
 SYSTEMD_DIR="/etc/systemd/system"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# shellcheck source=hardware-recommendation.sh
+source "$SCRIPT_DIR/hardware-recommendation.sh"
 
 fail() {
   printf 'ERROR: %s\n' "$1" >&2
@@ -44,6 +48,10 @@ install_packages() {
   apt-get install -y --no-install-recommends "$@"
 }
 
+detect_ai_work_hardware
+recommend_ai_work_local_llm
+print_ai_work_hardware_recommendation
+
 profile="${AI_WORK_INSTALL_PROFILE:-}"
 if [[ -z "$profile" && -t 0 ]]; then
   printf '\nOptional AI modules\n'
@@ -69,6 +77,7 @@ install_ocr=0
 install_embedding=0
 install_whisper=0
 local_llm="${AI_WORK_LOCAL_LLM:-none}"
+[[ "$local_llm" == "auto" ]] && local_llm="$AI_WORK_RECOMMENDED_LLM"
 
 case "$profile" in
   core|keep) ;;
@@ -97,11 +106,17 @@ if [[ "$profile" == "complete" || "$profile" == "custom" ]]; then
   if [[ "${AI_WORK_LOCAL_LLM+x}" != "x" && -t 0 ]]; then
     printf '\nLocal LLM (served only on 127.0.0.1:8080)\n'
     printf '  1) None\n'
-    printf '  2) Qwen3 0.6B Q8_0  about 0.7 GB, CPU-friendly\n'
-    printf '  3) Qwen3 1.7B Q8_0  about 1.9 GB, balanced\n'
-    printf '  4) Qwen3 4B Q4_K_M about 2.6 GB, recommended with 8 GB+ RAM\n'
-    read -r -p 'Select [1]: ' llm_choice
-    case "${llm_choice:-1}" in
+    printf '  2) Qwen3 0.6B Q8_0  about 0.7 GB, CPU-friendly%s\n' "$([[ "$AI_WORK_RECOMMENDED_LLM" == "qwen3-0.6b" ]] && printf ' [recommended]' || true)"
+    printf '  3) Qwen3 1.7B Q8_0  about 1.9 GB, balanced%s\n' "$([[ "$AI_WORK_RECOMMENDED_LLM" == "qwen3-1.7b" ]] && printf ' [recommended]' || true)"
+    printf '  4) Qwen3 4B Q4_K_M about 2.6 GB, higher quality%s\n' "$([[ "$AI_WORK_RECOMMENDED_LLM" == "qwen3-4b" ]] && printf ' [recommended]' || true)"
+    case "$AI_WORK_RECOMMENDED_LLM" in
+      qwen3-0.6b) recommended_choice=2 ;;
+      qwen3-1.7b) recommended_choice=3 ;;
+      qwen3-4b) recommended_choice=4 ;;
+      *) recommended_choice=1 ;;
+    esac
+    read -r -p "Select [$recommended_choice]: " llm_choice
+    case "${llm_choice:-$recommended_choice}" in
       1) local_llm="none" ;;
       2) local_llm="qwen3-0.6b" ;;
       3) local_llm="qwen3-1.7b" ;;
@@ -176,7 +191,7 @@ case "$local_llm" in
     llm_file="Qwen3-4B-Q4_K_M.gguf"
     llm_size_mb=3000
     ;;
-  *) fail "AI_WORK_LOCAL_LLM must be none, qwen3-0.6b, qwen3-1.7b, or qwen3-4b." ;;
+  *) fail "AI_WORK_LOCAL_LLM must be auto, none, qwen3-0.6b, qwen3-1.7b, or qwen3-4b." ;;
 esac
 
 if [[ "$local_llm" != "none" && -n "$local_llm" ]]; then
@@ -191,7 +206,11 @@ if [[ "$local_llm" != "none" && -n "$local_llm" ]]; then
   fi
   cmake_args=()
   gpu_layers=0
-  if is_enabled "${AI_WORK_LLAMA_CUDA:-}"; then
+  use_cuda="${AI_WORK_LLAMA_CUDA:-0}"
+  if [[ "${AI_WORK_LLAMA_CUDA+x}" != "x" && "$AI_WORK_HW_CUDA_AVAILABLE" == "1" && "$AI_WORK_HW_GPU_VRAM_MB" -gt 0 ]]; then
+    use_cuda=1
+  fi
+  if is_enabled "$use_cuda"; then
     command -v nvcc >/dev/null 2>&1 || fail "AI_WORK_LLAMA_CUDA=1 requires the NVIDIA CUDA toolkit (nvcc)."
     cmake_args+=("-DGGML_CUDA=ON")
     gpu_layers=99

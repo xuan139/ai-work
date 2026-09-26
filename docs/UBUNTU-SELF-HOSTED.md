@@ -51,6 +51,8 @@ sudo ./deploy/self-hosted/install.sh
 
 本地 LLM 可選 Qwen3 0.6B Q8_0（約 0.7 GB）、Qwen3 1.7B Q8_0（約 1.9 GB）或 Qwen3 4B Q4_K_M（約 2.6 GB）。模型由 llama.cpp 提供 OpenAI 相容 API，且只綁定 `127.0.0.1:8080`。Embedding 服務只綁定 `127.0.0.1:8081`。
 
+安裝器會偵測 CPU 核心、系統 RAM、可用磁碟，以及 NVIDIA GPU 名稱、VRAM 和 CUDA toolkit，並在本地 LLM 選單標示建議模型。建議規則同時保留模型執行空間，不會只比較模型檔案大小。偵測到 GPU 但沒有 CUDA toolkit 時會明確提示，並維持 CPU 建置。
+
 模組下載會在終端顯示進度。中斷後可重新執行：
 
 ```bash
@@ -66,11 +68,17 @@ sudo /opt/ai-work/deploy/self-hosted/install-modules.sh
 ```bash
 sudo env \
   AI_WORK_INSTALL_PROFILE=complete \
-  AI_WORK_LOCAL_LLM=qwen3-1.7b \
+  AI_WORK_LOCAL_LLM=auto \
   ./deploy/self-hosted/install.sh
 ```
 
-支援的 profile 為 `core`、`knowledge`、`meeting`、`complete`、`custom`。也可用 `AI_WORK_INSTALL_OCR=1`、`AI_WORK_INSTALL_EMBEDDING=1`、`AI_WORK_INSTALL_WHISPER=1` 個別啟用模組。本地模型值為 `none`、`qwen3-0.6b`、`qwen3-1.7b` 或 `qwen3-4b`。
+支援的 profile 為 `core`、`knowledge`、`meeting`、`complete`、`custom`。也可用 `AI_WORK_INSTALL_OCR=1`、`AI_WORK_INSTALL_EMBEDDING=1`、`AI_WORK_INSTALL_WHISPER=1` 個別啟用模組。本地模型值為 `auto`、`none`、`qwen3-0.6b`、`qwen3-1.7b` 或 `qwen3-4b`。
+
+只查看硬體與建議、不進行安裝：
+
+```bash
+sudo /opt/ai-work/deploy/self-hosted/hardware-recommendation.sh
+```
 
 安裝完成後開啟：
 
