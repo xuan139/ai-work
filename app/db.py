@@ -15,6 +15,14 @@ MCP_CATALOG_TEMPLATES = (
         "source_url": None, "is_enabled": True,
     },
     {
+        "slug": "nas-ssd", "name": "NAS SSD CLI", "transport": "streamable_http",
+        "endpoint": "http://127.0.0.1:8000/mcp/ssd", "auth_type": "bearer",
+        "auth_env_var": "NAS_SSD_LOCAL_MCP_KEY",
+        "description": "Ubuntu/NAS 內建 SSD 唯讀 CLI MCP，可查詢實體 SSD、掛載容量、SMART/NVMe 健康、溫度與耗損。",
+        "description_en": "Built-in Ubuntu/NAS read-only SSD CLI MCP for device inventory, filesystem usage, SMART/NVMe health, temperature, and wear.",
+        "source_url": "https://www.smartmontools.org/", "is_enabled": True,
+    },
+    {
         "slug": "nas-excel", "name": "NAS Excel SQL", "transport": "streamable_http",
         "endpoint": "http://127.0.0.1:8000/mcp/excel", "auth_type": "bearer",
         "auth_env_var": "NAS_EXCEL_LOCAL_MCP_KEY",

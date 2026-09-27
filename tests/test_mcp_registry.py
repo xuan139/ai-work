@@ -17,6 +17,7 @@ from app.mcp_runtime import (
     validate_mcp_endpoint,
 )
 from app.nas_mcp import handle_nas_mcp_request
+from app.ssd_mcp import SSD_MCP_TOOLS, handle_ssd_mcp_request
 
 
 class McpRegistryTests(unittest.TestCase):
@@ -39,6 +40,7 @@ class McpRegistryTests(unittest.TestCase):
         self.assertGreaterEqual(len(slugs), 20)
         self.assertTrue({
             "gmail", "slack", "github", "notion", "atlassian", "monday", "linear", "nas-demo",
+            "nas-ssd",
             "xero", "odoo", "quickbooks", "netsuite",
             "nas-excel", "microsoft-365-excel", "microsoft-markitdown",
         }.issubset(slugs))
@@ -54,6 +56,11 @@ class McpRegistryTests(unittest.TestCase):
         self.assertEqual(excel["endpoint"], "http://127.0.0.1:8000/mcp/excel")
         self.assertEqual(excel["auth_type"], "bearer")
         self.assertEqual(excel["auth_env_var"], "NAS_EXCEL_LOCAL_MCP_KEY")
+        ssd = next(server for server in servers if server["slug"] == "nas-ssd")
+        self.assertEqual(ssd["endpoint"], "http://127.0.0.1:8000/mcp/ssd")
+        self.assertEqual(ssd["auth_type"], "bearer")
+        self.assertEqual(ssd["auth_env_var"], "NAS_SSD_LOCAL_MCP_KEY")
+        self.assertTrue(ssd["is_enabled"])
         monday = next(server for server in servers if server["slug"] == "monday")
         self.assertEqual(monday["endpoint"], "https://mcp.monday.com/mcp")
         self.assertEqual(monday["auth_type"], "bearer")
@@ -83,6 +90,14 @@ class McpRegistryTests(unittest.TestCase):
         tools = response["result"]["tools"]
         self.assertEqual(len(tools), 6)
         self.assertIn("excel_query_sql", {tool["name"] for tool in tools})
+        self.assertTrue(all(tool["annotations"]["readOnlyHint"] for tool in tools))
+
+    def test_ssd_mcp_lists_only_read_only_cli_tools(self) -> None:
+        response = handle_ssd_mcp_request({"jsonrpc": "2.0", "id": 1, "method": "tools/list"})
+        assert response is not None
+        tools = response["result"]["tools"]
+        self.assertEqual(len(tools), 3)
+        self.assertEqual([tool["name"] for tool in tools], [tool["name"] for tool in SSD_MCP_TOOLS])
         self.assertTrue(all(tool["annotations"]["readOnlyHint"] for tool in tools))
 
     def test_sync_updates_tools_and_writes_audit(self) -> None:

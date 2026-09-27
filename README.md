@@ -8,6 +8,16 @@ FastAPI demo for authenticated NAS-style meeting audio intake, browser recording
 
 Administrators can manage Portal accounts from the Account Management view: create users, assign roles, enable or disable access, reset passwords, and safely remove unused standard accounts. Access or password changes revoke existing sessions.
 
+## NAS SSD CLI MCP
+
+AI Work includes a protected read-only SSD CLI MCP at `/mcp/ssd`. The LLM can list physical SSD/NVMe devices, inspect mounted filesystem usage, and read SMART/NVMe health, temperature, power-on hours, media errors, and wear. It cannot accept arbitrary commands or perform tests, formatting, firmware updates, writes, or deletion.
+
+- `ssd_list_devices`: physical non-rotational device inventory from `lsblk`.
+- `ssd_get_usage`: capacity and usage for filesystems backed by detected SSD devices.
+- `ssd_get_health`: SMART/NVMe health for a device returned by `ssd_list_devices`.
+
+The endpoint requires `NAS_SSD_LOCAL_MCP_KEY`. Native Ubuntu installs use the root-owned `/usr/local/sbin/ai-work-ssd-cli` helper for privileged health reads; the application only receives permission to call that helper with a validated whole-device path.
+
 ## Self-hosted product
 
 The first distributable product is **AI Work Core Self-hosted** for a single Ubuntu server. Authorized customers download a GitHub Release package and install it directly into Ubuntu with a Python virtual environment and systemd service. Docker is not required.

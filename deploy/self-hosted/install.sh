@@ -21,7 +21,8 @@ command -v apt-get >/dev/null 2>&1 || fail "apt-get was not found; Ubuntu 22.04 
 export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get install -y --no-install-recommends \
-  python3 python3-venv python3-pip ffmpeg curl ca-certificates openssl
+  python3 python3-venv python3-pip ffmpeg curl ca-certificates openssl \
+  smartmontools nvme-cli sudo
 
 if ! id aiwork >/dev/null 2>&1; then
   useradd --system --home-dir "$STATE_DIR" --create-home --shell /usr/sbin/nologin aiwork
@@ -60,6 +61,7 @@ package_version="${package_version:-development}"
 if [[ ! -f "$CONFIG_FILE" ]]; then
   umask 077
   secret_key="$(openssl rand -hex 32)"
+  nas_ssd_key="$(openssl rand -hex 32)"
   admin_password="$(openssl rand -base64 24 | tr -d '=+/\n' | cut -c1-24)"
   primary_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
   public_url="${AI_WORK_PUBLIC_URL:-http://${primary_ip:-localhost}:8000}"
@@ -67,6 +69,7 @@ if [[ ! -f "$CONFIG_FILE" ]]; then
   sed \
     -e "s|^AI_WORK_VERSION=.*|AI_WORK_VERSION=$package_version|" \
     -e "s|^APP_SECRET_KEY=.*|APP_SECRET_KEY=$secret_key|" \
+    -e "s|^NAS_SSD_LOCAL_MCP_KEY=.*|NAS_SSD_LOCAL_MCP_KEY=$nas_ssd_key|" \
     -e "s|^AI_WORK_ADMIN_PASSWORD=.*|AI_WORK_ADMIN_PASSWORD=$admin_password|" \
     -e "s|^AI_WORK_PUBLIC_URL=.*|AI_WORK_PUBLIC_URL=$public_url|" \
     "$SCRIPT_DIR/.env.example" > "$CONFIG_FILE"
@@ -81,6 +84,13 @@ fi
 
 chown -R root:root "$INSTALL_DIR/app" "$INSTALL_DIR/static" "$INSTALL_DIR/deploy" "$INSTALL_DIR/docs"
 chown -R root:root "$INSTALL_DIR/.venv"
+install -o root -g root -m 0755 \
+  "$SCRIPT_DIR/ai-work-ssd-cli" \
+  /usr/local/sbin/ai-work-ssd-cli
+install -o root -g root -m 0440 \
+  "$SCRIPT_DIR/ai-work-ssd-cli.sudoers" \
+  /etc/sudoers.d/ai-work-ssd-cli
+visudo -cf /etc/sudoers.d/ai-work-ssd-cli >/dev/null
 install -o root -g root -m 0644 "$SCRIPT_DIR/ai-work.service" "$SERVICE_FILE"
 
 systemctl daemon-reload

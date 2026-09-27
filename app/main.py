@@ -128,6 +128,7 @@ from app.mcp_runtime import (
 from app.model_registry import custom_model_to_catalog, register_custom_model
 from app.nas import ensure_storage_dirs, nas_discovery_loop
 from app.nas_mcp import NAS_MCP_TOOLS, handle_nas_mcp_request
+from app.ssd_mcp import SSD_MCP_TOOLS, handle_ssd_mcp_request
 from app.network_import import download_youtube_asset, validate_youtube_url
 from app.n8n_service import n8n_service_status
 from app.notifications import manager
@@ -305,6 +306,21 @@ async def lifespan(app: FastAPI):
             tool_count=len(NAS_MCP_TOOLS),
             last_error=None,
         )
+    ssd_server = next((item for item in list_mcp_servers() if item.get("slug") == "nas-ssd"), None)
+    if (
+        ssd_server
+        and ssd_server.get("is_enabled")
+        and ssd_server.get("endpoint") == "http://127.0.0.1:8000/mcp/ssd"
+        and mcp_auth_configured(ssd_server)
+    ):
+        update_mcp_server_sync(
+            ssd_server["id"],
+            status="connected",
+            protocol_version="2025-06-18",
+            tools_json=json.dumps(SSD_MCP_TOOLS, ensure_ascii=False),
+            tool_count=len(SSD_MCP_TOOLS),
+            last_error=None,
+        )
     gmail_server = next((item for item in list_mcp_servers() if item.get("slug") == "gmail"), None)
     if (
         gmail_server
@@ -415,6 +431,32 @@ async def nas_demo_mcp_info() -> dict:
 @app.post("/mcp/nas")
 async def nas_demo_mcp(payload: dict) -> Response:
     result = handle_nas_mcp_request(payload)
+    if result is None:
+        return Response(status_code=204)
+    return JSONResponse(result)
+
+
+@app.get("/mcp/ssd")
+async def ssd_mcp_info() -> dict:
+    return {
+        "name": "AI Work NAS SSD CLI MCP",
+        "transport": "streamable_http",
+        "endpoint": "/mcp/ssd",
+        "protocol_version": "2025-06-18",
+        "read_only": True,
+        "tools": [tool["name"] for tool in SSD_MCP_TOOLS],
+    }
+
+
+@app.post("/mcp/ssd")
+async def ssd_mcp(request: Request, payload: dict) -> Response:
+    expected_key = os.getenv("NAS_SSD_LOCAL_MCP_KEY", "")
+    supplied = request.headers.get("authorization", "")
+    if not expected_key:
+        raise HTTPException(status_code=503, detail="NAS SSD MCP 尚未設定內部存取金鑰")
+    if not hmac.compare_digest(supplied, f"Bearer {expected_key}"):
+        raise HTTPException(status_code=401, detail="NAS SSD MCP authorization failed")
+    result = await asyncio.to_thread(handle_ssd_mcp_request, payload)
     if result is None:
         return Response(status_code=204)
     return JSONResponse(result)
@@ -673,6 +715,7 @@ def serialize_mcp_server(server: dict) -> dict:
     result["is_enabled"] = bool(result.get("is_enabled"))
     public_endpoints = {
         "nas-demo": "/mcp/nas",
+        "nas-ssd": "/mcp/ssd",
         "gmail": "/mcp/gmail",
         "google-drive": "/mcp/google-drive",
         "nas-excel": "/mcp/excel",

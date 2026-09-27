@@ -1,0 +1,3 @@
+# The root-owned helper validates the operation and device path before running
+# smartctl or nvme. AI Work never receives permission to run arbitrary commands.
+aiwork ALL=(root) NOPASSWD: /usr/local/sbin/ai-work-ssd-cli health /dev/*

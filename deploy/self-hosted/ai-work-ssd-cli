@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+usage() {
+  printf 'Usage: %s health /dev/{nvmeNnN|sdX|vdX}\n' "$0" >&2
+  exit 64
+}
+
+[[ "$#" == "2" ]] || usage
+[[ "$1" == "health" ]] || usage
+
+device="$2"
+if [[ ! "$device" =~ ^/dev/(nvme[0-9]+n[0-9]+|sd[a-z]+|vd[a-z]+)$ ]]; then
+  printf 'Unsupported SSD device path\n' >&2
+  exit 64
+fi
+[[ -b "$device" ]] || {
+  printf 'SSD device does not exist: %s\n' "$device" >&2
+  exit 66
+}
+
+if command -v smartctl >/dev/null 2>&1; then
+  exec smartctl -a -j "$device"
+fi
+if [[ "$device" == /dev/nvme* ]] && command -v nvme >/dev/null 2>&1; then
+  exec nvme smart-log -o json "$device"
+fi
+
+printf 'smartctl and nvme-cli are not installed\n' >&2
+exit 69
