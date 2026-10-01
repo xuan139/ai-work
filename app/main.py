@@ -3408,7 +3408,7 @@ async def llm_demo_run(payload: dict, user: dict = Depends(current_user)) -> dic
 @app.get("/api/llm/calls")
 async def llm_calls(
     page: int = 1,
-    page_size: int = 25,
+    page_size: int = 50,
     q: str | None = None,
     caller: str | None = None,
     model_id: str | None = None,

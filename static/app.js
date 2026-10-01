@@ -1962,7 +1962,7 @@ const state = {
   selectedPricing: null,
   apiKeys: {},
   llmCalls: [],
-  llmAudit: { total: 0, page: 1, pageSize: 25, pages: 1, facets: {}, mcpEventsByTrace: {} },
+  llmAudit: { total: 0, page: 1, pageSize: 50, pages: 1, facets: {}, mcpEventsByTrace: {} },
   llmSuggestions: [],
   activeLlmSuggestion: -1,
   llmSuggestionRequestId: 0,
@@ -2456,6 +2456,7 @@ async function showApp() {
   els.ragEvaluationPanel.hidden = !isAdmin;
   els.addCustomModelButton.hidden = !isAdmin;
   setManagementMenuExpanded(false);
+  resetLlmAuditFilters();
   switchView("dashboard");
   connectWebSocket();
   await loadMeetings();
@@ -3158,6 +3159,28 @@ function auditDateParameter(value) {
   return new Date(value).toISOString().slice(0, 19).replace("T", " ");
 }
 
+function auditLocalDateTime(date) {
+  const localTime = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return localTime.toISOString().slice(0, 16);
+}
+
+function resetLlmAuditFilters() {
+  const now = new Date();
+  const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  els.llmCallSearch.value = "";
+  els.llmAuditCaller.value = "";
+  els.llmAuditProvider.value = "";
+  els.llmAuditModel.value = "";
+  els.llmAuditStatus.value = "";
+  els.llmAuditAccessMode.value = "";
+  els.llmAuditOperation.value = "";
+  els.llmAuditChannel.value = "";
+  els.llmAuditTrace.value = "";
+  els.llmAuditFrom.value = auditLocalDateTime(oneWeekAgo);
+  els.llmAuditTo.value = auditLocalDateTime(now);
+  els.llmAuditPageSize.value = "50";
+}
+
 function setAuditFacetOptions(select, values, formatter = (value) => value) {
   const selected = select.value;
   select.innerHTML = `<option value="">${escapeHtml(t("aiwork.auditAll"))}</option>${(values || [])
@@ -3191,7 +3214,7 @@ async function loadLlmCalls({ resetPage = false } = {}) {
   state.llmAudit = {
     total: result.total || 0,
     page: result.page || 1,
-    pageSize: result.page_size || 25,
+    pageSize: result.page_size || 50,
     pages: result.pages || 1,
     facets: result.facets || {},
     mcpEventsByTrace: result.mcp_events_by_trace || {},
@@ -5796,18 +5819,7 @@ els.llmCallSearch.addEventListener("input", debounce(() => loadLlmCalls({ resetP
   control.addEventListener("change", () => loadLlmCalls({ resetPage: true }).catch((error) => showToast(error.message, t("errors.requestFailed"))));
 });
 els.llmAuditReset.addEventListener("click", () => {
-  els.llmCallSearch.value = "";
-  els.llmAuditCaller.value = "";
-  els.llmAuditProvider.value = "";
-  els.llmAuditModel.value = "";
-  els.llmAuditStatus.value = "";
-  els.llmAuditAccessMode.value = "";
-  els.llmAuditOperation.value = "";
-  els.llmAuditChannel.value = "";
-  els.llmAuditTrace.value = "";
-  els.llmAuditFrom.value = "";
-  els.llmAuditTo.value = "";
-  els.llmAuditPageSize.value = "25";
+  resetLlmAuditFilters();
   loadLlmCalls({ resetPage: true }).catch((error) => showToast(error.message, t("errors.requestFailed")));
 });
 els.llmAuditPrevious.addEventListener("click", () => {

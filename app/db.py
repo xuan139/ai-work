@@ -3578,7 +3578,7 @@ def search_llm_calls(
     user_id: int,
     role: str,
     page: int = 1,
-    page_size: int = 25,
+    page_size: int = 50,
     q: str | None = None,
     caller: str | None = None,
     model_id: str | None = None,
