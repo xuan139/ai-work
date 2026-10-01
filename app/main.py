@@ -9,6 +9,7 @@ import secrets
 import shutil
 import sqlite3
 import subprocess
+import time
 import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -19,6 +20,7 @@ from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from app.auth import SESSION_COOKIE, authenticate, create_session_token, current_user, hash_password, require_admin, require_meeting_access, websocket_user
+from app.audit_context import reset_audit_context, set_audit_context
 from app.analysis_persistence import persist_cloud_asset_analysis
 from app.asset_normalization import convert_asset_to_traditional
 from app.asr_catalog import asr_model_summary, find_asr_model
@@ -57,6 +59,7 @@ from app.db import (
     list_line_sources,
     list_line_source_assets,
     list_llm_calls,
+    search_llm_calls,
     list_meetings,
     list_mcp_servers,
     list_nas_assets,
@@ -460,7 +463,21 @@ app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 @app.middleware("http")
 async def apply_security_headers(request: Request, call_next):
-    response = await call_next(request)
+    trace_id = uuid.uuid4().hex
+    token = set_audit_context(
+        {
+            "trace_id": trace_id,
+            "request_method": request.method,
+            "request_path": request.url.path,
+            "client_ip": request.client.host if request.client else None,
+            "user_agent": request.headers.get("user-agent", "")[:500],
+        }
+    )
+    try:
+        response = await call_next(request)
+    finally:
+        reset_audit_context(token)
+    response.headers.setdefault("X-Trace-ID", trace_id)
     for name, value in security_headers().items():
         response.headers.setdefault(name, value)
     forwarded_proto = request.headers.get("x-forwarded-proto", request.url.scheme)
@@ -1443,6 +1460,18 @@ async def knowledge_ask(payload: dict, user: dict = Depends(current_user)) -> di
             scope=scope,
         )
         if cached:
+            cache_meta = cached.get("cache") or {}
+            cached_result = cached.get("result") or {}
+            create_llm_call(
+                user_id=user["id"], provider=model["provider"], model_name=model["name"],
+                model_id=model["id"], prompt=question,
+                response=str(cached_result.get("answer") or ""), status="completed",
+                access_mode=f"cache_{cache_meta.get('match_type', 'knowledge')}",
+                input_tokens=0, output_tokens=0, total_tokens=0,
+                raw_usage_json=json.dumps({"cache_hit": True, **cache_meta}, ensure_ascii=False),
+                channel="knowledge_rag", source_ref=json.dumps(scope, ensure_ascii=False),
+                operation_type="knowledge_rag",
+            )
             return {
                 **cached["result"],
                 "question": question,
@@ -1491,6 +1520,11 @@ async def knowledge_ask(payload: dict, user: dict = Depends(current_user)) -> di
         prompt=prompt,
         api_key=str(payload.get("api_key") or "").strip() or None,
         user=user,
+        audit_context={
+            "channel": "knowledge_rag",
+            "source_ref": json.dumps(scope, ensure_ascii=False),
+            "operation_type": "knowledge_rag",
+        },
     )
     response = {
         **result,
@@ -1649,6 +1683,7 @@ async def admin_test_custom_model(model_id: str, admin: dict = Depends(require_a
             access_mode="local_nas",
             error_message=error_message,
             channel="model_validation",
+            operation_type="model_validation",
         )
         raise HTTPException(status_code=400, detail=error_message) from exc
 
@@ -1668,6 +1703,7 @@ async def admin_test_custom_model(model_id: str, admin: dict = Depends(require_a
         remaining_tokens=usage.get("remaining_tokens"),
         raw_usage_json=json.dumps(usage.get("raw_usage"), ensure_ascii=False) if usage.get("raw_usage") else None,
         channel="model_validation",
+        operation_type="model_validation",
     )
     refreshed = update_custom_model_validation(model_id, status="ready", error_message=None)
     return {"ok": True, "model": refreshed, "answer": result["answer"], "status": local_model_status(model_id)}
@@ -2210,6 +2246,17 @@ async def ask_nas_asset(asset_id: int, payload: dict, user: dict = Depends(curre
         index_version=int(asset.get("index_version") or 1),
     )
     if cached:
+        cache_meta = cached.get("cache") or {}
+        cached_result = cached.get("result") or {}
+        create_llm_call(
+            user_id=user["id"], provider=selected_model["provider"], model_name=selected_model["name"],
+            model_id=selected_model["id"], prompt=question,
+            response=str(cached_result.get("answer") or ""), status="completed",
+            access_mode=f"cache_{cache_meta.get('match_type', 'rag')}",
+            input_tokens=0, output_tokens=0, total_tokens=0,
+            raw_usage_json=json.dumps({"cache_hit": True, **cache_meta}, ensure_ascii=False),
+            channel="asset_rag", source_ref=f"nas_asset:{asset_id}", operation_type="asset_rag",
+        )
         persistence = await persist_cloud_asset_analysis(
             asset=asset,
             model=selected_model,
@@ -2254,7 +2301,17 @@ async def ask_nas_asset(asset_id: int, payload: dict, user: dict = Depends(curre
         f"RAG context:\n{context}\n\n"
         f"問題：{question}"
     )
-    result = await run_model_with_audit(model_id=model_id, prompt=rag_prompt, api_key=api_key, user=user)
+    result = await run_model_with_audit(
+        model_id=model_id,
+        prompt=rag_prompt,
+        api_key=api_key,
+        user=user,
+        audit_context={
+            "channel": "asset_rag",
+            "source_ref": f"nas_asset:{asset_id}",
+            "operation_type": "asset_rag",
+        },
+    )
     response = {
         **result,
         "asset_id": asset_id,
@@ -2407,7 +2464,7 @@ async def run_model_with_mcp(
             api_key=api_key,
             user=user,
             system_prompt=system_prompt,
-            audit_context={"channel": "mcp_planner"},
+            audit_context={"channel": "mcp_planner", "operation_type": "mcp_llm"},
         )
     try:
         servers = available_mcp_servers(list_mcp_servers(), selected_server_id)
@@ -2424,7 +2481,11 @@ async def run_model_with_mcp(
             prompt=build_planner_prompt(clean_prompt, servers),
             api_key=api_key,
             user=user,
-            audit_context={"channel": "mcp_planner", "source_ref": clean_prompt[:500]},
+            audit_context={
+                "channel": "mcp_planner",
+                "source_ref": clean_prompt[:500],
+                "operation_type": "mcp_llm",
+            },
         )
         planner_call_id = planner["call_id"]
         try:
@@ -2439,7 +2500,12 @@ async def run_model_with_mcp(
             api_key=api_key,
             user=user,
             system_prompt=system_prompt,
-            audit_context={"channel": "mcp_final", "source_ref": "no_relevant_tool"},
+            audit_context={
+                "channel": "mcp_final",
+                "source_ref": "no_relevant_tool",
+                "parent_call_id": planner_call_id,
+                "operation_type": "mcp_llm",
+            },
         )
         final["cache"] = {"hit": False, "bypassed": True, "reason": "mcp"}
         final["mcp"] = {
@@ -2472,6 +2538,7 @@ async def run_model_with_mcp(
             tool_name=tool["name"],
             input_json=audit_input,
             error_message=str(exc),
+            parent_call_id=planner_call_id,
         )
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
@@ -2483,6 +2550,7 @@ async def run_model_with_mcp(
         tool_name=tool["name"],
         input_json=audit_input,
         output_json=json.dumps(tool_result, ensure_ascii=False),
+        parent_call_id=planner_call_id,
     )
     final = await run_model_with_audit(
         model_id=model_id,
@@ -2493,6 +2561,8 @@ async def run_model_with_mcp(
         audit_context={
             "channel": "mcp_final",
             "source_ref": f"mcp:{server['slug']}:{tool['name']}",
+            "parent_call_id": planner_call_id,
+            "operation_type": "mcp_llm",
         },
     )
     final["cache"] = {"hit": False, "bypassed": True, "reason": "mcp"}
@@ -2520,6 +2590,8 @@ async def run_model_with_audit(
     use_semantic_cache: bool = False,
     force_refresh: bool = False,
 ) -> dict:
+    started_at = time.monotonic()
+    elapsed_ms = lambda: max(0, round((time.monotonic() - started_at) * 1000))
     requested_model_id = model_id.strip()
     model = get_model(requested_model_id)
     raw_prompt = prompt
@@ -2537,7 +2609,7 @@ async def run_model_with_audit(
     audit_fields = {
         key: value
         for key, value in (audit_context or {}).items()
-        if key in {"channel", "external_caller", "source_ref"}
+        if key in {"channel", "external_caller", "source_ref", "parent_call_id", "operation_type"}
     }
 
     if not model:
@@ -2550,6 +2622,7 @@ async def run_model_with_audit(
             response=None,
             status="failed",
             error_message="Model is required" if not requested_model_id else "Model not found",
+            duration_ms=elapsed_ms(),
             **audit_fields,
         )
         raise HTTPException(status_code=404, detail="Model is required" if not requested_model_id else "Model not found")
@@ -2563,6 +2636,7 @@ async def run_model_with_audit(
             response=None,
             status="failed",
             error_message="Prompt is required",
+            duration_ms=elapsed_ms(),
             **audit_fields,
         )
         raise HTTPException(status_code=400, detail="Prompt is required")
@@ -2579,7 +2653,14 @@ async def run_model_with_audit(
                 prompt=audit_prompt,
             )
             if cached:
-                return record_llm_cache_hit(model=model, prompt=audit_prompt, user=user, cached=cached)
+                return record_llm_cache_hit(
+                    model=model,
+                    prompt=audit_prompt,
+                    user=user,
+                    cached=cached,
+                    audit_context=audit_context,
+                    duration_ms=elapsed_ms(),
+                )
 
     free_tier = model["free_tier"]
     server_api_key = server_api_key_for_model(model)
@@ -2605,6 +2686,7 @@ async def run_model_with_audit(
             status="blocked",
             access_mode="no_api_key",
             error_message="API key is required for this model",
+            duration_ms=elapsed_ms(),
             **audit_fields,
         )
         raise HTTPException(status_code=402, detail="API key is required for this model")
@@ -2627,6 +2709,7 @@ async def run_model_with_audit(
             status="failed",
             access_mode=expected_access_mode,
             error_message=str(exc),
+            duration_ms=elapsed_ms(),
             **audit_fields,
         )
         raise HTTPException(status_code=502, detail=str(exc)) from exc
@@ -2641,6 +2724,7 @@ async def run_model_with_audit(
             status="failed",
             access_mode=expected_access_mode,
             error_message=f"Unexpected runtime error: {exc}",
+            duration_ms=elapsed_ms(),
             **audit_fields,
         )
         raise HTTPException(status_code=500, detail="Unexpected runtime error") from exc
@@ -2664,6 +2748,7 @@ async def run_model_with_audit(
         remaining_requests=usage.get("remaining_requests"),
         remaining_balance=usage.get("remaining_balance"),
         raw_usage_json=json.dumps(usage.get("raw_usage"), ensure_ascii=False) if usage.get("raw_usage") else None,
+        duration_ms=elapsed_ms(),
         **audit_fields,
     )
     response = {
@@ -2688,7 +2773,15 @@ async def run_model_with_audit(
     return response
 
 
-def record_llm_cache_hit(*, model: dict, prompt: str, user: dict, cached: dict) -> dict:
+def record_llm_cache_hit(
+    *,
+    model: dict,
+    prompt: str,
+    user: dict,
+    cached: dict,
+    audit_context: dict | None = None,
+    duration_ms: int | None = None,
+) -> dict:
     source = cached["result"]
     cache = cached["cache"]
     source_usage = source.get("usage") or {}
@@ -2725,6 +2818,12 @@ def record_llm_cache_hit(*, model: dict, prompt: str, user: dict, cached: dict) 
         remaining_requests=usage["remaining_requests"],
         remaining_balance=usage["remaining_balance"],
         raw_usage_json=json.dumps(usage["raw_usage"], ensure_ascii=False),
+        duration_ms=duration_ms,
+        **{
+            key: value
+            for key, value in (audit_context or {}).items()
+            if key in {"channel", "external_caller", "source_ref", "parent_call_id", "operation_type"}
+        },
     )
     return {
         "call_id": call["id"],
@@ -2813,11 +2912,17 @@ def line_integration_owner() -> dict:
     return owner
 
 
-def line_audit_context(source_id: str, sender_name: str | None, sender_id: str | None) -> dict:
+def line_audit_context(
+    source_id: str,
+    sender_name: str | None,
+    sender_id: str | None,
+    operation_type: str = "line_query",
+) -> dict:
     return {
         "channel": "LINE",
         "external_caller": sender_name or sender_id or "LINE member",
         "source_ref": source_id,
+        "operation_type": operation_type,
     }
 
 
@@ -3018,7 +3123,7 @@ async def ingest_line_pdf(
                 prompt=prompt,
                 api_key=None,
                 user=owner,
-                audit_context=line_audit_context(source_id, sender_name, sender_id),
+                audit_context=line_audit_context(source_id, sender_name, sender_id, "line_pdf_summary"),
             )
             summary = result["answer"].strip()
         else:
@@ -3072,6 +3177,10 @@ async def query_line_documents(payload: dict, _: None = Depends(require_line_int
     exact = get_exact_line_query_cache(source["id"], source["content_version"], model_id, normalized)
     if exact:
         mark_line_query_cache_hit(exact["id"])
+        _record_line_cache_audit(
+            exact, "exact", 1.0, question=question, owner=owner, source_id=source_id,
+            sender_name=sender_name, sender_id=sender_id,
+        )
         return _line_cached_response(exact, "exact", 1.0)
 
     query_vector = await embed_query(question, owner["id"])
@@ -3103,6 +3212,10 @@ async def query_line_documents(payload: dict, _: None = Depends(require_line_int
         raise HTTPException(status_code=404, detail="群組資料庫中沒有可用內容")
     if semantic_candidate and _line_contexts_overlap(semantic_candidate[1]["contexts_json"], contexts):
         mark_line_query_cache_hit(semantic_candidate[1]["id"])
+        _record_line_cache_audit(
+            semantic_candidate[1], "semantic", semantic_candidate[0], question=question,
+            owner=owner, source_id=source_id, sender_name=sender_name, sender_id=sender_id,
+        )
         return _line_cached_response(semantic_candidate[1], "semantic", semantic_candidate[0])
 
     context_text = "\n\n".join(_format_line_context(chunk) for chunk in contexts)
@@ -3174,6 +3287,35 @@ def _line_cached_response(row: dict, match_type: str, similarity: float) -> dict
             "hit_count": int(row["hit_count"] or 0) + 1,
         },
     }
+
+
+def _record_line_cache_audit(
+    row: dict,
+    match_type: str,
+    similarity: float,
+    *,
+    question: str,
+    owner: dict,
+    source_id: str,
+    sender_name: str | None,
+    sender_id: str | None,
+) -> None:
+    model = get_model(row["model_id"]) or {
+        "provider": "Unknown",
+        "name": row["model_id"],
+        "id": row["model_id"],
+    }
+    create_llm_call(
+        user_id=owner["id"], provider=model["provider"], model_name=model["name"],
+        model_id=model["id"], prompt=question, response=row["answer"], status="completed",
+        access_mode=f"cache_{match_type}", input_tokens=0, output_tokens=0, total_tokens=0,
+        channel="LINE", external_caller=sender_name or sender_id or "LINE member",
+        source_ref=source_id, operation_type="line_query",
+        raw_usage_json=json.dumps(
+            {"cache_hit": True, "match_type": match_type, "similarity": round(similarity, 4)},
+            ensure_ascii=False,
+        ),
+    )
 
 
 def _line_contexts_overlap(cached_contexts_json: str, current_contexts: list[dict]) -> bool:
@@ -3264,8 +3406,28 @@ async def llm_demo_run(payload: dict, user: dict = Depends(current_user)) -> dic
 
 
 @app.get("/api/llm/calls")
-async def llm_calls(q: str | None = None, user: dict = Depends(current_user)) -> list[dict]:
-    return list_llm_calls(user_id=user["id"], role=user["role"], q=q)
+async def llm_calls(
+    page: int = 1,
+    page_size: int = 25,
+    q: str | None = None,
+    caller: str | None = None,
+    model_id: str | None = None,
+    provider: str | None = None,
+    status: str | None = None,
+    access_mode: str | None = None,
+    channel: str | None = None,
+    operation_type: str | None = None,
+    trace_id: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    user: dict = Depends(current_user),
+) -> dict:
+    return search_llm_calls(
+        user_id=user["id"], role=user["role"], page=page, page_size=page_size,
+        q=q, caller=caller, model_id=model_id, provider=provider, status=status,
+        access_mode=access_mode, channel=channel, operation_type=operation_type,
+        trace_id=trace_id, date_from=date_from, date_to=date_to,
+    )
 
 
 @app.websocket("/ws/notifications")

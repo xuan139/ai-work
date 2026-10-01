@@ -43,6 +43,7 @@ async def run_asr_with_audit(
             status="failed",
             access_mode=access_mode,
             error_message=str(exc),
+            operation_type="asr",
         )
         if isinstance(exc, AsrRuntimeError):
             raise
@@ -60,6 +61,7 @@ async def run_asr_with_audit(
         access_mode=access_mode,
         output_tokens=max(1, len(result["text"]) // 4),
         raw_usage_json=_metadata_json(metadata),
+        operation_type="asr",
     )
     return result
 

@@ -1,8 +1,11 @@
 import json
+import hashlib
 import sqlite3
 import uuid
 from pathlib import Path
 from typing import Any
+
+from app.audit_context import audit_context
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
@@ -393,6 +396,31 @@ def init_db() -> None:
         _ensure_column(conn, "llm_calls", "channel", "TEXT")
         _ensure_column(conn, "llm_calls", "external_caller", "TEXT")
         _ensure_column(conn, "llm_calls", "source_ref", "TEXT")
+        _ensure_column(conn, "llm_calls", "trace_id", "TEXT")
+        _ensure_column(conn, "llm_calls", "parent_call_id", "INTEGER")
+        _ensure_column(conn, "llm_calls", "operation_type", "TEXT NOT NULL DEFAULT 'llm'")
+        _ensure_column(conn, "llm_calls", "request_method", "TEXT")
+        _ensure_column(conn, "llm_calls", "request_path", "TEXT")
+        _ensure_column(conn, "llm_calls", "client_ip", "TEXT")
+        _ensure_column(conn, "llm_calls", "user_agent", "TEXT")
+        _ensure_column(conn, "llm_calls", "duration_ms", "INTEGER")
+        _ensure_column(conn, "llm_calls", "prompt_sha256", "TEXT")
+        _ensure_column(conn, "llm_calls", "response_sha256", "TEXT")
+        conn.execute(
+            "UPDATE llm_calls SET trace_id = printf('legacy-llm-%012d', id) WHERE trace_id IS NULL OR trace_id = ''"
+        )
+        conn.execute(
+            """
+            UPDATE llm_calls
+            SET operation_type = CASE
+                WHEN model_id LIKE '%embedding%' THEN 'embedding'
+                WHEN channel LIKE 'mcp_%' THEN 'mcp_llm'
+                WHEN channel = 'LINE' THEN 'line_summary'
+                WHEN model_id LIKE '%whisper%' OR model_id LIKE '%asr%' THEN 'asr'
+                ELSE COALESCE(NULLIF(operation_type, ''), 'llm')
+            END
+            """
+        )
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS nas_assets (
@@ -859,6 +887,14 @@ def init_db() -> None:
             )
             """
         )
+        _ensure_column(conn, "mcp_audit_logs", "trace_id", "TEXT")
+        _ensure_column(conn, "mcp_audit_logs", "parent_call_id", "INTEGER")
+        _ensure_column(conn, "mcp_audit_logs", "request_method", "TEXT")
+        _ensure_column(conn, "mcp_audit_logs", "request_path", "TEXT")
+        _ensure_column(conn, "mcp_audit_logs", "client_ip", "TEXT")
+        conn.execute(
+            "UPDATE mcp_audit_logs SET trace_id = printf('legacy-mcp-%012d', id) WHERE trace_id IS NULL OR trace_id = ''"
+        )
         _ensure_column(conn, "document_chunks", "page_number", "INTEGER")
         _ensure_column(conn, "document_chunks", "chunk_type", "TEXT NOT NULL DEFAULT 'text'")
         _ensure_column(conn, "document_chunks", "image_path", "TEXT")
@@ -878,6 +914,8 @@ def init_db() -> None:
         conn.execute("CREATE INDEX IF NOT EXISTS idx_meetings_created_at ON meetings(created_at)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_llm_calls_user_id ON llm_calls(user_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_llm_calls_created_at ON llm_calls(created_at)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_llm_calls_trace ON llm_calls(trace_id, id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_llm_calls_filters ON llm_calls(status, operation_type, provider, created_at)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_nas_assets_user_id ON nas_assets(user_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_nas_assets_created_at ON nas_assets(created_at)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_nas_assets_source_type ON nas_assets(source_type, created_at)")
@@ -900,6 +938,7 @@ def init_db() -> None:
         conn.execute("CREATE INDEX IF NOT EXISTS idx_custom_models_type ON custom_models(model_type, is_enabled, validation_status)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_mcp_servers_status ON mcp_servers(status, is_enabled)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_mcp_audit_server ON mcp_audit_logs(server_id, created_at)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_mcp_audit_trace ON mcp_audit_logs(trace_id, id)")
 
 
 def _ensure_column(conn: sqlite3.Connection, table: str, column: str, definition: str) -> None:
@@ -1226,18 +1265,25 @@ def create_mcp_audit_log(
     input_json: str | None = None,
     output_json: str | None = None,
     error_message: str | None = None,
+    trace_id: str | None = None,
+    parent_call_id: int | None = None,
 ) -> None:
+    request_context = audit_context()
+    trace_id = trace_id or request_context.get("trace_id") or uuid.uuid4().hex
     with connect() as conn:
         conn.execute(
             """
             INSERT INTO mcp_audit_logs (
                 server_id, user_id, action, status, tool_name,
-                input_json, output_json, error_message
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                input_json, output_json, error_message, trace_id, parent_call_id,
+                request_method, request_path, client_ip
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 server_id, user_id, action, status, tool_name,
-                input_json, output_json, error_message,
+                input_json, output_json, error_message, trace_id, parent_call_id,
+                request_context.get("request_method"), request_context.get("request_path"),
+                request_context.get("client_ip"),
             ),
         )
 
@@ -3429,7 +3475,15 @@ def create_llm_call(
     channel: str | None = None,
     external_caller: str | None = None,
     source_ref: str | None = None,
+    trace_id: str | None = None,
+    parent_call_id: int | None = None,
+    operation_type: str = "llm",
+    duration_ms: int | None = None,
 ) -> dict[str, Any]:
+    request_context = audit_context()
+    trace_id = trace_id or request_context.get("trace_id") or uuid.uuid4().hex
+    prompt_sha256 = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
+    response_sha256 = hashlib.sha256(response.encode("utf-8")).hexdigest() if response is not None else None
     with connect() as conn:
         cursor = conn.execute(
             """
@@ -3437,9 +3491,11 @@ def create_llm_call(
                 user_id, provider, model_name, model_id, prompt, response, status, access_mode,
                 error_message, input_tokens, output_tokens, total_tokens, remaining_tokens,
                 remaining_requests, remaining_balance, raw_usage_json, channel,
-                external_caller, source_ref
+                external_caller, source_ref, trace_id, parent_call_id, operation_type,
+                request_method, request_path, client_ip, user_agent, duration_ms,
+                prompt_sha256, response_sha256
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 user_id,
@@ -3461,6 +3517,16 @@ def create_llm_call(
                 channel,
                 external_caller,
                 source_ref,
+                trace_id,
+                parent_call_id,
+                operation_type,
+                request_context.get("request_method"),
+                request_context.get("request_path"),
+                request_context.get("client_ip"),
+                request_context.get("user_agent"),
+                duration_ms,
+                prompt_sha256,
+                response_sha256,
             ),
         )
         row = conn.execute("SELECT * FROM llm_calls WHERE id = ?", (cursor.lastrowid,)).fetchone()
@@ -3505,3 +3571,124 @@ def list_llm_calls(*, user_id: int, role: str, q: str | None = None) -> list[dic
     with connect() as conn:
         rows = conn.execute(sql, params).fetchall()
     return [dict(row) for row in rows]
+
+
+def search_llm_calls(
+    *,
+    user_id: int,
+    role: str,
+    page: int = 1,
+    page_size: int = 25,
+    q: str | None = None,
+    caller: str | None = None,
+    model_id: str | None = None,
+    provider: str | None = None,
+    status: str | None = None,
+    access_mode: str | None = None,
+    channel: str | None = None,
+    operation_type: str | None = None,
+    trace_id: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+) -> dict[str, Any]:
+    page = max(1, int(page))
+    page_size = min(100, max(10, int(page_size)))
+    params: list[Any] = []
+    where: list[str] = []
+
+    if role != "admin":
+        where.append("llm_calls.user_id = ?")
+        params.append(user_id)
+    if q:
+        where.append(
+            "(provider LIKE ? OR model_name LIKE ? OR model_id LIKE ? OR prompt LIKE ? "
+            "OR response LIKE ? OR error_message LIKE ? OR users.username LIKE ? OR trace_id LIKE ?)"
+        )
+        pattern = f"%{q.strip()}%"
+        params.extend([pattern] * 8)
+    if caller:
+        where.append("users.username LIKE ?")
+        params.append(f"%{caller.strip()}%")
+    exact_filters = {
+        "llm_calls.model_id": model_id,
+        "llm_calls.provider": provider,
+        "llm_calls.status": status,
+        "llm_calls.access_mode": access_mode,
+        "llm_calls.channel": channel,
+        "llm_calls.operation_type": operation_type,
+    }
+    for column, value in exact_filters.items():
+        if value:
+            where.append(f"{column} = ?")
+            params.append(value)
+    if trace_id:
+        where.append("llm_calls.trace_id LIKE ?")
+        params.append(f"%{trace_id.strip()}%")
+    if date_from:
+        where.append("datetime(llm_calls.created_at) >= datetime(?)")
+        params.append(date_from)
+    if date_to:
+        where.append("datetime(llm_calls.created_at) <= datetime(?)")
+        params.append(date_to)
+
+    where_sql = f"WHERE {' AND '.join(where)}" if where else ""
+    base_from = "FROM llm_calls JOIN users ON users.id = llm_calls.user_id"
+    with connect() as conn:
+        total = int(conn.execute(f"SELECT COUNT(*) {base_from} {where_sql}", params).fetchone()[0])
+        rows = conn.execute(
+            f"""
+            SELECT llm_calls.*, users.username AS caller_username, users.role AS caller_role
+            {base_from}
+            {where_sql}
+            ORDER BY datetime(llm_calls.created_at) DESC, llm_calls.id DESC
+            LIMIT ? OFFSET ?
+            """,
+            [*params, page_size, (page - 1) * page_size],
+        ).fetchall()
+        visibility_sql = "WHERE llm_calls.user_id = ?" if role != "admin" else ""
+        visibility_params = [user_id] if role != "admin" else []
+        facet_names = ("provider", "model_id", "status", "access_mode", "channel", "operation_type")
+        facets = {}
+        for name in facet_names:
+            facet_where = f"{visibility_sql} AND" if visibility_sql else "WHERE"
+            facet_rows = conn.execute(
+                f"SELECT DISTINCT llm_calls.{name} AS value {base_from} {facet_where} "
+                f"llm_calls.{name} IS NOT NULL AND llm_calls.{name} != ''",
+                visibility_params,
+            ).fetchall()
+            facets[name] = sorted(str(row["value"]) for row in facet_rows)
+
+        trace_ids = [str(row["trace_id"]) for row in rows if row["trace_id"]]
+        mcp_events_by_trace: dict[str, list[dict[str, Any]]] = {}
+        if trace_ids:
+            placeholders = ", ".join("?" for _ in trace_ids)
+            mcp_visibility = "AND logs.user_id = ?" if role != "admin" else ""
+            mcp_params: list[Any] = [*trace_ids]
+            if role != "admin":
+                mcp_params.append(user_id)
+            mcp_rows = conn.execute(
+                f"""
+                SELECT logs.*, servers.name AS server_name, servers.slug AS server_slug,
+                       users.username AS caller_username
+                FROM mcp_audit_logs AS logs
+                JOIN mcp_servers AS servers ON servers.id = logs.server_id
+                JOIN users ON users.id = logs.user_id
+                WHERE logs.trace_id IN ({placeholders}) {mcp_visibility}
+                ORDER BY datetime(logs.created_at), logs.id
+                """,
+                mcp_params,
+            ).fetchall()
+            for event in mcp_rows:
+                item = dict(event)
+                mcp_events_by_trace.setdefault(str(item["trace_id"]), []).append(item)
+
+    pages = max(1, (total + page_size - 1) // page_size)
+    return {
+        "items": [dict(row) for row in rows],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "pages": pages,
+        "facets": facets,
+        "mcp_events_by_trace": mcp_events_by_trace,
+    }

@@ -3512,6 +3512,77 @@ button:disabled {
   margin-bottom: 16px;
 }
 
+.audit-history-heading,
+.audit-result-bar {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 18px;
+}
+
+.audit-history-heading {
+  margin-bottom: 18px;
+}
+
+.audit-history-heading .search-box {
+  width: min(460px, 100%);
+}
+
+.audit-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(140px, 1fr));
+  gap: 12px;
+  padding: 16px;
+  background: #f5faff;
+  border: 1px solid #cfe6f8;
+  border-radius: 8px;
+}
+
+.audit-filter-grid label {
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.audit-filter-grid input,
+.audit-filter-grid select {
+  width: 100%;
+  min-height: 42px;
+  padding: 8px 10px;
+  color: var(--ink);
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font: inherit;
+}
+
+.audit-reset-button {
+  min-height: 42px;
+  align-self: end;
+}
+
+.audit-result-bar {
+  align-items: center;
+  margin: 16px 0 12px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.audit-pagination {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.audit-pagination .icon-button {
+  width: 38px;
+  height: 38px;
+  padding: 0;
+  font-size: 24px;
+}
+
 .llm-call-history {
   display: grid;
   gap: 12px;
@@ -3531,6 +3602,10 @@ button:disabled {
 
 .llm-call-row.blocked {
   border-left-color: var(--amber);
+}
+
+.llm-call-row.success {
+  border-left-color: #27896d;
 }
 
 .llm-call-header {
@@ -3557,6 +3632,140 @@ button:disabled {
 
 .llm-call-response {
   color: var(--ink);
+}
+
+.audit-text-details {
+  margin: 0 0 10px;
+  border: 1px solid #dbe8f2;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.audit-text-details summary {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  color: var(--muted);
+  background: white;
+  cursor: pointer;
+}
+
+.audit-text-details summary span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.audit-text-details summary small {
+  color: #71869a;
+}
+
+.audit-text-details pre {
+  max-height: 420px;
+  margin: 0;
+  padding: 14px;
+  overflow: auto;
+  color: var(--ink);
+  background: #f8fafc;
+  border-top: 1px solid #dbe8f2;
+  font: 13px/1.55 ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.audit-trace-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 0 0 12px;
+}
+
+.audit-trace-meta span {
+  padding: 4px 8px;
+  color: #365b78;
+  background: #eaf5fd;
+  border: 1px solid #cfe6f8;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
+.audit-trace-meta code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  overflow-wrap: anywhere;
+}
+
+.audit-mcp-trace {
+  margin: 0 0 12px;
+  border: 1px solid #b9dcf5;
+  border-radius: 6px;
+  background: #f2f9fe;
+}
+
+.audit-mcp-trace > summary {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 13px;
+  color: #155f91;
+  cursor: pointer;
+}
+
+.audit-mcp-events {
+  display: grid;
+  gap: 10px;
+  padding: 0 12px 12px;
+}
+
+.audit-mcp-event {
+  padding: 12px;
+  background: white;
+  border: 1px solid #dbe8f2;
+  border-left: 4px solid #36a2df;
+  border-radius: 5px;
+}
+
+.audit-mcp-event.failed {
+  border-left-color: #d95c5c;
+}
+
+.audit-mcp-event header {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.audit-mcp-event header span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+@media (max-width: 1200px) {
+  .audit-filter-grid {
+    grid-template-columns: repeat(3, minmax(150px, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .audit-history-heading,
+  .audit-result-bar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .audit-filter-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .audit-pagination {
+    justify-content: space-between;
+  }
+
+  .audit-text-details summary {
+    grid-template-columns: 1fr;
+  }
 }
 
 .odoo-hero {

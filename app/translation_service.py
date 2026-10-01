@@ -103,6 +103,7 @@ async def run_translation_call(
                 {"task": "translation", "target": target, "segment": segment, "segment_count": segment_count},
                 ensure_ascii=False,
             ),
+            operation_type="translation",
         )
         if isinstance(exc, LlmRuntimeError):
             raise
@@ -135,6 +136,7 @@ async def run_translation_call(
             },
             ensure_ascii=False,
         ),
+        operation_type="translation",
     )
     return result, call["id"]
 

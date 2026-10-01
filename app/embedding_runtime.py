@@ -307,4 +307,5 @@ def _record_embedding_call(
             {"input_count": len(texts), "dimension": dimension, "normalized": True},
             ensure_ascii=False,
         ),
+        operation_type="embedding",
     )

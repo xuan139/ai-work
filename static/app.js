@@ -869,7 +869,45 @@ const messages = {
       historyCaller: "呼叫者",
       historyInput: "輸入",
       historyOutput: "輸出",
+      auditAll: "全部",
+      auditCaller: "呼叫者",
+      auditProvider: "供應商",
+      auditModel: "模型",
+      auditStatus: "狀態",
+      auditAccessMode: "存取模式",
+      auditOperation: "操作類型",
+      auditChannel: "來源頻道",
+      auditTrace: "Trace ID",
+      auditFrom: "開始時間",
+      auditTo: "結束時間",
+      auditPageSize: "每頁",
+      auditReset: "重設篩選",
+      auditPrevious: "上一頁",
+      auditNext: "下一頁",
+      auditSummary: "共 {total} 筆，顯示第 {start}–{end} 筆",
+      auditPage: "第 {page} / {pages} 頁",
+      auditDuration: "耗時",
+      auditRequest: "請求",
+      auditParent: "父呼叫",
+      auditCharacters: "字元",
+      auditMcpTrace: "MCP 工具軌跡",
+      auditMcpEvents: "{count} 次工具事件",
+      auditMcpInput: "工具輸入",
+      auditMcpOutput: "工具輸出",
+      auditMcpError: "工具錯誤",
+      operationLlm: "LLM 對話",
+      operationMcpLlm: "MCP 模型鏈",
+      operationEmbedding: "向量嵌入",
+      operationAsr: "語音轉寫",
+      operationTranslation: "翻譯",
+      operationLineSummary: "LINE 摘要",
+      operationModelValidation: "模型驗證",
+      operationKnowledgeRag: "跨文件知識查詢",
+      operationAssetRag: "單一資產 RAG",
+      operationLineQuery: "LINE 知識查詢",
+      operationLinePdfSummary: "LINE PDF 摘要",
       statusCompleted: "完成",
+      statusSuccess: "成功",
       statusFailed: "失敗",
       statusBlocked: "已阻擋",
       freeTierDescriptions: {
@@ -1792,7 +1830,45 @@ const messages = {
       historyCaller: "Caller",
       historyInput: "Input",
       historyOutput: "Output",
+      auditAll: "All",
+      auditCaller: "Caller",
+      auditProvider: "Provider",
+      auditModel: "Model",
+      auditStatus: "Status",
+      auditAccessMode: "Access mode",
+      auditOperation: "Operation",
+      auditChannel: "Channel",
+      auditTrace: "Trace ID",
+      auditFrom: "From",
+      auditTo: "To",
+      auditPageSize: "Per page",
+      auditReset: "Reset filters",
+      auditPrevious: "Previous page",
+      auditNext: "Next page",
+      auditSummary: "{total} records, showing {start}–{end}",
+      auditPage: "Page {page} of {pages}",
+      auditDuration: "Duration",
+      auditRequest: "Request",
+      auditParent: "Parent call",
+      auditCharacters: "characters",
+      auditMcpTrace: "MCP tool trace",
+      auditMcpEvents: "{count} tool events",
+      auditMcpInput: "Tool input",
+      auditMcpOutput: "Tool output",
+      auditMcpError: "Tool error",
+      operationLlm: "LLM chat",
+      operationMcpLlm: "MCP model chain",
+      operationEmbedding: "Embedding",
+      operationAsr: "Speech transcription",
+      operationTranslation: "Translation",
+      operationLineSummary: "LINE summary",
+      operationModelValidation: "Model validation",
+      operationKnowledgeRag: "Cross-file knowledge RAG",
+      operationAssetRag: "Asset RAG",
+      operationLineQuery: "LINE knowledge query",
+      operationLinePdfSummary: "LINE PDF summary",
       statusCompleted: "Completed",
+      statusSuccess: "Success",
       statusFailed: "Failed",
       statusBlocked: "Blocked",
       freeTierDescriptions: {
@@ -1886,6 +1962,7 @@ const state = {
   selectedPricing: null,
   apiKeys: {},
   llmCalls: [],
+  llmAudit: { total: 0, page: 1, pageSize: 25, pages: 1, facets: {}, mcpEventsByTrace: {} },
   llmSuggestions: [],
   activeLlmSuggestion: -1,
   llmSuggestionRequestId: 0,
@@ -2029,6 +2106,22 @@ const els = {
   modelResponseBox: document.querySelector("#modelResponseBox"),
   llmCallSearch: document.querySelector("#llmCallSearch"),
   llmCallHistory: document.querySelector("#llmCallHistory"),
+  llmAuditCaller: document.querySelector("#llmAuditCaller"),
+  llmAuditProvider: document.querySelector("#llmAuditProvider"),
+  llmAuditModel: document.querySelector("#llmAuditModel"),
+  llmAuditStatus: document.querySelector("#llmAuditStatus"),
+  llmAuditAccessMode: document.querySelector("#llmAuditAccessMode"),
+  llmAuditOperation: document.querySelector("#llmAuditOperation"),
+  llmAuditChannel: document.querySelector("#llmAuditChannel"),
+  llmAuditTrace: document.querySelector("#llmAuditTrace"),
+  llmAuditFrom: document.querySelector("#llmAuditFrom"),
+  llmAuditTo: document.querySelector("#llmAuditTo"),
+  llmAuditPageSize: document.querySelector("#llmAuditPageSize"),
+  llmAuditReset: document.querySelector("#llmAuditReset"),
+  llmAuditSummary: document.querySelector("#llmAuditSummary"),
+  llmAuditPrevious: document.querySelector("#llmAuditPrevious"),
+  llmAuditNext: document.querySelector("#llmAuditNext"),
+  llmAuditPageLabel: document.querySelector("#llmAuditPageLabel"),
   nasUploadForm: document.querySelector("#nasUploadForm"),
   networkImportForm: document.querySelector("#networkImportForm"),
   networkUrlInput: document.querySelector("#networkUrlInput"),
@@ -3060,11 +3153,55 @@ async function loadLocalModels({ background = false } = {}) {
   scheduleLocalModelPolling();
 }
 
-async function loadLlmCalls() {
+function auditDateParameter(value) {
+  if (!value) return "";
+  return new Date(value).toISOString().slice(0, 19).replace("T", " ");
+}
+
+function setAuditFacetOptions(select, values, formatter = (value) => value) {
+  const selected = select.value;
+  select.innerHTML = `<option value="">${escapeHtml(t("aiwork.auditAll"))}</option>${(values || [])
+    .map((value) => `<option value="${escapeHtml(value)}">${escapeHtml(formatter(value))}</option>`)
+    .join("")}`;
+  select.value = (values || []).includes(selected) ? selected : "";
+}
+
+async function loadLlmCalls({ resetPage = false } = {}) {
+  if (resetPage) state.llmAudit.page = 1;
   const params = new URLSearchParams();
   const query = els.llmCallSearch.value.trim();
   if (query) params.set("q", query);
-  state.llmCalls = await api(`/api/llm/calls${params.toString() ? `?${params}` : ""}`);
+  const filters = [
+    ["caller", els.llmAuditCaller.value.trim()],
+    ["provider", els.llmAuditProvider.value],
+    ["model_id", els.llmAuditModel.value],
+    ["status", els.llmAuditStatus.value],
+    ["access_mode", els.llmAuditAccessMode.value],
+    ["operation_type", els.llmAuditOperation.value],
+    ["channel", els.llmAuditChannel.value],
+    ["trace_id", els.llmAuditTrace.value.trim()],
+    ["date_from", auditDateParameter(els.llmAuditFrom.value)],
+    ["date_to", auditDateParameter(els.llmAuditTo.value)],
+  ];
+  filters.forEach(([name, value]) => value && params.set(name, value));
+  params.set("page", state.llmAudit.page);
+  params.set("page_size", els.llmAuditPageSize.value || state.llmAudit.pageSize);
+  const result = await api(`/api/llm/calls?${params}`);
+  state.llmCalls = result.items || [];
+  state.llmAudit = {
+    total: result.total || 0,
+    page: result.page || 1,
+    pageSize: result.page_size || 25,
+    pages: result.pages || 1,
+    facets: result.facets || {},
+    mcpEventsByTrace: result.mcp_events_by_trace || {},
+  };
+  setAuditFacetOptions(els.llmAuditProvider, state.llmAudit.facets.provider);
+  setAuditFacetOptions(els.llmAuditModel, state.llmAudit.facets.model_id);
+  setAuditFacetOptions(els.llmAuditStatus, state.llmAudit.facets.status, callStatusLabel);
+  setAuditFacetOptions(els.llmAuditAccessMode, state.llmAudit.facets.access_mode);
+  setAuditFacetOptions(els.llmAuditOperation, state.llmAudit.facets.operation_type, operationTypeLabel);
+  setAuditFacetOptions(els.llmAuditChannel, state.llmAudit.facets.channel);
   renderLlmCallHistory();
 }
 
@@ -4866,6 +5003,19 @@ function renderModelUsePanel() {
 }
 
 function renderLlmCallHistory() {
+  const audit = state.llmAudit;
+  setAuditFacetOptions(els.llmAuditProvider, audit.facets.provider);
+  setAuditFacetOptions(els.llmAuditModel, audit.facets.model_id);
+  setAuditFacetOptions(els.llmAuditStatus, audit.facets.status, callStatusLabel);
+  setAuditFacetOptions(els.llmAuditAccessMode, audit.facets.access_mode);
+  setAuditFacetOptions(els.llmAuditOperation, audit.facets.operation_type, operationTypeLabel);
+  setAuditFacetOptions(els.llmAuditChannel, audit.facets.channel);
+  const start = audit.total ? (audit.page - 1) * audit.pageSize + 1 : 0;
+  const end = Math.min(audit.total, audit.page * audit.pageSize);
+  els.llmAuditSummary.textContent = t("aiwork.auditSummary", { total: audit.total, start, end });
+  els.llmAuditPageLabel.textContent = t("aiwork.auditPage", { page: audit.page, pages: audit.pages });
+  els.llmAuditPrevious.disabled = audit.page <= 1;
+  els.llmAuditNext.disabled = audit.page >= audit.pages;
   if (!state.llmCalls.length) {
     els.llmCallHistory.innerHTML = `<div class="empty-state compact">${t("aiwork.historyEmpty")}</div>`;
     return;
@@ -4873,6 +5023,7 @@ function renderLlmCallHistory() {
 
   els.llmCallHistory.innerHTML = state.llmCalls
     .map((call) => {
+      const mcpEvents = audit.mcpEventsByTrace?.[call.trace_id] || [];
       return `
         <article class="llm-call-row ${escapeHtml(call.status)}">
           <div class="llm-call-header">
@@ -4882,8 +5033,17 @@ function renderLlmCallHistory() {
             </div>
             <span class="badge ${escapeHtml(call.status)}">${callStatusLabel(call.status)}</span>
           </div>
-          <p class="llm-call-prompt"><b>${escapeHtml(t("aiwork.historyInput"))}</b>${escapeHtml(call.prompt || "-")}</p>
-          <p class="llm-call-response"><b>${escapeHtml(t("aiwork.historyOutput"))}</b>${escapeHtml(call.response || call.error_message || "-")}</p>
+          <div class="audit-trace-meta">
+            <span><b>${escapeHtml(operationTypeLabel(call.operation_type))}</b></span>
+            <span>Trace <code>${escapeHtml(call.trace_id || "-")}</code></span>
+            ${call.parent_call_id ? `<span>${escapeHtml(t("aiwork.auditParent"))} #${escapeHtml(call.parent_call_id)}</span>` : ""}
+            ${call.channel ? `<span>${escapeHtml(t("aiwork.auditChannel"))}: ${escapeHtml(call.channel)}</span>` : ""}
+            ${call.duration_ms != null ? `<span>${escapeHtml(t("aiwork.auditDuration"))}: ${escapeHtml(call.duration_ms)} ms</span>` : ""}
+            ${call.request_path ? `<span>${escapeHtml(t("aiwork.auditRequest"))}: ${escapeHtml(call.request_method || "")} ${escapeHtml(call.request_path)}</span>` : ""}
+          </div>
+          ${auditTextDetails(t("aiwork.historyInput"), call.prompt || "-")}
+          ${auditTextDetails(t("aiwork.historyOutput"), call.response || call.error_message || "-")}
+          ${renderMcpAuditTrace(mcpEvents)}
           <div class="llm-usage-grid">
             ${usageChip(t("aiwork.usageInput"), call.input_tokens)}
             ${usageChip(t("aiwork.usageOutput"), call.output_tokens)}
@@ -4898,16 +5058,66 @@ function renderLlmCallHistory() {
     .join("");
 }
 
+function renderMcpAuditTrace(events) {
+  if (!events.length) return "";
+  return `
+    <details class="audit-mcp-trace">
+      <summary><b>${escapeHtml(t("aiwork.auditMcpTrace"))}</b><span>${escapeHtml(t("aiwork.auditMcpEvents", { count: events.length }))}</span></summary>
+      <div class="audit-mcp-events">
+        ${events.map((event) => `
+          <article class="audit-mcp-event ${escapeHtml(event.status || "")}">
+            <header>
+              <strong>${escapeHtml(event.server_name || event.server_slug || "MCP")} · ${escapeHtml(event.tool_name || event.action || "-")}</strong>
+              <span>${escapeHtml(formatDate(event.created_at))} · ${escapeHtml(event.status || "-")}</span>
+            </header>
+            ${event.input_json ? auditTextDetails(t("aiwork.auditMcpInput"), event.input_json) : ""}
+            ${event.output_json ? auditTextDetails(t("aiwork.auditMcpOutput"), event.output_json) : ""}
+            ${event.error_message ? auditTextDetails(t("aiwork.auditMcpError"), event.error_message) : ""}
+          </article>
+        `).join("")}
+      </div>
+    </details>
+  `;
+}
+
 function usageChip(label, value) {
   return `<span><b>${escapeHtml(label)}</b>${escapeHtml(value ?? t("aiwork.unknown"))}</span>`;
+}
+
+function auditTextDetails(label, value) {
+  const text = String(value ?? "-");
+  const preview = text.length > 180 ? `${text.slice(0, 180)}...` : text;
+  return `
+    <details class="audit-text-details">
+      <summary><b>${escapeHtml(label)}</b><span>${escapeHtml(preview)}</span><small>${escapeHtml(text.length)} ${escapeHtml(t("aiwork.auditCharacters"))}</small></summary>
+      <pre>${escapeHtml(text)}</pre>
+    </details>
+  `;
 }
 
 function callStatusLabel(status) {
   return {
     completed: t("aiwork.statusCompleted"),
+    success: t("aiwork.statusSuccess"),
     failed: t("aiwork.statusFailed"),
     blocked: t("aiwork.statusBlocked"),
   }[status] || status;
+}
+
+function operationTypeLabel(operation) {
+  return {
+    llm: t("aiwork.operationLlm"),
+    mcp_llm: t("aiwork.operationMcpLlm"),
+    embedding: t("aiwork.operationEmbedding"),
+    asr: t("aiwork.operationAsr"),
+    translation: t("aiwork.operationTranslation"),
+    line_summary: t("aiwork.operationLineSummary"),
+    model_validation: t("aiwork.operationModelValidation"),
+    knowledge_rag: t("aiwork.operationKnowledgeRag"),
+    asset_rag: t("aiwork.operationAssetRag"),
+    line_query: t("aiwork.operationLineQuery"),
+    line_pdf_summary: t("aiwork.operationLinePdfSummary"),
+  }[operation] || operation || t("aiwork.operationLlm");
 }
 
 function openKeyModal() {
@@ -5568,7 +5778,48 @@ els.startRecord.addEventListener("click", () => startRecording().catch((error) =
 els.pauseRecord.addEventListener("click", pauseRecording);
 els.stopRecord.addEventListener("click", stopRecording);
 els.meetingSearch.addEventListener("input", debounce(loadMeetings, 220));
-els.llmCallSearch.addEventListener("input", debounce(loadLlmCalls, 220));
+els.llmCallSearch.addEventListener("input", debounce(() => loadLlmCalls({ resetPage: true }), 220));
+[els.llmAuditCaller, els.llmAuditTrace].forEach((input) => {
+  input.addEventListener("input", debounce(() => loadLlmCalls({ resetPage: true }), 260));
+});
+[
+  els.llmAuditProvider,
+  els.llmAuditModel,
+  els.llmAuditStatus,
+  els.llmAuditAccessMode,
+  els.llmAuditOperation,
+  els.llmAuditChannel,
+  els.llmAuditFrom,
+  els.llmAuditTo,
+  els.llmAuditPageSize,
+].forEach((control) => {
+  control.addEventListener("change", () => loadLlmCalls({ resetPage: true }).catch((error) => showToast(error.message, t("errors.requestFailed"))));
+});
+els.llmAuditReset.addEventListener("click", () => {
+  els.llmCallSearch.value = "";
+  els.llmAuditCaller.value = "";
+  els.llmAuditProvider.value = "";
+  els.llmAuditModel.value = "";
+  els.llmAuditStatus.value = "";
+  els.llmAuditAccessMode.value = "";
+  els.llmAuditOperation.value = "";
+  els.llmAuditChannel.value = "";
+  els.llmAuditTrace.value = "";
+  els.llmAuditFrom.value = "";
+  els.llmAuditTo.value = "";
+  els.llmAuditPageSize.value = "25";
+  loadLlmCalls({ resetPage: true }).catch((error) => showToast(error.message, t("errors.requestFailed")));
+});
+els.llmAuditPrevious.addEventListener("click", () => {
+  if (state.llmAudit.page <= 1) return;
+  state.llmAudit.page -= 1;
+  loadLlmCalls().catch((error) => showToast(error.message, t("errors.requestFailed")));
+});
+els.llmAuditNext.addEventListener("click", () => {
+  if (state.llmAudit.page >= state.llmAudit.pages) return;
+  state.llmAudit.page += 1;
+  loadLlmCalls().catch((error) => showToast(error.message, t("errors.requestFailed")));
+});
 els.nasAssetSearch.addEventListener("input", debounce(loadNasAssets, 220));
 els.accountSearch.addEventListener("input", renderAccountList);
 els.refreshLineAdmin.addEventListener("click", () => loadLineAdmin().catch((error) => showToast(error.message, t("lineAdmin.serviceUnavailable"))));

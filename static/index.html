@@ -773,7 +773,7 @@
             </section>
 
             <section class="llm-history-panel">
-              <div class="search-row compact">
+              <div class="audit-history-heading">
                 <div>
                   <p class="eyebrow" data-i18n="aiwork.historyEyebrow">呼叫記錄</p>
                   <h3 data-i18n="aiwork.historyTitle">模型呼叫資料庫</h3>
@@ -782,6 +782,28 @@
                   <span data-i18n="aiwork.historySearchLabel">搜尋</span>
                   <input id="llmCallSearch" placeholder="搜尋模型、提示詞或回覆" data-i18n-attr="placeholder:aiwork.historySearchPlaceholder" />
                 </label>
+              </div>
+              <div class="audit-filter-grid">
+                <label><span data-i18n="aiwork.auditCaller">呼叫者</span><input id="llmAuditCaller" type="text" /></label>
+                <label><span data-i18n="aiwork.auditProvider">供應商</span><select id="llmAuditProvider"><option value="" data-i18n="aiwork.auditAll">全部</option></select></label>
+                <label><span data-i18n="aiwork.auditModel">模型</span><select id="llmAuditModel"><option value="" data-i18n="aiwork.auditAll">全部</option></select></label>
+                <label><span data-i18n="aiwork.auditStatus">狀態</span><select id="llmAuditStatus"><option value="" data-i18n="aiwork.auditAll">全部</option></select></label>
+                <label><span data-i18n="aiwork.auditAccessMode">存取模式</span><select id="llmAuditAccessMode"><option value="" data-i18n="aiwork.auditAll">全部</option></select></label>
+                <label><span data-i18n="aiwork.auditOperation">操作類型</span><select id="llmAuditOperation"><option value="" data-i18n="aiwork.auditAll">全部</option></select></label>
+                <label><span data-i18n="aiwork.auditChannel">來源頻道</span><select id="llmAuditChannel"><option value="" data-i18n="aiwork.auditAll">全部</option></select></label>
+                <label><span data-i18n="aiwork.auditTrace">Trace ID</span><input id="llmAuditTrace" type="text" /></label>
+                <label><span data-i18n="aiwork.auditFrom">開始時間</span><input id="llmAuditFrom" type="datetime-local" /></label>
+                <label><span data-i18n="aiwork.auditTo">結束時間</span><input id="llmAuditTo" type="datetime-local" /></label>
+                <label><span data-i18n="aiwork.auditPageSize">每頁</span><select id="llmAuditPageSize"><option value="10">10</option><option value="25" selected>25</option><option value="50">50</option><option value="100">100</option></select></label>
+                <button id="llmAuditReset" class="secondary-button audit-reset-button" type="button" data-i18n="aiwork.auditReset">重設篩選</button>
+              </div>
+              <div class="audit-result-bar">
+                <span id="llmAuditSummary"></span>
+                <div class="audit-pagination">
+                  <button id="llmAuditPrevious" class="icon-button" type="button" aria-label="上一頁" data-i18n-attr="aria-label:aiwork.auditPrevious">&#8249;</button>
+                  <span id="llmAuditPageLabel"></span>
+                  <button id="llmAuditNext" class="icon-button" type="button" aria-label="下一頁" data-i18n-attr="aria-label:aiwork.auditNext">&#8250;</button>
+                </div>
               </div>
               <div id="llmCallHistory" class="llm-call-history"></div>
             </section>

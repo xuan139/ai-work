@@ -100,6 +100,7 @@ async def summarize_meeting_for_line(meeting: dict[str, Any], caller: str, sourc
             access_mode=expected_mode, error_message=str(exc), channel="LINE",
             external_caller=caller, source_ref=meeting["line_group_id"],
             raw_usage_json=json.dumps({"task": "meeting_summary", "meeting_id": meeting["id"]}),
+            operation_type="line_summary",
         )
         raise LlmRuntimeError(str(exc)) from exc
 
@@ -113,6 +114,7 @@ async def summarize_meeting_for_line(meeting: dict[str, Any], caller: str, sourc
         remaining_balance=usage.get("remaining_balance"), channel="LINE", external_caller=caller,
         source_ref=meeting["line_group_id"],
         raw_usage_json=json.dumps({"task": "meeting_summary", "meeting_id": meeting["id"], "provider_usage": usage.get("raw_usage")}, ensure_ascii=False),
+        operation_type="line_summary",
     )
     return str(result["answer"]).strip()
 
