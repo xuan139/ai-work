@@ -1,4 +1,6 @@
+import json
 import sqlite3
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -241,6 +243,42 @@ def _row_to_dict(row: sqlite3.Row | None) -> dict[str, Any] | None:
     return dict(row) if row else None
 
 
+def _asset_access_clause(alias: str, user_id: int, role: str) -> tuple[str, list[Any]]:
+    if role == "admin":
+        return "1 = 1", []
+    clause = f"""
+        ({alias}.user_id = ?
+         OR {alias}.visibility = 'company'
+         OR ({alias}.visibility = 'group' AND {alias}.owner_group_id IN (
+             SELECT group_id FROM user_group_members WHERE user_id = ?
+         ))
+         OR EXISTS (
+             SELECT 1 FROM asset_permissions direct_permission
+             WHERE direct_permission.asset_id = {alias}.id
+               AND direct_permission.subject_type = 'user'
+               AND direct_permission.subject_id = ?
+         )
+         OR EXISTS (
+             SELECT 1
+             FROM asset_permissions group_permission
+             JOIN user_group_members membership
+               ON membership.group_id = group_permission.subject_id
+             WHERE group_permission.asset_id = {alias}.id
+               AND group_permission.subject_type = 'group'
+               AND membership.user_id = ?
+         ))
+    """
+    return clause, [user_id, user_id, user_id, user_id]
+
+
+def _bump_knowledge_revision(conn: sqlite3.Connection) -> int:
+    conn.execute(
+        "UPDATE knowledge_state SET revision = revision + 1, updated_at = CURRENT_TIMESTAMP WHERE id = 1"
+    )
+    row = conn.execute("SELECT revision FROM knowledge_state WHERE id = 1").fetchone()
+    return int(row["revision"])
+
+
 def init_db() -> None:
     with connect() as conn:
         conn.execute(
@@ -381,6 +419,160 @@ def init_db() -> None:
         _ensure_column(conn, "nas_assets", "processor_config_json", "TEXT")
         _ensure_column(conn, "nas_assets", "source_type", "TEXT")
         _ensure_column(conn, "nas_assets", "source_url", "TEXT")
+        _ensure_column(conn, "nas_assets", "visibility", "TEXT NOT NULL DEFAULT 'private'")
+        _ensure_column(conn, "nas_assets", "owner_group_id", "INTEGER")
+        _ensure_column(conn, "nas_assets", "document_key", "TEXT")
+        _ensure_column(conn, "nas_assets", "version_no", "INTEGER NOT NULL DEFAULT 1")
+        _ensure_column(conn, "nas_assets", "is_current", "INTEGER NOT NULL DEFAULT 1")
+        _ensure_column(conn, "nas_assets", "content_sha256", "TEXT")
+        _ensure_column(conn, "nas_assets", "content_version", "INTEGER NOT NULL DEFAULT 1")
+        _ensure_column(conn, "nas_assets", "index_version", "INTEGER NOT NULL DEFAULT 1")
+        _ensure_column(conn, "nas_assets", "indexed_at", "TEXT")
+        _ensure_column(conn, "nas_assets", "supersedes_asset_id", "INTEGER")
+        conn.execute(
+            "UPDATE nas_assets SET document_key = 'legacy-' || id WHERE document_key IS NULL OR document_key = ''"
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_groups (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                created_by INTEGER NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(created_by) REFERENCES users(id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS user_group_members (
+                group_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY(group_id, user_id),
+                FOREIGN KEY(group_id) REFERENCES user_groups(id),
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS asset_permissions (
+                asset_id INTEGER NOT NULL,
+                subject_type TEXT NOT NULL,
+                subject_id INTEGER NOT NULL,
+                permission TEXT NOT NULL DEFAULT 'read',
+                created_by INTEGER NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                PRIMARY KEY(asset_id, subject_type, subject_id),
+                FOREIGN KEY(asset_id) REFERENCES nas_assets(id),
+                FOREIGN KEY(created_by) REFERENCES users(id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS asset_permission_audit (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                asset_id INTEGER NOT NULL,
+                actor_user_id INTEGER NOT NULL,
+                action TEXT NOT NULL,
+                detail_json TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(asset_id) REFERENCES nas_assets(id),
+                FOREIGN KEY(actor_user_id) REFERENCES users(id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS knowledge_state (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                revision INTEGER NOT NULL DEFAULT 1,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            """
+        )
+        conn.execute("INSERT OR IGNORE INTO knowledge_state (id, revision) VALUES (1, 1)")
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS knowledge_query_cache (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                cache_key TEXT NOT NULL UNIQUE,
+                user_id INTEGER NOT NULL,
+                model_id TEXT NOT NULL,
+                query_text TEXT NOT NULL,
+                normalized_query TEXT NOT NULL,
+                query_embedding BLOB,
+                embedding_model TEXT,
+                scope_json TEXT NOT NULL,
+                scope_digest TEXT NOT NULL,
+                permission_digest TEXT NOT NULL,
+                knowledge_revision INTEGER NOT NULL,
+                prompt_version TEXT NOT NULL,
+                retrieval_version TEXT NOT NULL,
+                result_json TEXT NOT NULL,
+                contexts_json TEXT NOT NULL,
+                hit_count INTEGER NOT NULL DEFAULT 0,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                last_hit_at TEXT,
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS rag_eval_cases (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                question TEXT NOT NULL,
+                expected_asset_ids_json TEXT NOT NULL DEFAULT '[]',
+                expected_keywords_json TEXT NOT NULL DEFAULT '[]',
+                reference_answer TEXT,
+                scope_json TEXT NOT NULL DEFAULT '{"scope":"all_accessible"}',
+                created_by INTEGER NOT NULL,
+                is_active INTEGER NOT NULL DEFAULT 1,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(created_by) REFERENCES users(id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS rag_eval_runs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                case_id INTEGER NOT NULL,
+                run_group TEXT NOT NULL,
+                retrieval_version TEXT NOT NULL,
+                model_id TEXT,
+                retrieved_chunks_json TEXT NOT NULL,
+                answer TEXT,
+                recall_at_5 REAL NOT NULL,
+                reciprocal_rank REAL NOT NULL,
+                keyword_score REAL NOT NULL,
+                citation_valid INTEGER NOT NULL,
+                permission_leak INTEGER NOT NULL,
+                latency_ms INTEGER NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(case_id) REFERENCES rag_eval_cases(id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS security_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                event_type TEXT NOT NULL,
+                severity TEXT NOT NULL,
+                source TEXT NOT NULL,
+                detail_json TEXT NOT NULL,
+                remote_addr TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            )
+            """
+        )
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS document_chunks (
@@ -672,6 +864,10 @@ def init_db() -> None:
         _ensure_column(conn, "document_chunks", "image_path", "TEXT")
         _ensure_column(conn, "document_chunks", "embedding", "BLOB")
         _ensure_column(conn, "document_chunks", "embedding_model", "TEXT")
+        _ensure_column(conn, "rag_query_cache", "content_version", "INTEGER NOT NULL DEFAULT 1")
+        _ensure_column(conn, "rag_query_cache", "index_version", "INTEGER NOT NULL DEFAULT 1")
+        _ensure_column(conn, "rag_query_cache", "prompt_version", "TEXT NOT NULL DEFAULT 'asset-rag-v1'")
+        _ensure_column(conn, "rag_query_cache", "retrieval_version", "TEXT NOT NULL DEFAULT 'hybrid-v1'")
         _ensure_column(conn, "line_sources", "is_approved", "INTEGER NOT NULL DEFAULT 1")
         _ensure_column(conn, "line_sources", "monthly_call_limit", "INTEGER NOT NULL DEFAULT 500")
         _ensure_column(conn, "line_sources", "monthly_token_limit", "INTEGER NOT NULL DEFAULT 200000")
@@ -685,7 +881,14 @@ def init_db() -> None:
         conn.execute("CREATE INDEX IF NOT EXISTS idx_nas_assets_user_id ON nas_assets(user_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_nas_assets_created_at ON nas_assets(created_at)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_nas_assets_source_type ON nas_assets(source_type, created_at)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_nas_assets_current_visibility ON nas_assets(is_current, visibility, status)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_nas_assets_document_version ON nas_assets(document_key, version_no)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_document_chunks_asset_id ON document_chunks(asset_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_group_members_user ON user_group_members(user_id, group_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_asset_permissions_subject ON asset_permissions(subject_type, subject_id, asset_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_knowledge_cache_lookup ON knowledge_query_cache(user_id, model_id, knowledge_revision)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_rag_eval_runs_group ON rag_eval_runs(run_group, case_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_security_events_created ON security_events(created_at, severity)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_wiki_pages_owner ON wiki_pages(owner_user_id, updated_at)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_wiki_sources_page ON wiki_sources(page_id, asset_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_wiki_sources_asset ON wiki_sources(asset_id)")
@@ -1454,15 +1657,33 @@ def create_nas_asset(
     processor_config_json: str | None = None,
     source_type: str | None = None,
     source_url: str | None = None,
+    visibility: str = "private",
+    owner_group_id: int | None = None,
+    document_key: str | None = None,
+    content_sha256: str | None = None,
+    supersedes_asset_id: int | None = None,
 ) -> dict[str, Any]:
     with connect() as conn:
+        version_no = 1
+        resolved_document_key = document_key or uuid.uuid4().hex
+        if supersedes_asset_id is not None:
+            previous = conn.execute(
+                "SELECT document_key, version_no, user_id FROM nas_assets WHERE id = ?",
+                (supersedes_asset_id,),
+            ).fetchone()
+            if previous is None or int(previous["user_id"]) != int(user_id):
+                raise ValueError("Invalid superseded asset")
+            resolved_document_key = str(previous["document_key"])
+            version_no = int(previous["version_no"] or 1) + 1
         cursor = conn.execute(
             """
             INSERT INTO nas_assets (
                 user_id, category, title, original_filename, stored_path, mime_type,
-                file_size, status, analyzer, processor_config_json, source_type, source_url
+                file_size, status, analyzer, processor_config_json, source_type, source_url,
+                visibility, owner_group_id, document_key, version_no, content_sha256,
+                supersedes_asset_id
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
                 user_id,
@@ -1477,8 +1698,18 @@ def create_nas_asset(
                 processor_config_json,
                 source_type,
                 source_url,
+                visibility,
+                owner_group_id,
+                resolved_document_key,
+                version_no,
+                content_sha256,
+                supersedes_asset_id,
             ),
         )
+        if status == "completed":
+            if supersedes_asset_id is not None:
+                conn.execute("UPDATE nas_assets SET is_current = 0 WHERE id = ?", (supersedes_asset_id,))
+            _bump_knowledge_revision(conn)
         row = conn.execute("SELECT * FROM nas_assets WHERE id = ?", (cursor.lastrowid,)).fetchone()
     asset = _row_to_dict(row)
     if asset is None:
@@ -1496,6 +1727,7 @@ def update_nas_asset(
     chunk_count: int | None = None,
 ) -> dict[str, Any] | None:
     with connect() as conn:
+        previous = conn.execute("SELECT * FROM nas_assets WHERE id = ?", (asset_id,)).fetchone()
         conn.execute(
             """
             UPDATE nas_assets
@@ -1509,6 +1741,17 @@ def update_nas_asset(
             """,
             (status, analyzer, summary, error_message, chunk_count, asset_id),
         )
+        if previous and status == "completed" and previous["status"] != "completed":
+            conn.execute(
+                "UPDATE nas_assets SET indexed_at = CURRENT_TIMESTAMP, is_current = 1 WHERE id = ?",
+                (asset_id,),
+            )
+            if previous["supersedes_asset_id"] is not None:
+                conn.execute(
+                    "UPDATE nas_assets SET is_current = 0 WHERE id = ?",
+                    (previous["supersedes_asset_id"],),
+                )
+            _bump_knowledge_revision(conn)
         row = conn.execute("SELECT * FROM nas_assets WHERE id = ?", (asset_id,)).fetchone()
     return _row_to_dict(row)
 
@@ -1589,6 +1832,227 @@ def get_nas_asset(asset_id: int) -> dict[str, Any] | None:
     return _row_to_dict(row)
 
 
+def current_knowledge_revision() -> int:
+    with connect() as conn:
+        row = conn.execute("SELECT revision FROM knowledge_state WHERE id = 1").fetchone()
+    return int(row["revision"] if row else 1)
+
+
+def create_security_event(
+    *,
+    user_id: int | None,
+    event_type: str,
+    severity: str,
+    source: str,
+    detail_json: str,
+    remote_addr: str | None = None,
+) -> dict[str, Any]:
+    with connect() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO security_events (
+                user_id, event_type, severity, source, detail_json, remote_addr
+            ) VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (user_id, event_type, severity, source, detail_json, remote_addr),
+        )
+        row = conn.execute("SELECT * FROM security_events WHERE id = ?", (cursor.lastrowid,)).fetchone()
+    return dict(row)
+
+
+def list_security_events(limit: int = 200) -> list[dict[str, Any]]:
+    with connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT security_events.*, users.username
+            FROM security_events LEFT JOIN users ON users.id = security_events.user_id
+            ORDER BY datetime(security_events.created_at) DESC, security_events.id DESC
+            LIMIT ?
+            """,
+            (max(1, min(limit, 1000)),),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def user_can_read_asset(asset_id: int, *, user_id: int, role: str) -> bool:
+    access_sql, params = _asset_access_clause("nas_assets", user_id, role)
+    with connect() as conn:
+        row = conn.execute(
+            f"SELECT 1 FROM nas_assets WHERE id = ? AND ({access_sql})",
+            [asset_id, *params],
+        ).fetchone()
+    return row is not None
+
+
+def user_can_manage_asset(asset_id: int, *, user_id: int, role: str) -> bool:
+    if role == "admin":
+        return True
+    with connect() as conn:
+        row = conn.execute(
+            """
+            SELECT 1 FROM nas_assets
+            WHERE id = ? AND (
+                user_id = ? OR EXISTS (
+                    SELECT 1 FROM asset_permissions
+                    WHERE asset_permissions.asset_id = nas_assets.id
+                      AND subject_type = 'user' AND subject_id = ? AND permission = 'manage'
+                )
+            )
+            """,
+            (asset_id, user_id, user_id),
+        ).fetchone()
+    return row is not None
+
+
+def list_user_groups(*, user_id: int | None = None) -> list[dict[str, Any]]:
+    params: list[Any] = []
+    where = ""
+    if user_id is not None:
+        where = "WHERE EXISTS (SELECT 1 FROM user_group_members m WHERE m.group_id = g.id AND m.user_id = ?)"
+        params.append(user_id)
+    with connect() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT g.*, COUNT(m.user_id) AS member_count
+            FROM user_groups g
+            LEFT JOIN user_group_members m ON m.group_id = g.id
+            {where}
+            GROUP BY g.id
+            ORDER BY g.name
+            """,
+            params,
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def create_user_group(*, name: str, created_by: int) -> dict[str, Any]:
+    with connect() as conn:
+        cursor = conn.execute(
+            "INSERT INTO user_groups (name, created_by) VALUES (?, ?)",
+            (name, created_by),
+        )
+        row = conn.execute("SELECT * FROM user_groups WHERE id = ?", (cursor.lastrowid,)).fetchone()
+    return dict(row)
+
+
+def set_user_group_members(group_id: int, user_ids: list[int]) -> dict[str, Any] | None:
+    unique_ids = sorted({int(user_id) for user_id in user_ids})
+    with connect() as conn:
+        group = conn.execute("SELECT * FROM user_groups WHERE id = ?", (group_id,)).fetchone()
+        if group is None:
+            return None
+        conn.execute("DELETE FROM user_group_members WHERE group_id = ?", (group_id,))
+        conn.executemany(
+            "INSERT INTO user_group_members (group_id, user_id) VALUES (?, ?)",
+            [(group_id, user_id) for user_id in unique_ids],
+        )
+        _bump_knowledge_revision(conn)
+    return {**dict(group), "user_ids": unique_ids}
+
+
+def get_asset_permissions(asset_id: int) -> dict[str, Any] | None:
+    with connect() as conn:
+        asset = conn.execute(
+            "SELECT id, user_id, visibility, owner_group_id FROM nas_assets WHERE id = ?",
+            (asset_id,),
+        ).fetchone()
+        if asset is None:
+            return None
+        rows = conn.execute(
+            """
+            SELECT subject_type, subject_id, permission
+            FROM asset_permissions WHERE asset_id = ?
+            ORDER BY subject_type, subject_id
+            """,
+            (asset_id,),
+        ).fetchall()
+    return {**dict(asset), "grants": [dict(row) for row in rows]}
+
+
+def set_asset_permissions(
+    asset_id: int,
+    *,
+    actor_user_id: int,
+    visibility: str,
+    owner_group_id: int | None,
+    grants: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    if visibility not in {"private", "group", "company"}:
+        raise ValueError("Invalid visibility")
+    normalized_grants = []
+    for grant in grants:
+        subject_type = str(grant.get("subject_type", ""))
+        permission = str(grant.get("permission", "read"))
+        if subject_type not in {"user", "group"} or permission not in {"read", "manage"}:
+            raise ValueError("Invalid permission grant")
+        normalized_grants.append((subject_type, int(grant["subject_id"]), permission))
+    with connect() as conn:
+        asset = conn.execute("SELECT id FROM nas_assets WHERE id = ?", (asset_id,)).fetchone()
+        if asset is None:
+            return None
+        conn.execute(
+            "UPDATE nas_assets SET visibility = ?, owner_group_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (visibility, owner_group_id if visibility == "group" else None, asset_id),
+        )
+        conn.execute("DELETE FROM asset_permissions WHERE asset_id = ?", (asset_id,))
+        conn.executemany(
+            """
+            INSERT INTO asset_permissions (
+                asset_id, subject_type, subject_id, permission, created_by
+            ) VALUES (?, ?, ?, ?, ?)
+            """,
+            [
+                (asset_id, subject_type, subject_id, permission, actor_user_id)
+                for subject_type, subject_id, permission in normalized_grants
+            ],
+        )
+        detail = {
+            "visibility": visibility,
+            "owner_group_id": owner_group_id if visibility == "group" else None,
+            "grants": [
+                {"subject_type": item[0], "subject_id": item[1], "permission": item[2]}
+                for item in normalized_grants
+            ],
+        }
+        conn.execute(
+            "INSERT INTO asset_permission_audit (asset_id, actor_user_id, action, detail_json) VALUES (?, ?, 'replace', ?)",
+            (asset_id, actor_user_id, json.dumps(detail, ensure_ascii=False)),
+        )
+        _bump_knowledge_revision(conn)
+    return get_asset_permissions(asset_id)
+
+
+def list_asset_versions(document_key: str) -> list[dict[str, Any]]:
+    with connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT nas_assets.*, users.username AS owner_username
+            FROM nas_assets JOIN users ON users.id = nas_assets.user_id
+            WHERE nas_assets.document_key = ?
+            ORDER BY nas_assets.version_no DESC, nas_assets.id DESC
+            """,
+            (document_key,),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def list_accessible_asset_versions(*, user_id: int, role: str) -> list[dict[str, Any]]:
+    access_sql, params = _asset_access_clause("nas_assets", user_id, role)
+    with connect() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT id, document_key, version_no, content_version, index_version,
+                   visibility, owner_group_id, updated_at
+            FROM nas_assets
+            WHERE is_current = 1 AND status = 'completed' AND chunk_count > 0
+              AND ({access_sql})
+            ORDER BY id
+            """,
+            params,
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
 def list_pending_media_jobs() -> list[dict[str, Any]]:
     with connect() as conn:
         rows = conn.execute(
@@ -1611,12 +2075,9 @@ def list_pending_media_jobs() -> list[dict[str, Any]]:
 
 
 def list_nas_assets(*, user_id: int, role: str, q: str | None = None) -> list[dict[str, Any]]:
-    params: list[Any] = []
-    where = []
-
-    if role != "admin":
-        where.append("nas_assets.user_id = ?")
-        params.append(user_id)
+    access_sql, access_params = _asset_access_clause("nas_assets", user_id, role)
+    params: list[Any] = list(access_params)
+    where = [access_sql, "nas_assets.is_current = 1"]
 
     if q:
         where.append(
@@ -1985,6 +2446,14 @@ def save_line_query_cache(
 
 def replace_document_chunks(asset_id: int, chunks: list[dict[str, Any]]) -> None:
     with connect() as conn:
+        previous = conn.execute(
+            "SELECT status, content_version, index_version FROM nas_assets WHERE id = ?",
+            (asset_id,),
+        ).fetchone()
+        existing = conn.execute(
+            "SELECT COUNT(*) AS total FROM document_chunks WHERE asset_id = ?",
+            (asset_id,),
+        ).fetchone()
         conn.execute("DELETE FROM rag_query_cache WHERE asset_id = ?", (asset_id,))
         conn.execute("DELETE FROM asset_ai_analyses WHERE asset_id = ?", (asset_id,))
         conn.execute("DELETE FROM document_chunks WHERE asset_id = ?", (asset_id,))
@@ -2012,6 +2481,25 @@ def replace_document_chunks(asset_id: int, chunks: list[dict[str, Any]]) -> None
                 for chunk in chunks
             ],
         )
+        if previous and int(existing["total"] or 0) > 0:
+            conn.execute(
+                """
+                UPDATE nas_assets
+                SET content_version = content_version + 1,
+                    index_version = index_version + 1,
+                    indexed_at = CURRENT_TIMESTAMP,
+                    updated_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (asset_id,),
+            )
+            if previous["status"] == "completed":
+                _bump_knowledge_revision(conn)
+        elif previous:
+            conn.execute(
+                "UPDATE nas_assets SET indexed_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (asset_id,),
+            )
 
 
 def save_asset_ai_analysis(
@@ -2102,6 +2590,17 @@ def save_asset_ai_analysis(
                 """,
                 (asset_id, asset_id),
             )
+            conn.execute(
+                """
+                UPDATE nas_assets
+                SET content_version = content_version + 1,
+                    index_version = index_version + 1,
+                    indexed_at = CURRENT_TIMESTAMP
+                WHERE id = ?
+                """,
+                (asset_id,),
+            )
+            _bump_knowledge_revision(conn)
         chunk_count_row = conn.execute(
             "SELECT COUNT(*) AS total FROM document_chunks WHERE asset_id = ? AND chunk_type = 'ai_analysis'",
             (asset_id,),
@@ -2155,6 +2654,74 @@ def list_document_chunks(asset_id: int) -> list[dict[str, Any]]:
             ORDER BY chunk_index ASC
             """,
             (asset_id,),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def list_accessible_document_chunks(
+    *,
+    user_id: int,
+    role: str,
+    scope: str = "all_accessible",
+    asset_ids: list[int] | None = None,
+    group_id: int | None = None,
+    limit: int = 50000,
+) -> list[dict[str, Any]]:
+    access_sql, params = _asset_access_clause("nas_assets", user_id, role)
+    where = [
+        f"({access_sql})",
+        "nas_assets.is_current = 1",
+        "nas_assets.status = 'completed'",
+        "nas_assets.chunk_count > 0",
+    ]
+    query_params: list[Any] = list(params)
+    if scope == "mine":
+        where.append("nas_assets.user_id = ?")
+        query_params.append(user_id)
+    elif scope == "company":
+        where.append("nas_assets.visibility = 'company'")
+    elif scope == "group":
+        if group_id is None:
+            return []
+        where.append(
+            """
+            (nas_assets.owner_group_id = ? OR EXISTS (
+                SELECT 1 FROM asset_permissions selected_group_permission
+                WHERE selected_group_permission.asset_id = nas_assets.id
+                  AND selected_group_permission.subject_type = 'group'
+                  AND selected_group_permission.subject_id = ?
+            ))
+            """
+        )
+        query_params.extend([group_id, group_id])
+    elif scope == "selected":
+        selected = sorted({int(asset_id) for asset_id in (asset_ids or [])})
+        if not selected:
+            return []
+        where.append(f"nas_assets.id IN ({','.join('?' for _ in selected)})")
+        query_params.extend(selected)
+    elif scope != "all_accessible":
+        raise ValueError("Invalid knowledge scope")
+    query_params.append(max(1, min(int(limit), 50000)))
+    with connect() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT document_chunks.id, document_chunks.asset_id, document_chunks.chunk_index,
+                   document_chunks.content, document_chunks.token_estimate,
+                   document_chunks.page_number, document_chunks.chunk_type,
+                   document_chunks.image_path, document_chunks.metadata_json,
+                   document_chunks.embedding, document_chunks.embedding_model,
+                   document_chunks.created_at, nas_assets.title AS asset_title,
+                   nas_assets.original_filename, nas_assets.category,
+                   nas_assets.version_no, nas_assets.document_key,
+                   nas_assets.content_version, nas_assets.index_version
+            FROM document_chunks
+            JOIN nas_assets ON nas_assets.id = document_chunks.asset_id
+            WHERE {' AND '.join(where)}
+            ORDER BY nas_assets.id, document_chunks.chunk_index
+            LIMIT ?
+            """,
+            query_params,
         ).fetchall()
     return [dict(row) for row in rows]
 
@@ -2281,8 +2848,14 @@ def save_wiki_page(
 
 
 def list_wiki_pages(*, user_id: int, role: str) -> list[dict[str, Any]]:
-    where = "" if role == "admin" else "WHERE wiki_pages.owner_user_id = ?"
-    params: tuple[Any, ...] = () if role == "admin" else (user_id,)
+    access_sql, access_params = _asset_access_clause("nas_assets", user_id, role)
+    where = f"""
+        WHERE EXISTS (
+            SELECT 1 FROM wiki_sources visible_source
+            JOIN nas_assets ON nas_assets.id = visible_source.asset_id
+            WHERE visible_source.page_id = wiki_pages.id AND ({access_sql})
+        )
+    """
     with connect() as conn:
         rows = conn.execute(
             f"""
@@ -2293,7 +2866,7 @@ def list_wiki_pages(*, user_id: int, role: str) -> list[dict[str, Any]]:
             {where}
             ORDER BY datetime(wiki_pages.updated_at) DESC, wiki_pages.id DESC
             """,
-            params,
+            access_params,
         ).fetchall()
     return [dict(row) for row in rows]
 
@@ -2426,6 +2999,18 @@ def update_document_chunk_contents(asset_id: int, chunks: list[dict[str, Any]]) 
                 for chunk in chunks
             ],
         )
+        conn.execute(
+            """
+            UPDATE nas_assets
+            SET content_version = content_version + 1,
+                index_version = index_version + 1,
+                indexed_at = CURRENT_TIMESTAMP,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (asset_id,),
+        )
+        _bump_knowledge_revision(conn)
 
 
 def embedding_coverage() -> dict[str, int]:
@@ -2440,28 +3025,54 @@ def embedding_coverage() -> dict[str, int]:
     return {"total": int(row["total"] or 0), "embedded": int(row["embedded"] or 0)}
 
 
-def get_exact_rag_cache(asset_id: int, model_id: str, normalized_query: str) -> dict[str, Any] | None:
+def get_exact_rag_cache(
+    asset_id: int,
+    model_id: str,
+    normalized_query: str,
+    content_version: int = 1,
+    index_version: int = 1,
+    prompt_version: str = "asset-rag-v1",
+    retrieval_version: str = "hybrid-v1",
+) -> dict[str, Any] | None:
     with connect() as conn:
         row = conn.execute(
             """
             SELECT * FROM rag_query_cache
             WHERE asset_id = ? AND model_id = ? AND normalized_query = ?
+              AND content_version = ? AND index_version = ?
+              AND prompt_version = ? AND retrieval_version = ?
             """,
-            (asset_id, model_id, normalized_query),
+            (
+                asset_id, model_id, normalized_query, content_version, index_version,
+                prompt_version, retrieval_version,
+            ),
         ).fetchone()
     return _row_to_dict(row)
 
 
-def list_rag_cache_candidates(asset_id: int, model_id: str, limit: int = 200) -> list[dict[str, Any]]:
+def list_rag_cache_candidates(
+    asset_id: int,
+    model_id: str,
+    content_version: int = 1,
+    index_version: int = 1,
+    prompt_version: str = "asset-rag-v1",
+    retrieval_version: str = "hybrid-v1",
+    limit: int = 200,
+) -> list[dict[str, Any]]:
     with connect() as conn:
         rows = conn.execute(
             """
             SELECT * FROM rag_query_cache
             WHERE asset_id = ? AND model_id = ? AND query_embedding IS NOT NULL
+              AND content_version = ? AND index_version = ?
+              AND prompt_version = ? AND retrieval_version = ?
             ORDER BY datetime(created_at) DESC, id DESC
             LIMIT ?
             """,
-            (asset_id, model_id, limit),
+            (
+                asset_id, model_id, content_version, index_version,
+                prompt_version, retrieval_version, limit,
+            ),
         ).fetchall()
     return [dict(row) for row in rows]
 
@@ -2489,15 +3100,20 @@ def save_rag_query_cache(
     embedding_model: str | None,
     result_json: str,
     contexts_json: str,
+    content_version: int = 1,
+    index_version: int = 1,
+    prompt_version: str = "asset-rag-v1",
+    retrieval_version: str = "hybrid-v1",
 ) -> None:
     with connect() as conn:
         conn.execute(
             """
             INSERT INTO rag_query_cache (
                 asset_id, user_id, model_id, query_text, normalized_query,
-                query_embedding, embedding_model, result_json, contexts_json
+                query_embedding, embedding_model, result_json, contexts_json,
+                content_version, index_version, prompt_version, retrieval_version
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             ON CONFLICT(asset_id, model_id, normalized_query) DO UPDATE SET
                 user_id = excluded.user_id,
                 query_text = excluded.query_text,
@@ -2505,6 +3121,10 @@ def save_rag_query_cache(
                 embedding_model = excluded.embedding_model,
                 result_json = excluded.result_json,
                 contexts_json = excluded.contexts_json,
+                content_version = excluded.content_version,
+                index_version = excluded.index_version,
+                prompt_version = excluded.prompt_version,
+                retrieval_version = excluded.retrieval_version,
                 created_at = CURRENT_TIMESTAMP
             """,
             (
@@ -2517,8 +3137,158 @@ def save_rag_query_cache(
                 embedding_model,
                 result_json,
                 contexts_json,
+                content_version,
+                index_version,
+                prompt_version,
+                retrieval_version,
             ),
         )
+
+
+def get_exact_knowledge_cache(cache_key: str) -> dict[str, Any] | None:
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT * FROM knowledge_query_cache WHERE cache_key = ?",
+            (cache_key,),
+        ).fetchone()
+    return _row_to_dict(row)
+
+
+def list_knowledge_cache_candidates(
+    *,
+    user_id: int,
+    model_id: str,
+    scope_digest: str,
+    permission_digest: str,
+    knowledge_revision: int,
+    prompt_version: str,
+    retrieval_version: str,
+    limit: int = 200,
+) -> list[dict[str, Any]]:
+    with connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT * FROM knowledge_query_cache
+            WHERE user_id = ? AND model_id = ? AND scope_digest = ?
+              AND permission_digest = ? AND knowledge_revision = ?
+              AND prompt_version = ? AND retrieval_version = ?
+              AND query_embedding IS NOT NULL
+            ORDER BY datetime(created_at) DESC, id DESC
+            LIMIT ?
+            """,
+            (
+                user_id, model_id, scope_digest, permission_digest, knowledge_revision,
+                prompt_version, retrieval_version, limit,
+            ),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def mark_knowledge_cache_hit(cache_id: int) -> None:
+    with connect() as conn:
+        conn.execute(
+            """
+            UPDATE knowledge_query_cache
+            SET hit_count = hit_count + 1, last_hit_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (cache_id,),
+        )
+
+
+def save_knowledge_query_cache(**values: Any) -> None:
+    columns = (
+        "cache_key", "user_id", "model_id", "query_text", "normalized_query",
+        "query_embedding", "embedding_model", "scope_json", "scope_digest",
+        "permission_digest", "knowledge_revision", "prompt_version",
+        "retrieval_version", "result_json", "contexts_json",
+    )
+    with connect() as conn:
+        conn.execute(
+            f"""
+            INSERT INTO knowledge_query_cache ({', '.join(columns)})
+            VALUES ({', '.join('?' for _ in columns)})
+            ON CONFLICT(cache_key) DO UPDATE SET
+                query_text = excluded.query_text,
+                query_embedding = excluded.query_embedding,
+                embedding_model = excluded.embedding_model,
+                result_json = excluded.result_json,
+                contexts_json = excluded.contexts_json,
+                created_at = CURRENT_TIMESTAMP
+            """,
+            [values[column] for column in columns],
+        )
+
+
+def create_rag_eval_case(
+    *,
+    question: str,
+    expected_asset_ids_json: str,
+    expected_keywords_json: str,
+    reference_answer: str | None,
+    scope_json: str,
+    created_by: int,
+) -> dict[str, Any]:
+    with connect() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO rag_eval_cases (
+                question, expected_asset_ids_json, expected_keywords_json,
+                reference_answer, scope_json, created_by
+            ) VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (
+                question, expected_asset_ids_json, expected_keywords_json,
+                reference_answer, scope_json, created_by,
+            ),
+        )
+        row = conn.execute("SELECT * FROM rag_eval_cases WHERE id = ?", (cursor.lastrowid,)).fetchone()
+    return dict(row)
+
+
+def list_rag_eval_cases(*, active_only: bool = True) -> list[dict[str, Any]]:
+    with connect() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT * FROM rag_eval_cases
+            {'WHERE is_active = 1' if active_only else ''}
+            ORDER BY id
+            """
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def save_rag_eval_run(**values: Any) -> dict[str, Any]:
+    columns = (
+        "case_id", "run_group", "retrieval_version", "model_id",
+        "retrieved_chunks_json", "answer", "recall_at_5", "reciprocal_rank",
+        "keyword_score", "citation_valid", "permission_leak", "latency_ms",
+    )
+    with connect() as conn:
+        cursor = conn.execute(
+            f"INSERT INTO rag_eval_runs ({', '.join(columns)}) VALUES ({', '.join('?' for _ in columns)})",
+            [values[column] for column in columns],
+        )
+        row = conn.execute("SELECT * FROM rag_eval_runs WHERE id = ?", (cursor.lastrowid,)).fetchone()
+    return dict(row)
+
+
+def list_rag_eval_runs(run_group: str | None = None, limit: int = 200) -> list[dict[str, Any]]:
+    params: list[Any] = []
+    where = ""
+    if run_group:
+        where = "WHERE run_group = ?"
+        params.append(run_group)
+    params.append(max(1, min(limit, 1000)))
+    with connect() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT * FROM rag_eval_runs {where}
+            ORDER BY datetime(created_at) DESC, id DESC LIMIT ?
+            """,
+            params,
+        ).fetchall()
+    return [dict(row) for row in rows]
 
 
 def get_exact_llm_cache(user_id: int, model_id: str, normalized_prompt: str) -> dict[str, Any] | None:

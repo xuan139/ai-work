@@ -57,6 +57,20 @@ const messages = {
       chunk: "片段 {chunk}",
       imagePreview: "來源圖片預覽",
       loading: "正在載入 Wiki...",
+      askEyebrow: "權限感知 RAG",
+      askTitle: "跨文件企業知識查詢",
+      askCopy: "只搜尋目前帳號可讀取的最新版資料，回答會保留檔案、版本與頁碼引用。",
+      scopeLabel: "查詢範圍",
+      scopeAll: "全部可存取資料",
+      scopeMine: "我的資料",
+      scopeCompany: "公司共用資料",
+      askPlaceholder: "例如：公司目前的 NAS 產品定位與下一步是什麼？",
+      askButton: "查詢知識庫",
+      evalTitle: "RAG 品質評測",
+      evalCopy: "執行管理員建立的固定題庫，檢查 Recall@5、MRR、引用與權限洩漏。",
+      evalRun: "執行評測",
+      cached: "快取命中",
+      live: "即時模型回答",
     },
     nas: {
       title: "NAS 發現服務",
@@ -465,6 +479,15 @@ const messages = {
       eyebrow: "NAS 收件",
       title: "上傳 NAS 資料",
       copy: "支援 audio、video、圖片、PDF、DOCX、Excel、CSV 與 TSV。試算表可透過 NAS Excel SQL MCP 查詢與分析。",
+      accessTitle: "存取權限",
+      accessPrivate: "私人：僅擁有者與管理員",
+      accessGroup: "群組共用",
+      accessCompany: "公司共用",
+      accessGroupLabel: "共用群組",
+      saveAccess: "儲存權限",
+      accessSaved: "權限已更新，相關知識快取已失效。",
+      documentVersion: "文件版本",
+      contentVersion: "內容／索引版本",
       fileLabel: "選擇檔案",
       titleLabel: "資料名稱",
       titlePlaceholder: "例如：董事會錄音、產品簡報 PDF",
@@ -957,6 +980,20 @@ const messages = {
       chunk: "Chunk {chunk}",
       imagePreview: "Source image preview",
       loading: "Loading Wiki...",
+      askEyebrow: "Permission-aware RAG",
+      askTitle: "Cross-document Knowledge Query",
+      askCopy: "Searches only the latest assets this account can read and keeps file, version, and page citations.",
+      scopeLabel: "Query scope",
+      scopeAll: "All accessible knowledge",
+      scopeMine: "My assets",
+      scopeCompany: "Company shared assets",
+      askPlaceholder: "Example: What is the current NAS product direction and next step?",
+      askButton: "Query Knowledge",
+      evalTitle: "RAG Quality Evaluation",
+      evalCopy: "Runs the administrator's fixed test set for Recall@5, MRR, citations, and permission leakage.",
+      evalRun: "Run Evaluation",
+      cached: "Cache hit",
+      live: "Live model answer",
     },
     nas: {
       title: "NAS Discovery Service",
@@ -1365,6 +1402,15 @@ const messages = {
       eyebrow: "NAS Intake",
       title: "Upload NAS Assets",
       copy: "Supports audio, video, images, PDF, DOCX, Excel, CSV, and TSV. Spreadsheet data can be queried through the NAS Excel SQL MCP.",
+      accessTitle: "Access Control",
+      accessPrivate: "Private: owner and administrators",
+      accessGroup: "Group shared",
+      accessCompany: "Company shared",
+      accessGroupLabel: "Shared group",
+      saveAccess: "Save Access",
+      accessSaved: "Access updated and related knowledge cache invalidated.",
+      documentVersion: "Document version",
+      contentVersion: "Content / index version",
       fileLabel: "File",
       titleLabel: "Asset Name",
       titlePlaceholder: "Example: board audio, product PDF",
@@ -1903,6 +1949,13 @@ const els = {
   wikiVersionTotal: document.querySelector("#wikiVersionTotal"),
   wikiPageList: document.querySelector("#wikiPageList"),
   wikiPageDetail: document.querySelector("#wikiPageDetail"),
+  knowledgeScopeSelect: document.querySelector("#knowledgeScopeSelect"),
+  knowledgeQuestionInput: document.querySelector("#knowledgeQuestionInput"),
+  askKnowledgeButton: document.querySelector("#askKnowledgeButton"),
+  knowledgeAnswer: document.querySelector("#knowledgeAnswer"),
+  ragEvaluationPanel: document.querySelector("#ragEvaluationPanel"),
+  runRagEvaluation: document.querySelector("#runRagEvaluation"),
+  ragEvaluationResult: document.querySelector("#ragEvaluationResult"),
   totalMeetings: document.querySelector("#totalMeetings"),
   processingMeetings: document.querySelector("#processingMeetings"),
   completedMeetings: document.querySelector("#completedMeetings"),
@@ -2307,6 +2360,7 @@ async function showApp() {
   els.lineAdminNav.hidden = !isAdmin;
   els.mcpNav.hidden = !isAdmin;
   els.n8nNav.hidden = !isAdmin;
+  els.ragEvaluationPanel.hidden = !isAdmin;
   els.addCustomModelButton.hidden = !isAdmin;
   setManagementMenuExpanded(false);
   switchView("dashboard");
@@ -3041,6 +3095,59 @@ async function loadWikiPages({ background = false } = {}) {
   else renderWikiDetail();
 }
 
+async function askEnterpriseKnowledge() {
+  const question = els.knowledgeQuestionInput.value.trim();
+  if (!question) return;
+  els.askKnowledgeButton.disabled = true;
+  els.knowledgeAnswer.hidden = false;
+  els.knowledgeAnswer.innerHTML = `<p>${escapeHtml(t("loading.active"))}</p>`;
+  try {
+    const result = await api("/api/knowledge/ask", {
+      method: "POST",
+      body: JSON.stringify({
+        question,
+        scope: els.knowledgeScopeSelect.value,
+        top_k: 8,
+      }),
+    });
+    const sources = result.contexts || [];
+    els.knowledgeAnswer.innerHTML = `
+      <div class="knowledge-answer-heading">
+        <strong>${escapeHtml(result.cache?.hit ? t("wiki.cached") : t("wiki.live"))}</strong>
+        <span>${escapeHtml(result.model_name || result.model || "")}</span>
+      </div>
+      <pre>${escapeHtml(result.answer || "")}</pre>
+      <div class="knowledge-source-grid">
+        ${sources.map((source, index) => `
+          <button type="button" data-knowledge-asset-id="${Number(source.asset_id)}">
+            <b>[${index + 1}] ${escapeHtml(source.asset_title)}</b>
+            <span>V${Number(source.version_no || 1)} · ${escapeHtml(source.page_number ? t("wiki.pageNumber", { page: source.page_number }) : t("wiki.chunk", { chunk: source.chunk_index }))}</span>
+          </button>
+        `).join("")}
+      </div>
+    `;
+  } finally {
+    els.askKnowledgeButton.disabled = false;
+  }
+}
+
+async function runRagEvaluationSuite() {
+  els.runRagEvaluation.disabled = true;
+  try {
+    const report = await api("/api/admin/rag-evaluations/run", { method: "POST", body: "{}" });
+    els.ragEvaluationResult.textContent = [
+      `Cases: ${report.case_count}`,
+      `Recall@5: ${Number(report.recall_at_5).toFixed(3)}`,
+      `MRR: ${Number(report.mrr).toFixed(3)}`,
+      `Citation accuracy: ${Number(report.citation_accuracy).toFixed(3)}`,
+      `Permission leaks: ${report.permission_leaks}`,
+      `Average latency: ${Number(report.average_latency_ms).toFixed(0)} ms`,
+    ].join("\n");
+  } finally {
+    els.runRagEvaluation.disabled = false;
+  }
+}
+
 function renderWikiDirectory() {
   els.wikiPageTotal.textContent = state.wikiPages.length.toLocaleString(state.lang);
   els.wikiSourceTotal.textContent = state.wikiPages
@@ -3388,6 +3495,46 @@ async function convertSelectedAssetToTraditional() {
   }
 }
 
+function renderAssetAccessControl(asset) {
+  if (!asset.can_manage_permissions) return "";
+  const permissions = asset.permissions || { visibility: "private", owner_group_id: null, grants: [] };
+  const groups = asset.permission_groups || [];
+  return `
+    <section class="asset-access-control">
+      <strong>${escapeHtml(t("upload.accessTitle"))}</strong>
+      <div>
+        <select id="assetVisibilitySelect">
+          <option value="private" ${permissions.visibility === "private" ? "selected" : ""}>${escapeHtml(t("upload.accessPrivate"))}</option>
+          <option value="group" ${permissions.visibility === "group" ? "selected" : ""}>${escapeHtml(t("upload.accessGroup"))}</option>
+          <option value="company" ${permissions.visibility === "company" ? "selected" : ""}>${escapeHtml(t("upload.accessCompany"))}</option>
+        </select>
+        <select id="assetPermissionGroup" ${permissions.visibility === "group" ? "" : "hidden"} aria-label="${escapeHtml(t("upload.accessGroupLabel"))}">
+          ${groups.map((group) => `<option value="${Number(group.id)}" ${Number(permissions.owner_group_id) === Number(group.id) ? "selected" : ""}>${escapeHtml(group.name)}</option>`).join("")}
+        </select>
+        <button id="saveAssetPermissions" class="secondary-button" type="button">${escapeHtml(t("upload.saveAccess"))}</button>
+      </div>
+    </section>
+  `;
+}
+
+async function saveSelectedAssetPermissions() {
+  const asset = state.selectedAsset;
+  if (!asset) return;
+  const visibility = document.querySelector("#assetVisibilitySelect")?.value || "private";
+  const groupValue = document.querySelector("#assetPermissionGroup")?.value;
+  await api(`/api/nas-assets/${asset.id}/permissions`, {
+    method: "PUT",
+    body: JSON.stringify({
+      visibility,
+      owner_group_id: visibility === "group" && groupValue ? Number(groupValue) : null,
+      grants: asset.permissions?.grants || [],
+    }),
+  });
+  state.selectedAsset = await api(`/api/nas-assets/${asset.id}`);
+  renderNasAssetDetail();
+  showToast(t("upload.accessSaved"), t("upload.accessTitle"));
+}
+
 function renderNasAssetDetail() {
   const asset = state.selectedAsset;
   if (!asset) {
@@ -3424,7 +3571,10 @@ function renderNasAssetDetail() {
       ${asset.category === "audio" ? assetMeta(t("upload.selectedAsr"), selectedAsrLabel(asset)) : ""}
       ${asset.category === "audio" && asset.processor_config?.translation_enabled ? assetMeta(t("upload.selectedTranslation"), selectedTranslationLabel(asset)) : ""}
       ${asset.category === "video" ? assetMeta(t("upload.selectedVideo"), selectedVideoLabel(asset)) : ""}
+      ${assetMeta(t("upload.documentVersion"), `V${Number(asset.version_no || 1)}${asset.is_current ? " · Current" : ""}`)}
+      ${assetMeta(t("upload.contentVersion"), `${Number(asset.content_version || 1)} / ${Number(asset.index_version || 1)}`)}
     </div>
+    ${renderAssetAccessControl(asset)}
     ${asset.category === "audio" ? renderAudioPlayback(asset) : ""}
     ${asset.category === "video" ? renderVideoPlayback(asset) : ""}
     ${asset.category === "audio" ? renderAssetTranscript(asset) : ""}
@@ -5365,6 +5515,25 @@ els.wikiPageDetail.addEventListener("click", (event) => {
 els.refreshNetworkAssets.addEventListener("click", () => {
   loadNetworkAssets().catch((error) => showToast(error.message, t("errors.requestFailed")));
 });
+els.askKnowledgeButton.addEventListener("click", () => {
+  askEnterpriseKnowledge().catch((error) => showToast(error.message, t("errors.requestFailed")));
+});
+els.knowledgeQuestionInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !event.isComposing) {
+    event.preventDefault();
+    askEnterpriseKnowledge().catch((error) => showToast(error.message, t("errors.requestFailed")));
+  }
+});
+els.knowledgeAnswer.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-knowledge-asset-id]");
+  if (button) {
+    openNasAsset(Number(button.dataset.knowledgeAssetId))
+      .catch((error) => showToast(error.message, t("upload.actionFailed")));
+  }
+});
+els.runRagEvaluation.addEventListener("click", () => {
+  runRagEvaluationSuite().catch((error) => showToast(error.message, t("errors.requestFailed")));
+});
 els.networkAssetList.addEventListener("click", (event) => {
   const button = event.target.closest("[data-network-asset-id]");
   if (button && !button.disabled) {
@@ -5577,6 +5746,10 @@ els.nasAssetDetail.addEventListener("click", (event) => {
     convertSelectedAssetToTraditional().catch((error) => showToast(error.message, t("upload.actionFailed")));
     return;
   }
+  if (event.target.id === "saveAssetPermissions") {
+    saveSelectedAssetPermissions().catch((error) => showToast(error.message, t("upload.actionFailed")));
+    return;
+  }
   const segmentButton = event.target.closest("[data-transcribe-segment]");
   if (segmentButton) {
     transcribeAudioSegment(Number(segmentButton.dataset.transcribeSegment))
@@ -5586,6 +5759,11 @@ els.nasAssetDetail.addEventListener("click", (event) => {
   if (event.target.id === "askAssetButton") {
     askSelectedAsset().catch((error) => showToast(error.message, t("errors.requestFailed")));
   }
+});
+els.nasAssetDetail.addEventListener("change", (event) => {
+  if (event.target.id !== "assetVisibilitySelect") return;
+  const groupSelect = document.querySelector("#assetPermissionGroup");
+  if (groupSelect) groupSelect.hidden = event.target.value !== "group";
 });
 els.llmModeButtons.forEach((button) => {
   button.addEventListener("click", () => {

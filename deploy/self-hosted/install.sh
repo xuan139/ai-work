@@ -65,6 +65,15 @@ if [[ ! -f "$CONFIG_FILE" ]]; then
   admin_password="$(openssl rand -base64 24 | tr -d '=+/\n' | cut -c1-24)"
   primary_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
   public_url="${AI_WORK_PUBLIC_URL:-http://${primary_ip:-localhost}:8000}"
+  if [[ "$public_url" == https://* ]]; then
+    deployment_env="production"
+    cookie_secure="true"
+    bind_host="127.0.0.1"
+  else
+    deployment_env="development"
+    cookie_secure="false"
+    bind_host="0.0.0.0"
+  fi
 
   sed \
     -e "s|^AI_WORK_VERSION=.*|AI_WORK_VERSION=$package_version|" \
@@ -72,6 +81,9 @@ if [[ ! -f "$CONFIG_FILE" ]]; then
     -e "s|^NAS_SSD_LOCAL_MCP_KEY=.*|NAS_SSD_LOCAL_MCP_KEY=$nas_ssd_key|" \
     -e "s|^AI_WORK_ADMIN_PASSWORD=.*|AI_WORK_ADMIN_PASSWORD=$admin_password|" \
     -e "s|^AI_WORK_PUBLIC_URL=.*|AI_WORK_PUBLIC_URL=$public_url|" \
+    -e "s|^AI_WORK_ENV=.*|AI_WORK_ENV=$deployment_env|" \
+    -e "s|^AI_WORK_COOKIE_SECURE=.*|AI_WORK_COOKIE_SECURE=$cookie_secure|" \
+    -e "s|^AI_WORK_BIND_HOST=.*|AI_WORK_BIND_HOST=$bind_host|" \
     "$SCRIPT_DIR/.env.example" > "$CONFIG_FILE"
   chmod 0640 "$CONFIG_FILE"
   chown root:aiwork "$CONFIG_FILE"
@@ -126,4 +138,8 @@ if [[ "$credentials_created" == "1" || -n "${AI_WORK_INSTALL_PROFILE:-}" ]]; the
 else
   printf 'Existing installation detected; optional AI modules were left unchanged.\n'
   printf 'Run sudo %s/deploy/self-hosted/install-modules.sh to manage them.\n' "$INSTALL_DIR"
+fi
+
+if [[ "${deployment_env:-$(sed -n 's/^AI_WORK_ENV=//p' "$CONFIG_FILE" | tail -n 1)}" == "production" ]]; then
+  printf 'Run sudo %s/deploy/self-hosted/security-check.sh before customer testing.\n' "$INSTALL_DIR"
 fi

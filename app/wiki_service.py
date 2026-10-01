@@ -18,6 +18,7 @@ from app.db import (
     list_wiki_pages,
     list_wiki_sources,
     save_wiki_page,
+    user_can_read_asset,
 )
 from app.embedding_runtime import (
     EMBEDDING_MODEL,
@@ -164,9 +165,23 @@ async def search_wiki(user: dict[str, Any], query: str, limit: int = 30) -> list
 
 async def wiki_detail(page_id: int, user: dict[str, Any]) -> dict[str, Any] | None:
     page = await asyncio.to_thread(get_wiki_page, page_id)
-    if not page or (user["role"] != "admin" and page["owner_user_id"] != user["id"]):
+    if not page:
         return None
     sources = await asyncio.to_thread(list_wiki_sources, page_id)
+    readable = await asyncio.gather(
+        *[
+            asyncio.to_thread(
+                user_can_read_asset,
+                source["asset_id"],
+                user_id=user["id"],
+                role=user["role"],
+            )
+            for source in sources
+        ]
+    )
+    sources = [source for source, allowed in zip(sources, readable, strict=True) if allowed]
+    if not sources:
+        return None
     detail = _public_page(page)
     detail["sources"] = [
         {

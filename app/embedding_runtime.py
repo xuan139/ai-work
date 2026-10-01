@@ -10,7 +10,13 @@ import urllib.request
 from array import array
 from typing import Any
 
-from app.db import create_llm_call, list_chunks_missing_embedding, list_document_chunks, update_chunk_embeddings
+from app.db import (
+    create_llm_call,
+    list_accessible_document_chunks,
+    list_chunks_missing_embedding,
+    list_document_chunks,
+    update_chunk_embeddings,
+)
 
 EMBEDDING_BASE_URL = os.getenv("EMBEDDING_BASE_URL", "http://127.0.0.1:8081").rstrip("/")
 EMBEDDING_MODEL = os.getenv("EMBEDDING_MODEL_ALIAS", "qwen3-embedding-0.6b")
@@ -173,6 +179,61 @@ async def hybrid_search_document_chunks(
 
     scored.sort(key=lambda item: (-item[0], item[1]["chunk_index"]))
     return [chunk for _, chunk in scored[:limit]]
+
+
+async def hybrid_search_knowledge_chunks(
+    *,
+    user_id: int,
+    role: str,
+    query: str,
+    scope: str = "all_accessible",
+    asset_ids: list[int] | None = None,
+    group_id: int | None = None,
+    limit: int = 8,
+    query_vector: list[float] | None = None,
+) -> list[dict[str, Any]]:
+    chunks = await asyncio.to_thread(
+        list_accessible_document_chunks,
+        user_id=user_id,
+        role=role,
+        scope=scope,
+        asset_ids=asset_ids,
+        group_id=group_id,
+    )
+    if not chunks:
+        return []
+    if query_vector is None:
+        query_vector = await embed_query(query, user_id)
+
+    keyword_scores = [_keyword_score(query, chunk["content"]) for chunk in chunks]
+    max_keyword = max(keyword_scores, default=0.0)
+    scored: list[tuple[float, dict[str, Any]]] = []
+    for chunk, keyword_raw in zip(chunks, keyword_scores, strict=True):
+        document_vector = unpack_embedding(chunk.get("embedding"))
+        semantic_score = cosine_similarity(query_vector, document_vector)
+        keyword_score = keyword_raw / max_keyword if max_keyword else 0.0
+        if semantic_score is None:
+            combined = keyword_score
+            method = "keyword"
+        else:
+            semantic_score = max(0.0, semantic_score)
+            combined = SEMANTIC_WEIGHT * semantic_score + KEYWORD_WEIGHT * keyword_score
+            method = "hybrid"
+        item = dict(chunk)
+        item["retrieval_method"] = method
+        item["retrieval_score"] = round(combined, 4)
+        item["semantic_score"] = round(semantic_score, 4) if semantic_score is not None else None
+        item["keyword_score"] = round(keyword_score, 4)
+        scored.append((combined, item))
+
+    scored.sort(
+        key=lambda item: (
+            -item[0],
+            int(item[1]["asset_id"]),
+            int(item[1]["chunk_index"]),
+        )
+    )
+    return [chunk for _, chunk in scored[: max(1, min(limit, 20))]]
 
 
 async def embed_query(query: str, user_id: int | None = None) -> list[float] | None:

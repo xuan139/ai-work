@@ -5,7 +5,8 @@ STATE_DIR="/var/lib/ai-work"
 CONFIG_DIR="/etc/ai-work"
 BACKUP_DIR="/var/backups/ai-work"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
-ARCHIVE="$BACKUP_DIR/ai-work-$STAMP.tar.gz"
+PLAIN_ARCHIVE="$BACKUP_DIR/ai-work-$STAMP.tar.gz"
+ARCHIVE="$PLAIN_ARCHIVE"
 
 [[ "${EUID:-$(id -u)}" == "0" ]] || { printf 'Run this script with sudo.\n' >&2; exit 1; }
 [[ -d "$STATE_DIR" && -f "$CONFIG_DIR/ai-work.env" ]] || { printf 'AI Work is not installed.\n' >&2; exit 1; }
@@ -23,6 +24,15 @@ restore_service() {
 }
 trap restore_service EXIT
 
-tar -C / -czf "$ARCHIVE" var/lib/ai-work etc/ai-work
+tar -C / -czf "$PLAIN_ARCHIVE" var/lib/ai-work etc/ai-work
+tar -tzf "$PLAIN_ARCHIVE" >/dev/null
+passphrase_file="${AI_WORK_BACKUP_PASSPHRASE_FILE:-}"
+if [[ -n "$passphrase_file" ]]; then
+  [[ -f "$passphrase_file" ]] || { printf 'Backup passphrase file not found: %s\n' "$passphrase_file" >&2; exit 1; }
+  ARCHIVE="$PLAIN_ARCHIVE.enc"
+  openssl enc -aes-256-cbc -salt -pbkdf2 -iter 200000 \
+    -pass "file:$passphrase_file" -in "$PLAIN_ARCHIVE" -out "$ARCHIVE"
+  rm -f "$PLAIN_ARCHIVE"
+fi
 chmod 0600 "$ARCHIVE"
 printf 'Backup created: %s\n' "$ARCHIVE"

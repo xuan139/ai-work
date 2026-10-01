@@ -35,11 +35,11 @@
         <form id="loginForm" class="login-form">
           <label>
             <span data-i18n="login.username">使用者名稱</span>
-            <input name="username" autocomplete="username" value="admin" required />
+            <input name="username" autocomplete="username" required />
           </label>
           <label>
             <span data-i18n="login.password">密碼</span>
-            <input name="password" type="password" autocomplete="current-password" value="admin123" required />
+            <input name="password" type="password" autocomplete="current-password" required />
           </label>
           <button class="primary-button" type="submit" data-i18n="login.submit">登入系統</button>
           <p id="loginError" class="error-text" role="alert"></p>
@@ -198,6 +198,31 @@
               <article><span id="wikiVersionTotal">0</span><strong data-i18n="wiki.versions">歷史版本</strong></article>
             </div>
           </div>
+          <section class="knowledge-ask-panel">
+            <div class="knowledge-ask-heading">
+              <div>
+                <p class="eyebrow" data-i18n="wiki.askEyebrow">權限感知 RAG</p>
+                <h2 data-i18n="wiki.askTitle">跨文件企業知識查詢</h2>
+                <p data-i18n="wiki.askCopy">只搜尋目前帳號可讀取的最新版資料，回答會保留檔案、版本與頁碼引用。</p>
+              </div>
+              <select id="knowledgeScopeSelect" aria-label="查詢範圍" data-i18n-attr="aria-label:wiki.scopeLabel">
+                <option value="all_accessible" data-i18n="wiki.scopeAll">全部可存取資料</option>
+                <option value="mine" data-i18n="wiki.scopeMine">我的資料</option>
+                <option value="company" data-i18n="wiki.scopeCompany">公司共用資料</option>
+              </select>
+            </div>
+            <div class="knowledge-query-row">
+              <input id="knowledgeQuestionInput" type="search" placeholder="例如：公司目前的 NAS 產品定位與下一步是什麼？" data-i18n-attr="placeholder:wiki.askPlaceholder" />
+              <button id="askKnowledgeButton" class="primary-button" type="button" data-i18n="wiki.askButton">查詢知識庫</button>
+            </div>
+            <article id="knowledgeAnswer" class="knowledge-answer" hidden></article>
+            <details id="ragEvaluationPanel" class="rag-evaluation-panel" hidden>
+              <summary data-i18n="wiki.evalTitle">RAG 品質評測</summary>
+              <p data-i18n="wiki.evalCopy">執行管理員建立的固定題庫，檢查 Recall@5、MRR、引用與權限洩漏。</p>
+              <button id="runRagEvaluation" class="secondary-button" type="button" data-i18n="wiki.evalRun">執行評測</button>
+              <pre id="ragEvaluationResult"></pre>
+            </details>
+          </section>
           <section class="wiki-search-band">
             <label class="wiki-search-box">
               <span data-i18n="wiki.searchLabel">全文／向量搜尋</span>

@@ -115,6 +115,14 @@ The Enterprise Wiki turns completed NAS assets into readable, traceable knowledg
 - Assets with the same normalized title and owner update the existing page, retain the page URL, and create a new version only when the generated content changes.
 - Wiki articles contain an overview and structured source sections. Every indexed chunk remains available as an expandable citation with its source file, page number, content type, excerpt, and page image when present.
 - Wiki permissions inherit from the source NAS assets: administrators can search all pages, while standard users can access only pages generated from their own assets.
+- Enterprise knowledge queries search across every current asset the signed-in user can access, using ACL filtering before hybrid keyword/vector ranking.
+- Assets support private, group, and company visibility, document versions, content/index versions, permission audit, and version-aware cache invalidation.
+- Administrators can maintain fixed RAG evaluation cases and measure Recall@5, MRR, citation validity, permission leakage, and latency.
+- Prompt injection controls isolate suspicious RAG chunks, constrain MCP calls to read-only allowlists and JSON Schema arguments, and record security events.
+
+See [Security Hardening](docs/SECURITY_HARDENING.md) before placing production company data in the system.
+
+For a production pilot, run `sudo /opt/ai-work/deploy/self-hosted/security-check.sh` after HTTPS and the reverse proxy are configured.
 - Search combines full-text keyword relevance with Qwen embeddings when the local embedding service is available. Keyword search remains available when the embedding service is offline.
 - The demo publishes updates immediately and does not include an approval workflow.
 

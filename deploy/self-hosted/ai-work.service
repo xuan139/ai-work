@@ -12,7 +12,7 @@ EnvironmentFile=/etc/ai-work/ai-work.env
 Environment=HOME=/var/lib/ai-work
 Environment=PYTHONDONTWRITEBYTECODE=1
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/opt/ai-work/.venv/bin/uvicorn app.main:app --host ${AI_WORK_BIND_HOST} --port ${AI_WORK_HTTP_PORT} --proxy-headers --forwarded-allow-ips=*
+ExecStart=/opt/ai-work/.venv/bin/uvicorn app.main:app --host ${AI_WORK_BIND_HOST} --port ${AI_WORK_HTTP_PORT} --proxy-headers --forwarded-allow-ips=${AI_WORK_FORWARDED_ALLOW_IPS}
 Restart=on-failure
 RestartSec=5
 TimeoutStartSec=120
@@ -22,6 +22,14 @@ NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
 ProtectHome=true
+ProtectClock=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
 ReadWritePaths=/var/lib/ai-work
 
 [Install]

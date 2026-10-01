@@ -14,6 +14,8 @@ from app.db import (
 from app.embedding_runtime import EMBEDDING_MODEL, cosine_similarity, embed_query, pack_embedding, unpack_embedding
 
 SEMANTIC_CACHE_THRESHOLD = 0.76
+ASSET_RAG_PROMPT_VERSION = "asset-rag-v2"
+RAG_RETRIEVAL_VERSION = "hybrid-v2"
 
 
 def normalize_query(query: str) -> str:
@@ -26,9 +28,20 @@ async def lookup_rag_cache(
     model_id: str,
     question: str,
     user_id: int,
+    content_version: int = 1,
+    index_version: int = 1,
 ) -> tuple[dict[str, Any] | None, list[float] | None]:
     normalized = normalize_query(question)
-    exact = await asyncio.to_thread(get_exact_rag_cache, asset_id, model_id, normalized)
+    exact = await asyncio.to_thread(
+        get_exact_rag_cache,
+        asset_id,
+        model_id,
+        normalized,
+        content_version,
+        index_version,
+        ASSET_RAG_PROMPT_VERSION,
+        RAG_RETRIEVAL_VERSION,
+    )
     if exact:
         await asyncio.to_thread(mark_rag_cache_hit, exact["id"])
         return _deserialize_cache(exact, "exact", 1.0), None
@@ -37,7 +50,15 @@ async def lookup_rag_cache(
     if query_vector is None:
         return None, None
 
-    candidates = await asyncio.to_thread(list_rag_cache_candidates, asset_id, model_id)
+    candidates = await asyncio.to_thread(
+        list_rag_cache_candidates,
+        asset_id,
+        model_id,
+        content_version,
+        index_version,
+        ASSET_RAG_PROMPT_VERSION,
+        RAG_RETRIEVAL_VERSION,
+    )
     best: tuple[float, dict[str, Any]] | None = None
     for candidate in candidates:
         similarity = cosine_similarity(query_vector, unpack_embedding(candidate.get("query_embedding")))
@@ -62,6 +83,8 @@ async def store_rag_cache(
     query_vector: list[float] | None,
     result: dict[str, Any],
     contexts: list[dict[str, Any]],
+    content_version: int = 1,
+    index_version: int = 1,
 ) -> None:
     await asyncio.to_thread(
         save_rag_query_cache,
@@ -74,6 +97,10 @@ async def store_rag_cache(
         embedding_model=EMBEDDING_MODEL if query_vector else None,
         result_json=json.dumps(result, ensure_ascii=False),
         contexts_json=json.dumps(contexts, ensure_ascii=False),
+        content_version=content_version,
+        index_version=index_version,
+        prompt_version=ASSET_RAG_PROMPT_VERSION,
+        retrieval_version=RAG_RETRIEVAL_VERSION,
     )
 
 
