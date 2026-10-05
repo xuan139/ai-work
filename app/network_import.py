@@ -9,6 +9,7 @@ from typing import Any
 from urllib.parse import urlsplit, urlunsplit
 
 from app.db import finalize_network_asset, get_nas_asset, update_nas_asset
+from app.file_security import inspect_uploaded_file
 from app.media_worker import enqueue_media_job
 from app.notifications import manager
 from app.llm_runtime import company_api_key_for_model
@@ -139,6 +140,11 @@ async def download_youtube_asset(asset_id: int, url: str, media_type: str, reque
         return
     try:
         downloaded = await asyncio.to_thread(_download_youtube, asset_id, url, media_type)
+        scan = inspect_uploaded_file(
+            downloaded["path"],
+            original_filename=downloaded["filename"],
+            user_id=asset["user_id"],
+        )
         if media_type == "audio":
             model = current_asr_model()
             analyzer = model["name"]
@@ -170,6 +176,8 @@ async def download_youtube_asset(asset_id: int, url: str, media_type: str, reque
             file_size=downloaded["file_size"],
             analyzer=analyzer,
             processor_config_json=json.dumps(processor_config, ensure_ascii=False),
+            scan_status=scan.status,
+            scan_engine=scan.engine,
         )
         await manager.broadcast(
             {

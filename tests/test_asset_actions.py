@@ -116,7 +116,7 @@ class AssetReprocessTests(unittest.IsolatedAsyncioTestCase):
             translation_api_key=None,
         )
 
-    async def test_pdf_reprocess_uses_background_document_pipeline(self):
+    async def test_pdf_reprocess_uses_durable_worker_queue(self):
         with tempfile.TemporaryDirectory() as temp_dir:
             source = Path(temp_dir) / "manual.pdf"
             source.write_bytes(b"%PDF")
@@ -148,8 +148,14 @@ class AssetReprocessTests(unittest.IsolatedAsyncioTestCase):
                 )
 
         self.assertEqual(result["status"], "processing")
-        enqueue.assert_not_awaited()
-        self.assertEqual(len(background_tasks.tasks), 1)
+        enqueue.assert_awaited_once_with(
+            "asset",
+            13,
+            audio_api_key=None,
+            video_api_key=None,
+            translation_api_key=None,
+        )
+        self.assertEqual(len(background_tasks.tasks), 0)
 
 
 if __name__ == "__main__":

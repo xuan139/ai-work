@@ -36,7 +36,7 @@ WIKI_EXCERPT_CHARS = 520
 def wiki_slug(title: str) -> str:
     normalized = re.sub(r"\s+", " ", title.strip().lower())
     readable = re.sub(r"[^a-z0-9\u3400-\u9fff]+", "-", normalized).strip("-")[:48]
-    digest = hashlib.sha1(normalized.encode("utf-8")).hexdigest()[:10]
+    digest = hashlib.sha1(normalized.encode("utf-8"), usedforsecurity=False).hexdigest()[:10]
     return f"{readable or 'page'}-{digest}"
 
 

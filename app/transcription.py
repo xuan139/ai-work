@@ -12,8 +12,9 @@ from app.db import (
     update_meeting_status,
     update_meeting_translation,
     update_nas_asset,
+    update_processing_job,
 )
-from app.document_processing import build_transcript_chunks, build_translation_chunks
+from app.document_processing import build_transcript_chunks, build_translation_chunks, ensure_processing_active
 from app.embedding_runtime import attach_embeddings
 from app.llm_runtime import LlmRuntimeError
 from app.meeting_line import push_completed_meeting_to_line
@@ -35,6 +36,8 @@ async def process_meeting_transcription(
     audio_path = Path(meeting["audio_path"])
 
     def report_progress(completed: int, total: int) -> None:
+        progress = 15 + int(65 * completed / max(1, total))
+        update_processing_job("meeting", meeting_id, progress=progress, stage="asr")
         asset_id = meeting.get("nas_asset_id")
         if asset_id and total > 1:
             update_nas_asset(
@@ -52,8 +55,10 @@ async def process_meeting_transcription(
             user_id=meeting["user_id"],
             progress=report_progress,
             segment_archive_asset_id=meeting.get("nas_asset_id"),
+            cancel_check=lambda: ensure_processing_active("meeting", meeting_id),
         )
         chunks = build_transcript_chunks(result["text"], audio_path, model, result)
+        update_processing_job("meeting", meeting_id, progress=82, stage="embedding")
         translation_text = None
         translation_error = None
         translation_metadata = None
@@ -82,6 +87,7 @@ async def process_meeting_transcription(
             except LlmRuntimeError as exc:
                 translation_error = str(exc)
         embedded = await attach_embeddings(chunks, meeting["user_id"])
+        ensure_processing_active("meeting", meeting_id)
         await update_linked_asset(
             meeting,
             model,
@@ -113,6 +119,7 @@ async def process_meeting_transcription(
                 translation_model=translation_model["name"] if translation_model else None,
                 )
         await push_completed_meeting_to_line(meeting_id)
+        update_processing_job("meeting", meeting_id, progress=95, stage="finalizing")
         updated = get_meeting(meeting_id)
         await manager.broadcast(
             {

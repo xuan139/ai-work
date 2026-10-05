@@ -6,12 +6,19 @@ import os
 import re
 from functools import lru_cache
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from app.asr_catalog import get_asr_model
 from app.asr_runtime import AsrRuntimeError
 from app.asr_service import run_segmented_asr_with_audit
-from app.db import get_nas_asset, list_document_chunks, replace_document_chunks, update_nas_asset
+from app.db import (
+    get_nas_asset,
+    list_document_chunks,
+    processing_job_cancel_requested,
+    replace_document_chunks,
+    update_nas_asset,
+    update_processing_job,
+)
 from app.embedding_runtime import attach_embeddings
 from app.llm_runtime import LlmRuntimeError
 from app.notifications import manager
@@ -22,6 +29,11 @@ from app.video_runtime import VideoRuntimeError, analyze_segmented_video, build_
 from app.wiki_service import upsert_wiki_for_asset
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+def ensure_processing_active(job_type: str, record_id: int) -> None:
+    if processing_job_cancel_requested(job_type, record_id):
+        raise asyncio.CancelledError
 AUDIO_SUFFIXES = {".wav", ".mp3", ".m4a", ".webm", ".ogg", ".flac", ".aac"}
 VIDEO_SUFFIXES = {".mp4", ".mov", ".mkv", ".avi", ".webm", ".m4v"}
 PDF_SUFFIXES = {".pdf"}
@@ -77,13 +89,24 @@ async def process_nas_asset(
     try:
         category = asset["category"]
         path = Path(asset["stored_path"])
+        update_processing_job("asset", asset_id, progress=15, stage=f"{category}_analysis")
         if category == "audio":
             updated = await process_audio_asset(asset, path, audio_api_key, translation_api_key)
         elif category == "video":
             updated = await process_video_asset(asset, path, video_api_key)
         elif category in {"pdf", "docx"}:
-            chunks = await asyncio.to_thread(build_rag_chunks, path, category, asset_id)
+            def page_progress(completed: int, total: int) -> None:
+                ensure_processing_active("asset", asset_id)
+                update_processing_job(
+                    "asset", asset_id,
+                    progress=15 + int(50 * completed / max(1, total)), stage="ocr",
+                )
+
+            chunks = await asyncio.to_thread(build_rag_chunks, path, category, asset_id, page_progress)
+            ensure_processing_active("asset", asset_id)
+            update_processing_job("asset", asset_id, progress=70, stage="embedding")
             embedded = await attach_embeddings(chunks, asset["user_id"])
+            ensure_processing_active("asset", asset_id)
             replace_document_chunks(asset_id, chunks)
             updated = update_nas_asset(
                 asset_id,
@@ -98,7 +121,10 @@ async def process_nas_asset(
             )
         elif category == "image":
             chunks = await asyncio.to_thread(build_image_rag_chunks, path)
+            ensure_processing_active("asset", asset_id)
+            update_processing_job("asset", asset_id, progress=70, stage="embedding")
             embedded = await attach_embeddings(chunks, asset["user_id"])
+            ensure_processing_active("asset", asset_id)
             replace_document_chunks(asset_id, chunks)
             updated = update_nas_asset(
                 asset_id,
@@ -130,7 +156,9 @@ async def process_nas_asset(
                 summary="檔案已保存並完成 NAS 索引。此類型目前只保留原始檔與中繼資料。",
                 chunk_count=0,
             )
+        ensure_processing_active("asset", asset_id)
         if updated and updated.get("status") == "completed":
+            update_processing_job("asset", asset_id, progress=95, stage="finalizing")
             try:
                 await upsert_wiki_for_asset(asset_id)
             except Exception:
@@ -158,6 +186,8 @@ async def process_audio_asset(
     model = get_asr_model(config.get("asr_model_id"))
 
     def report_progress(completed: int, total: int) -> None:
+        progress = 15 + int(65 * completed / max(1, total))
+        update_processing_job("asset", asset["id"], progress=progress, stage="asr")
         if total > 1:
             update_nas_asset(
                 asset["id"],
@@ -174,6 +204,7 @@ async def process_audio_asset(
             user_id=asset["user_id"],
             progress=report_progress,
             segment_archive_asset_id=asset["id"],
+            cancel_check=lambda: ensure_processing_active("asset", asset["id"]),
         )
     except AsrRuntimeError as exc:
         local_model = model["id"].startswith("local:")
@@ -186,6 +217,7 @@ async def process_audio_asset(
         )
 
     chunks = build_transcript_chunks(result["text"], path, model, result)
+    update_processing_job("asset", asset["id"], progress=82, stage="embedding")
     translation_summary = ""
     if config.get("translation_enabled"):
         try:
@@ -209,6 +241,7 @@ async def process_audio_asset(
         except LlmRuntimeError as exc:
             translation_summary = f"逐字稿已保存，但翻譯失敗：{exc}；"
     embedded = await attach_embeddings(chunks, asset["user_id"])
+    ensure_processing_active("asset", asset["id"])
     replace_document_chunks(asset["id"], chunks)
     return update_nas_asset(
         asset["id"],
@@ -229,6 +262,8 @@ async def process_video_asset(asset: dict[str, Any], path: Path, api_key: str | 
     model = get_video_model(config.get("video_model_id"))
 
     def report_progress(completed: int, total: int) -> None:
+        progress = 15 + int(65 * completed / max(1, total))
+        update_processing_job("asset", asset["id"], progress=progress, stage="video_analysis")
         if total > 1:
             update_nas_asset(
                 asset["id"],
@@ -246,6 +281,7 @@ async def process_video_asset(asset: dict[str, Any], path: Path, api_key: str | 
             report_progress,
             asset["id"],
         )
+        ensure_processing_active("asset", asset["id"])
     except VideoRuntimeError as exc:
         return update_nas_asset(
             asset["id"],
@@ -255,7 +291,9 @@ async def process_video_asset(asset: dict[str, Any], path: Path, api_key: str | 
         )
 
     chunks = build_video_detection_chunks(path, result)
+    update_processing_job("asset", asset["id"], progress=82, stage="embedding")
     embedded = await attach_embeddings(chunks, asset["user_id"])
+    ensure_processing_active("asset", asset["id"])
     replace_document_chunks(asset["id"], chunks)
     return update_nas_asset(
         asset["id"],
@@ -341,9 +379,14 @@ def build_translation_chunks(
     ]
 
 
-def build_rag_chunks(path: Path, category: str, asset_id: int | None = None) -> list[dict[str, Any]]:
+def build_rag_chunks(
+    path: Path,
+    category: str,
+    asset_id: int | None = None,
+    progress: Callable[[int, int], None] | None = None,
+) -> list[dict[str, Any]]:
     if category == "pdf":
-        return build_pdf_rag_chunks(path, asset_id)
+        return build_pdf_rag_chunks(path, asset_id, progress)
 
     text = extract_text(path, category)
     if not text.strip():
@@ -429,7 +472,11 @@ def extract_pdf_text_pages(path: Path) -> list[dict[str, Any]]:
     return pages
 
 
-def build_pdf_rag_chunks(path: Path, asset_id: int | None) -> list[dict[str, Any]]:
+def build_pdf_rag_chunks(
+    path: Path,
+    asset_id: int | None,
+    progress: Callable[[int, int], None] | None = None,
+) -> list[dict[str, Any]]:
     text_pages = extract_pdf_text_pages(path)
     page_images = render_pdf_pages(path, asset_id)
     has_text_layer = any(page["text"].strip() for page in text_pages)
@@ -445,8 +492,10 @@ def build_pdf_rag_chunks(path: Path, asset_id: int | None) -> list[dict[str, Any
             for page in text_pages
             if page["text"].strip()
         ]
+        if progress:
+            progress(len(text_pages), len(text_pages))
     else:
-        page_payloads = ocr_pdf_pages(page_images)
+        page_payloads = ocr_pdf_pages(page_images, progress)
 
     chunks: list[dict[str, Any]] = []
     for page in page_payloads:
@@ -498,21 +547,37 @@ def render_pdf_pages(path: Path, asset_id: int | None) -> dict[int, Path]:
         for page_index in range(document.page_count):
             page_number = page_index + 1
             output_path = output_dir / f"page-{page_number}.png"
-            pixmap = document[page_index].get_pixmap(matrix=matrix, alpha=False)
-            pixmap.save(str(output_path))
+            if not output_path.is_file() or output_path.stat().st_size == 0:
+                pixmap = document[page_index].get_pixmap(matrix=matrix, alpha=False)
+                pixmap.save(str(output_path))
             rendered[page_number] = output_path
     return rendered
 
 
-def ocr_pdf_pages(page_images: dict[int, Path]) -> list[dict[str, Any]]:
-    try:
-        engine = paddle_ocr_engine()
-    except ImportError as exc:
-        raise RuntimeError("需要安裝 OCR 引擎 PaddleOCR，才能處理掃描或圖片型 PDF") from exc
-
+def ocr_pdf_pages(
+    page_images: dict[int, Path],
+    progress: Callable[[int, int], None] | None = None,
+) -> list[dict[str, Any]]:
+    engine = None
     pages: list[dict[str, Any]] = []
-    for page_number, image_path in page_images.items():
-        text = run_paddle_ocr(engine, image_path)
+    for completed, (page_number, image_path) in enumerate(page_images.items(), start=1):
+        if progress:
+            progress(completed - 1, len(page_images))
+        cache_path = image_path.with_suffix(".ocr.txt")
+        if cache_path.is_file():
+            text = cache_path.read_text(encoding="utf-8")
+        else:
+            if engine is None:
+                try:
+                    engine = paddle_ocr_engine()
+                except ImportError as exc:
+                    raise RuntimeError("需要安裝 OCR 引擎 PaddleOCR，才能處理掃描或圖片型 PDF") from exc
+            text = run_paddle_ocr(engine, image_path)
+            temporary = cache_path.with_suffix(".ocr.tmp")
+            temporary.write_text(text, encoding="utf-8")
+            temporary.replace(cache_path)
+        if progress:
+            progress(completed, len(page_images))
         if text.strip():
             pages.append(
                 {

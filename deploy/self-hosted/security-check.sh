@@ -18,12 +18,30 @@ public_url="$(config_value AI_WORK_PUBLIC_URL)"
 bind_host="$(config_value AI_WORK_BIND_HOST)"
 secret="$(config_value APP_SECRET_KEY)"
 admin_password="$(config_value AI_WORK_ADMIN_PASSWORD)"
+upload_scan_mode="$(config_value AI_WORK_UPLOAD_SCAN_MODE)"
+quarantine_dir="$(config_value AI_WORK_QUARANTINE_DIR)"
 
 [[ "$environment" == "production" ]] && pass "Production mode is enabled" || fail "AI_WORK_ENV must be production"
 [[ "$public_url" == https://* ]] && pass "Public URL uses HTTPS" || fail "AI_WORK_PUBLIC_URL must use HTTPS"
 [[ "$bind_host" == "127.0.0.1" || "$bind_host" == "::1" ]] && pass "FastAPI is bound to loopback" || fail "AI_WORK_BIND_HOST must be loopback"
 [[ ${#secret} -ge 32 && "$secret" != replace-* ]] && pass "Application secret is configured" || fail "APP_SECRET_KEY is weak or unset"
 [[ ${#admin_password} -ge 12 && "$admin_password" != "admin123" && "$admin_password" != replace-* ]] && pass "Initial admin password is non-default" || fail "AI_WORK_ADMIN_PASSWORD is weak or default"
+[[ "$upload_scan_mode" == "required" ]] && pass "Upload malware scanning is required" || fail "AI_WORK_UPLOAD_SCAN_MODE must be required"
+
+if command -v clamscan >/dev/null 2>&1 && clamscan --version >/dev/null 2>&1; then
+  pass "ClamAV scanner is installed"
+else
+  fail "ClamAV scanner is unavailable"
+fi
+
+quarantine_dir="${quarantine_dir:-/var/lib/ai-work/storage/quarantine}"
+if [[ -d "$quarantine_dir" ]] && sudo -u aiwork test -w "$quarantine_dir"; then
+  pass "Quarantine directory is available"
+elif [[ -d "$quarantine_dir" ]]; then
+  fail "Quarantine directory is not writable by the aiwork service account"
+else
+  fail "Quarantine directory is missing"
+fi
 
 config_mode="$(stat -c '%a' "$CONFIG_FILE" 2>/dev/null || true)"
 config_owner="$(stat -c '%U:%G' "$CONFIG_FILE" 2>/dev/null || true)"

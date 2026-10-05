@@ -555,6 +555,19 @@ const messages = {
       reprocessing: "正在加入佇列...",
       reprocessConfirm: "將使用目前的系統模型重新處理原始檔。現有結果會保留到新結果完成，是否繼續？",
       reprocessQueued: "原始檔已重新加入 NAS 媒體 Worker 佇列",
+      cancelProcessing: "取消處理",
+      cancellingProcessing: "正在取消...",
+      cancelProcessingConfirm: "確定要取消這個背景處理任務？已完成的階段結果會保留。",
+      processingCancelled: "已送出取消背景處理要求",
+      jobProgress: "背景處理進度",
+      jobAttempt: "第 {attempt} / {max} 次嘗試",
+      jobStages: {
+        queued: "等待處理", running: "處理中", processing: "處理中",
+        recovered: "重啟後恢復", interrupted: "處理中斷，準備恢復",
+        retry_wait: "等待自動重試", asr: "語音轉寫中", video_analysis: "影片分析中",
+        ocr: "逐頁辨識文字中", embedding: "建立向量索引中", finalizing: "完成收尾中",
+        completed: "已完成", failed: "處理失敗", cancelled: "已取消", cancelling: "正在取消",
+      },
       openccTraditional: "OpenCC 簡轉繁",
       openccRunning: "正在轉換...",
       openccConfirm: "將現有逐字稿、翻譯與 RAG 片段統一轉為繁體中文，並重建向量索引。是否繼續？",
@@ -940,6 +953,7 @@ const messages = {
       pending: "等待中",
       completed: "已完成",
       failed: "失敗",
+      cancelled: "已取消",
       needs_model: "需要模型",
     },
     toast: {
@@ -1517,6 +1531,19 @@ const messages = {
       reprocessing: "Adding to queue...",
       reprocessConfirm: "Reprocess the source file with the current system models? Existing results remain available until the new result completes.",
       reprocessQueued: "The source file was added to the NAS media worker queue again.",
+      cancelProcessing: "Cancel processing",
+      cancellingProcessing: "Cancelling...",
+      cancelProcessingConfirm: "Cancel this background job? Results from completed stages will be kept.",
+      processingCancelled: "The cancellation request was sent",
+      jobProgress: "Background processing progress",
+      jobAttempt: "Attempt {attempt} / {max}",
+      jobStages: {
+        queued: "Queued", running: "Processing", processing: "Processing",
+        recovered: "Resuming after restart", interrupted: "Interrupted, resuming",
+        retry_wait: "Waiting to retry", asr: "Transcribing audio", video_analysis: "Analyzing video",
+        ocr: "Recognizing pages", embedding: "Building vector index", finalizing: "Finalizing",
+        completed: "Completed", failed: "Failed", cancelled: "Cancelled", cancelling: "Cancelling",
+      },
       openccTraditional: "OpenCC to Traditional",
       openccRunning: "Converting...",
       openccConfirm: "Convert the current transcript, translation, and RAG chunks to Traditional Chinese and rebuild vector indexes?",
@@ -1896,6 +1923,7 @@ const messages = {
       pending: "Pending",
       completed: "Completed",
       failed: "Failed",
+      cancelled: "Cancelled",
       needs_model: "Needs Model",
     },
     toast: {
@@ -3633,6 +3661,49 @@ async function reprocessSelectedAsset() {
   }
 }
 
+async function cancelSelectedAssetProcessing() {
+  const asset = state.selectedAsset;
+  if (!asset || !window.confirm(t("upload.cancelProcessingConfirm"))) return;
+  const button = document.querySelector("#cancelAssetProcessingButton");
+  if (button) {
+    button.disabled = true;
+    button.textContent = t("upload.cancellingProcessing");
+  }
+  await api(`/api/nas-assets/${asset.id}/cancel-processing`, {
+    method: "POST",
+    body: "{}",
+  });
+  await loadNasAssets();
+  state.selectedAsset = await api(`/api/nas-assets/${asset.id}`);
+  renderNasAssetDetail();
+  showToast(t("upload.processingCancelled"), t("upload.assetsTitle"));
+}
+
+function renderAssetProcessingJob(asset) {
+  const job = asset.processing_job;
+  if (!job) return "";
+  const progress = Math.max(0, Math.min(100, Number(job.progress || 0)));
+  const attempt = t("upload.jobAttempt", {
+    attempt: Number(job.attempts || 0),
+    max: Number(job.max_attempts || 0),
+  });
+  const stage = String(job.stage || job.status || "");
+  const stageLabel = translateRaw(`upload.jobStages.${stage}`)
+    || (stage.endsWith("_analysis") ? t("upload.jobStages.processing") : stage);
+  return `
+    <section class="asset-job-status ${escapeHtml(job.status || "")}">
+      <div>
+        <strong>${escapeHtml(t("upload.jobProgress"))}</strong>
+        <span>${escapeHtml(attempt)} · ${escapeHtml(stageLabel)}</span>
+      </div>
+      <div class="segment-progress" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress}">
+        <span class="${["queued", "running", "retry_wait"].includes(job.status) ? "active" : ""}" style="width:${progress}%"></span>
+      </div>
+      ${job.error_message ? `<p class="segment-transcription-error">${escapeHtml(job.error_message)}</p>` : ""}
+    </section>
+  `;
+}
+
 async function convertSelectedAssetToTraditional() {
   const asset = state.selectedAsset;
   if (!asset || !window.confirm(t("upload.openccConfirm"))) return;
@@ -3711,6 +3782,7 @@ function renderNasAssetDetail() {
   const isMedia = ["audio", "video"].includes(asset.category);
   const canReprocess = ["audio", "video", "pdf", "docx", "image"].includes(asset.category);
   const mediaBusy = asset.status === "processing";
+  const canManage = Boolean(asset.can_manage_permissions);
   els.nasAssetDetail.innerHTML = `
     <div class="asset-detail-header">
       <div>
@@ -3722,6 +3794,7 @@ function renderNasAssetDetail() {
     ${canReprocess ? `
       <div class="asset-detail-actions">
         <button id="reprocessAssetButton" class="secondary-button" type="button" ${mediaBusy ? "disabled" : ""}>${escapeHtml(t("upload.reprocess"))}</button>
+        ${mediaBusy && canManage ? `<button id="cancelAssetProcessingButton" class="danger-button" type="button">${escapeHtml(t("upload.cancelProcessing"))}</button>` : ""}
         ${isMedia ? `<button id="openccAssetButton" class="opencc-button" type="button" ${mediaBusy ? "disabled" : ""}>${escapeHtml(t("upload.openccTraditional"))}</button>` : ""}
       </div>
     ` : ""}
@@ -3736,6 +3809,7 @@ function renderNasAssetDetail() {
       ${assetMeta(t("upload.documentVersion"), `V${Number(asset.version_no || 1)}${asset.is_current ? " · Current" : ""}`)}
       ${assetMeta(t("upload.contentVersion"), `${Number(asset.content_version || 1)} / ${Number(asset.index_version || 1)}`)}
     </div>
+    ${renderAssetProcessingJob(asset)}
     ${renderAssetAccessControl(asset)}
     ${asset.category === "audio" ? renderAudioPlayback(asset) : ""}
     ${asset.category === "video" ? renderVideoPlayback(asset) : ""}
@@ -3969,23 +4043,19 @@ async function refreshAssetSegmentTranscriptions() {
   const asset = await api(`/api/nas-assets/${selectedId}`);
   if (state.selectedAssetId !== selectedId) return;
   state.selectedAsset = asset;
-  (asset.audio_segments || []).forEach((segment) => {
-    const row = els.nasAssetDetail.querySelector(`[data-audio-segment-index="${Number(segment.index)}"]`);
-    if (!row) return;
-    const slot = row.querySelector("[data-segment-transcription-slot]");
-    const button = row.querySelector("[data-transcribe-segment]");
-    if (slot) slot.innerHTML = renderSegmentTranscription(segment);
-    if (button) button.outerHTML = renderSegmentTranscriptionButton(segment);
-  });
-  scheduleAssetSegmentPolling();
+  renderNasAssetDetail();
 }
 
 function scheduleAssetSegmentPolling() {
   if (state.assetSegmentPollTimer) window.clearTimeout(state.assetSegmentPollTimer);
   state.assetSegmentPollTimer = null;
-  const active = (state.selectedAsset?.audio_segments || []).some((segment) =>
+  const segmentActive = (state.selectedAsset?.audio_segments || []).some((segment) =>
     ["queued", "processing"].includes(segment.transcription?.status)
   );
+  const jobActive = ["queued", "running", "retry_wait"].includes(
+    state.selectedAsset?.processing_job?.status
+  );
+  const active = segmentActive || jobActive || state.selectedAsset?.status === "processing";
   if (!active || currentViewName() !== "upload") return;
   state.assetSegmentPollTimer = window.setTimeout(() => {
     refreshAssetSegmentTranscriptions().catch(() => {});
@@ -6005,6 +6075,10 @@ els.nasAssetList.addEventListener("click", (event) => {
 els.nasAssetDetail.addEventListener("click", (event) => {
   if (event.target.id === "reprocessAssetButton") {
     reprocessSelectedAsset().catch((error) => showToast(error.message, t("upload.actionFailed")));
+    return;
+  }
+  if (event.target.id === "cancelAssetProcessingButton") {
+    cancelSelectedAssetProcessing().catch((error) => showToast(error.message, t("upload.actionFailed")));
     return;
   }
   if (event.target.id === "openccAssetButton") {

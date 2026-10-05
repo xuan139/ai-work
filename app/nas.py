@@ -5,6 +5,7 @@ import uuid
 from pathlib import Path
 
 from app.db import create_meeting, create_nas_asset, get_user_by_username
+from app.file_security import UploadSecurityError, inspect_uploaded_file, validated_upload_filename
 from app.llm_runtime import company_api_key_for_model
 from app.media_worker import enqueue_media_job
 from app.notifications import manager
@@ -20,6 +21,8 @@ def ensure_storage_dirs(base_dir: Path) -> None:
         base_dir / "storage" / "nas_assets",
         base_dir / "mock_nas" / "inbox",
         base_dir / "mock_nas" / "processed",
+        base_dir / "mock_nas" / "rejected",
+        base_dir / "storage" / "quarantine",
     ):
         directory.mkdir(parents=True, exist_ok=True)
 
@@ -52,10 +55,26 @@ async def import_nas_file(base_dir: Path, path: Path) -> None:
     if not await wait_until_stable(path):
         return
 
+    try:
+        original_filename = validated_upload_filename(path.name, "nas-recording")
+    except UploadSecurityError:
+        rejected_path = base_dir / "mock_nas" / "rejected" / f"{uuid.uuid4().hex}.rejected"
+        shutil.move(str(path), rejected_path)
+        return
     storage_dir = base_dir / "storage" / "recordings"
     stored_name = f"{uuid.uuid4().hex}{path.suffix.lower()}"
     stored_path = storage_dir / stored_name
     shutil.copy2(path, stored_path)
+
+    try:
+        scan = inspect_uploaded_file(
+            stored_path,
+            original_filename=original_filename,
+            user_id=admin["id"],
+        )
+    except UploadSecurityError:
+        path.unlink(missing_ok=True)
+        return
 
     processed_path = base_dir / "mock_nas" / "processed" / path.name
     if processed_path.exists():
@@ -75,19 +94,21 @@ async def import_nas_file(base_dir: Path, path: Path) -> None:
         user_id=admin["id"],
         category="audio",
         title=path.stem,
-        original_filename=path.name,
+        original_filename=original_filename,
         stored_path=str(stored_path),
         mime_type=None,
         file_size=stored_path.stat().st_size,
         status="processing",
         analyzer=asr_model["name"],
         processor_config_json=json.dumps(processor_config, ensure_ascii=False),
+        scan_status=scan.status,
+        scan_engine=scan.engine,
     )
     meeting = create_meeting(
         user_id=admin["id"],
         source="nas_discovery",
         title=path.stem,
-        original_filename=path.name,
+        original_filename=original_filename,
         audio_path=str(stored_path),
         status="processing",
         nas_asset_id=asset["id"],

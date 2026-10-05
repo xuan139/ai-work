@@ -2215,6 +2215,11 @@ button:disabled {
   color: var(--red);
 }
 
+.badge.cancelled {
+  background: #eef2f6;
+  color: #60758a;
+}
+
 .badge.needs_model {
   background: #fff7e8;
   color: #8c5d12;
@@ -2519,6 +2524,37 @@ button:disabled {
   overflow: hidden;
   border-radius: 4px;
   background: #dbe9f2;
+}
+
+.asset-job-status {
+  margin: 14px 0;
+  padding: 14px 16px;
+  border: 1px solid #b9ddf4;
+  background: #f4faff;
+}
+
+.asset-job-status > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+.asset-job-status span {
+  color: #5f7890;
+  font-size: 0.9rem;
+}
+
+.asset-job-status.retry_wait {
+  border-color: #eac273;
+  background: #fffaf0;
+}
+
+.asset-job-status.failed,
+.asset-job-status.cancelled {
+  border-color: #efb6b6;
+  background: #fff7f7;
 }
 
 .segment-progress > span {

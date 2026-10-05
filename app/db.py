@@ -457,8 +457,49 @@ def init_db() -> None:
         _ensure_column(conn, "nas_assets", "index_version", "INTEGER NOT NULL DEFAULT 1")
         _ensure_column(conn, "nas_assets", "indexed_at", "TEXT")
         _ensure_column(conn, "nas_assets", "supersedes_asset_id", "INTEGER")
+        _ensure_column(conn, "nas_assets", "scan_status", "TEXT NOT NULL DEFAULT 'legacy'")
+        _ensure_column(conn, "nas_assets", "scan_engine", "TEXT")
+        _ensure_column(conn, "nas_assets", "scanned_at", "TEXT")
         conn.execute(
             "UPDATE nas_assets SET document_key = 'legacy-' || id WHERE document_key IS NULL OR document_key = ''"
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS processing_jobs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                job_type TEXT NOT NULL,
+                record_id INTEGER NOT NULL,
+                status TEXT NOT NULL DEFAULT 'queued',
+                progress INTEGER NOT NULL DEFAULT 0,
+                stage TEXT NOT NULL DEFAULT 'queued',
+                attempts INTEGER NOT NULL DEFAULT 0,
+                max_attempts INTEGER NOT NULL DEFAULT 3,
+                cancel_requested INTEGER NOT NULL DEFAULT 0,
+                available_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                started_at TEXT,
+                finished_at TEXT,
+                error_message TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE(job_type, record_id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS quarantined_uploads (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                original_filename TEXT NOT NULL,
+                stored_path TEXT NOT NULL,
+                file_size INTEGER NOT NULL DEFAULT 0,
+                content_sha256 TEXT,
+                scan_engine TEXT,
+                reason TEXT NOT NULL,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            )
+            """
         )
         conn.execute(
             """
@@ -921,6 +962,8 @@ def init_db() -> None:
         conn.execute("CREATE INDEX IF NOT EXISTS idx_nas_assets_source_type ON nas_assets(source_type, created_at)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_nas_assets_current_visibility ON nas_assets(is_current, visibility, status)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_nas_assets_document_version ON nas_assets(document_key, version_no)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_processing_jobs_runnable ON processing_jobs(status, available_at, id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_quarantined_uploads_created ON quarantined_uploads(created_at, user_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_document_chunks_asset_id ON document_chunks(asset_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_group_members_user ON user_group_members(user_id, group_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_asset_permissions_subject ON asset_permissions(subject_type, subject_id, asset_id)")
@@ -1708,6 +1751,8 @@ def create_nas_asset(
     document_key: str | None = None,
     content_sha256: str | None = None,
     supersedes_asset_id: int | None = None,
+    scan_status: str = "legacy",
+    scan_engine: str | None = None,
 ) -> dict[str, Any]:
     with connect() as conn:
         version_no = 1
@@ -1727,9 +1772,10 @@ def create_nas_asset(
                 user_id, category, title, original_filename, stored_path, mime_type,
                 file_size, status, analyzer, processor_config_json, source_type, source_url,
                 visibility, owner_group_id, document_key, version_no, content_sha256,
-                supersedes_asset_id
+                supersedes_asset_id, scan_status, scan_engine, scanned_at
             )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                    CASE WHEN ? IN ('clean', 'infected', 'error') THEN CURRENT_TIMESTAMP ELSE NULL END)
             """,
             (
                 user_id,
@@ -1750,6 +1796,9 @@ def create_nas_asset(
                 version_no,
                 content_sha256,
                 supersedes_asset_id,
+                scan_status,
+                scan_engine,
+                scan_status,
             ),
         )
         if status == "completed":
@@ -1831,6 +1880,8 @@ def finalize_network_asset(
     file_size: int,
     analyzer: str,
     processor_config_json: str,
+    scan_status: str = "legacy",
+    scan_engine: str | None = None,
 ) -> dict[str, Any] | None:
     with connect() as conn:
         conn.execute(
@@ -1846,6 +1897,9 @@ def finalize_network_asset(
                 summary = 'YouTube 內容已保存至 NAS，正在進入媒體分析流程。',
                 error_message = NULL,
                 processor_config_json = ?,
+                scan_status = ?,
+                scan_engine = ?,
+                scanned_at = CASE WHEN ? = 'clean' THEN CURRENT_TIMESTAMP ELSE scanned_at END,
                 updated_at = CURRENT_TIMESTAMP
             WHERE id = ?
             """,
@@ -1857,6 +1911,9 @@ def finalize_network_asset(
                 file_size,
                 analyzer,
                 processor_config_json,
+                scan_status,
+                scan_engine,
+                scan_status,
                 asset_id,
             ),
         )
@@ -1875,7 +1932,10 @@ def get_nas_asset(asset_id: int) -> dict[str, Any] | None:
             """,
             (asset_id,),
         ).fetchone()
-    return _row_to_dict(row)
+    asset = _row_to_dict(row)
+    if not asset:
+        return None
+    return _attach_processing_jobs([asset])[0]
 
 
 def current_knowledge_revision() -> int:
@@ -2120,6 +2180,262 @@ def list_pending_media_jobs() -> list[dict[str, Any]]:
     return [dict(row) for row in rows]
 
 
+def enqueue_processing_job(
+    job_type: str,
+    record_id: int,
+    *,
+    max_attempts: int = 3,
+) -> dict[str, Any]:
+    if job_type not in {"meeting", "asset"}:
+        raise ValueError("Invalid processing job type")
+    with connect() as conn:
+        conn.execute(
+            """
+            INSERT INTO processing_jobs (
+                job_type, record_id, status, progress, stage, attempts,
+                max_attempts, cancel_requested, available_at, started_at,
+                finished_at, error_message
+            ) VALUES (?, ?, 'queued', 0, 'queued', 0, ?, 0, CURRENT_TIMESTAMP, NULL, NULL, NULL)
+            ON CONFLICT(job_type, record_id) DO UPDATE SET
+                status = 'queued', progress = 0, stage = 'queued', attempts = 0,
+                max_attempts = excluded.max_attempts, cancel_requested = 0,
+                available_at = CURRENT_TIMESTAMP, started_at = NULL,
+                finished_at = NULL, error_message = NULL,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE processing_jobs.status IN ('completed', 'failed', 'cancelled')
+            """,
+            (job_type, record_id, max(1, max_attempts)),
+        )
+        row = conn.execute(
+            "SELECT * FROM processing_jobs WHERE job_type = ? AND record_id = ?",
+            (job_type, record_id),
+        ).fetchone()
+    return dict(row)
+
+
+def recover_processing_jobs() -> int:
+    """Restore interrupted jobs and import records created before the durable queue."""
+    with connect() as conn:
+        recovered = conn.execute(
+            """
+            UPDATE processing_jobs
+            SET status = 'queued', stage = 'recovered', progress = MIN(progress, 95),
+                cancel_requested = 0, available_at = CURRENT_TIMESTAMP,
+                started_at = NULL, error_message = '伺服器重啟後自動恢復',
+                updated_at = CURRENT_TIMESTAMP
+            WHERE status = 'running'
+            """
+        ).rowcount
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO processing_jobs (job_type, record_id, status, progress, stage)
+            SELECT 'meeting', meetings.id, 'queued', 0, 'recovered'
+            FROM meetings
+            WHERE meetings.status = 'processing'
+            """
+        )
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO processing_jobs (job_type, record_id, status, progress, stage)
+            SELECT 'asset', nas_assets.id, 'queued', 0, 'recovered'
+            FROM nas_assets
+            WHERE nas_assets.status = 'processing'
+              AND NOT EXISTS (
+                  SELECT 1 FROM meetings WHERE meetings.nas_asset_id = nas_assets.id
+              )
+            """
+        )
+    return recovered
+
+
+def list_runnable_processing_jobs(limit: int = 100) -> list[dict[str, Any]]:
+    with connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT * FROM processing_jobs
+            WHERE status IN ('queued', 'retry_wait')
+              AND cancel_requested = 0
+              AND datetime(available_at) <= datetime('now')
+            ORDER BY datetime(available_at), id
+            LIMIT ?
+            """,
+            (max(1, min(limit, 1000)),),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def get_processing_job(job_type: str, record_id: int) -> dict[str, Any] | None:
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT * FROM processing_jobs WHERE job_type = ? AND record_id = ?",
+            (job_type, record_id),
+        ).fetchone()
+    return _row_to_dict(row)
+
+
+def claim_processing_job(job_type: str, record_id: int) -> dict[str, Any] | None:
+    with connect() as conn:
+        cursor = conn.execute(
+            """
+            UPDATE processing_jobs
+            SET status = 'running', progress = MAX(progress, 5), stage = 'starting',
+                attempts = attempts + 1, started_at = CURRENT_TIMESTAMP,
+                error_message = NULL, updated_at = CURRENT_TIMESTAMP
+            WHERE job_type = ? AND record_id = ?
+              AND status IN ('queued', 'retry_wait') AND cancel_requested = 0
+            """,
+            (job_type, record_id),
+        )
+        if cursor.rowcount != 1:
+            return None
+        row = conn.execute(
+            "SELECT * FROM processing_jobs WHERE job_type = ? AND record_id = ?",
+            (job_type, record_id),
+        ).fetchone()
+    return _row_to_dict(row)
+
+
+def update_processing_job(
+    job_type: str,
+    record_id: int,
+    *,
+    status: str | None = None,
+    progress: int | None = None,
+    stage: str | None = None,
+    error_message: str | None = None,
+    retry_delay_seconds: int | None = None,
+) -> dict[str, Any] | None:
+    assignments = ["updated_at = CURRENT_TIMESTAMP"]
+    params: list[Any] = []
+    if status is not None:
+        assignments.append("status = ?")
+        params.append(status)
+        if status in {"completed", "failed", "cancelled"}:
+            assignments.append("finished_at = CURRENT_TIMESTAMP")
+    if progress is not None:
+        assignments.append("progress = ?")
+        params.append(max(0, min(100, progress)))
+    if stage is not None:
+        assignments.append("stage = ?")
+        params.append(stage)
+    if error_message is not None or status in {"completed", "cancelled"}:
+        assignments.append("error_message = ?")
+        params.append(error_message)
+    if retry_delay_seconds is not None:
+        assignments.append("available_at = datetime('now', ?)")
+        params.append(f"+{max(0, retry_delay_seconds)} seconds")
+    params.extend([job_type, record_id])
+    with connect() as conn:
+        conn.execute(
+            f"UPDATE processing_jobs SET {', '.join(assignments)} WHERE job_type = ? AND record_id = ?",
+            params,
+        )
+        row = conn.execute(
+            "SELECT * FROM processing_jobs WHERE job_type = ? AND record_id = ?",
+            (job_type, record_id),
+        ).fetchone()
+    return _row_to_dict(row)
+
+
+def request_processing_job_cancel(job_type: str, record_id: int) -> dict[str, Any] | None:
+    with connect() as conn:
+        conn.execute(
+            """
+            UPDATE processing_jobs
+            SET cancel_requested = 1,
+                status = CASE WHEN status IN ('queued', 'retry_wait') THEN 'cancelled' ELSE status END,
+                stage = CASE WHEN status IN ('queued', 'retry_wait') THEN 'cancelled' ELSE 'cancelling' END,
+                progress = CASE WHEN status IN ('queued', 'retry_wait') THEN 100 ELSE progress END,
+                finished_at = CASE WHEN status IN ('queued', 'retry_wait') THEN CURRENT_TIMESTAMP ELSE finished_at END,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE job_type = ? AND record_id = ? AND status NOT IN ('completed', 'failed', 'cancelled')
+            """,
+            (job_type, record_id),
+        )
+        row = conn.execute(
+            "SELECT * FROM processing_jobs WHERE job_type = ? AND record_id = ?",
+            (job_type, record_id),
+        ).fetchone()
+    return _row_to_dict(row)
+
+
+def processing_job_cancel_requested(job_type: str, record_id: int) -> bool:
+    job = get_processing_job(job_type, record_id)
+    return bool(job and job["cancel_requested"])
+
+
+def create_quarantined_upload(
+    *,
+    user_id: int | None,
+    original_filename: str,
+    stored_path: str,
+    file_size: int,
+    content_sha256: str | None,
+    scan_engine: str | None,
+    reason: str,
+) -> dict[str, Any]:
+    with connect() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO quarantined_uploads (
+                user_id, original_filename, stored_path, file_size,
+                content_sha256, scan_engine, reason
+            ) VALUES (?, ?, ?, ?, ?, ?, ?)
+            """,
+            (user_id, original_filename, stored_path, file_size, content_sha256, scan_engine, reason),
+        )
+        row = conn.execute(
+            "SELECT * FROM quarantined_uploads WHERE id = ?", (cursor.lastrowid,)
+        ).fetchone()
+    return dict(row)
+
+
+def _attach_processing_jobs(assets: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    if not assets:
+        return assets
+    ids = [int(asset["id"]) for asset in assets]
+    placeholders = ",".join("?" for _ in ids)
+    with connect() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT nas_assets.id AS asset_id, processing_jobs.*
+            FROM nas_assets
+            LEFT JOIN meetings ON meetings.nas_asset_id = nas_assets.id
+            JOIN processing_jobs ON (
+                (processing_jobs.job_type = 'asset' AND processing_jobs.record_id = nas_assets.id)
+                OR (processing_jobs.job_type = 'meeting' AND processing_jobs.record_id = meetings.id)
+            )
+            WHERE nas_assets.id IN ({placeholders})
+            ORDER BY processing_jobs.id DESC
+            """,
+            ids,
+        ).fetchall()
+    by_asset: dict[int, dict[str, Any]] = {}
+    for row in rows:
+        asset_id = int(row["asset_id"])
+        if asset_id not in by_asset:
+            by_asset[asset_id] = dict(row)
+    for asset in assets:
+        job = by_asset.get(int(asset["id"]))
+        asset["processing_job"] = (
+            {
+                "id": job["id"],
+                "job_type": job["job_type"],
+                "status": job["status"],
+                "progress": job["progress"],
+                "stage": job["stage"],
+                "attempts": job["attempts"],
+                "max_attempts": job["max_attempts"],
+                "cancel_requested": bool(job["cancel_requested"]),
+                "error_message": job["error_message"],
+                "updated_at": job["updated_at"],
+            }
+            if job
+            else None
+        )
+    return assets
+
+
 def list_nas_assets(*, user_id: int, role: str, q: str | None = None) -> list[dict[str, Any]]:
     access_sql, access_params = _asset_access_clause("nas_assets", user_id, role)
     params: list[Any] = list(access_params)
@@ -2160,7 +2476,7 @@ def list_nas_assets(*, user_id: int, role: str, q: str | None = None) -> list[di
 
     with connect() as conn:
         rows = conn.execute(sql, params).fetchall()
-    return [dict(row) for row in rows]
+    return _attach_processing_jobs([dict(row) for row in rows])
 
 
 def list_network_assets(*, user_id: int, role: str) -> list[dict[str, Any]]:
@@ -2182,7 +2498,7 @@ def list_network_assets(*, user_id: int, role: str) -> list[dict[str, Any]]:
             """,
             params,
         ).fetchall()
-    return [dict(row) for row in rows]
+    return _attach_processing_jobs([dict(row) for row in rows])
 
 
 def list_pending_network_assets() -> list[dict[str, Any]]:

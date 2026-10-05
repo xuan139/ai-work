@@ -122,6 +122,7 @@ from app.llm_cache import lookup_llm_cache, normalize_llm_prompt, store_llm_cach
 from app.llm_runtime import LlmRuntimeError, company_api_key_for_model, run_llm
 from app.drive_mcp import DRIVE_MCP_TOOLS, handle_drive_mcp_request
 from app.excel_mcp import EXCEL_MCP_TOOLS, handle_excel_mcp_request
+from app.file_security import UploadScanResult, UploadSecurityError, inspect_uploaded_file, validated_upload_filename
 from app.gmail_mcp import GMAIL_MCP_TOOLS, handle_gmail_mcp_request
 from app.line_service import LineServiceError, list_line_groups, push_line_messages
 from app.local_model_manager import (
@@ -133,7 +134,7 @@ from app.local_model_manager import (
     validate_custom_file_model,
 )
 from app.media_segmentation import archived_media_segment_path, list_archived_media_segments
-from app.media_worker import enqueue_media_job, start_media_workers, stop_media_workers
+from app.media_worker import cancel_media_job, enqueue_media_job, start_media_workers, stop_media_workers
 from app.mcp_orchestrator import (
     McpPlanningError,
     available_mcp_servers,
@@ -207,6 +208,32 @@ def save_uploaded_file(upload: UploadFile, destination: Path) -> int:
         return save_upload_stream(upload.file, destination)
     except UploadTooLargeError as exc:
         raise HTTPException(status_code=413, detail=str(exc)) from exc
+
+
+def safe_upload_filename(filename: str | None, fallback: str) -> str:
+    try:
+        return validated_upload_filename(filename, fallback)
+    except UploadSecurityError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+def inspect_saved_upload(
+    path: Path,
+    *,
+    original_filename: str,
+    user_id: int | None,
+    request: Request | None = None,
+) -> UploadScanResult:
+    try:
+        return inspect_uploaded_file(
+            path,
+            original_filename=original_filename,
+            user_id=user_id,
+            remote_addr=request.client.host if request and request.client else None,
+        )
+    except UploadSecurityError as exc:
+        status_code = 503 if exc.unavailable else 422
+        raise HTTPException(status_code=status_code, detail=str(exc)) from exc
 
 
 def file_sha256(path: Path) -> str:
@@ -971,6 +998,7 @@ async def admin_sync_mcp_server(server_id: int, admin: dict = Depends(require_ad
 
 @app.post("/api/meetings/upload")
 async def upload_meeting(
+    request: Request,
     title: str = Form(default=""),
     asr_model_id: str = Form(default=""),
     asr_api_key: str = Form(default=""),
@@ -1001,13 +1029,20 @@ async def upload_meeting(
     if push_to_line and not selected_line_group:
         raise HTTPException(status_code=400, detail="請選擇要接收會議摘要的 LINE 群組")
 
-    suffix = Path(audio.filename or "recording.webm").suffix.lower() or ".webm"
+    original_filename = safe_upload_filename(audio.filename, "recording.webm")
+    suffix = Path(original_filename).suffix.lower() or ".webm"
     stored_name = f"{uuid.uuid4().hex}{suffix}"
     stored_path = RECORDINGS_DIR / stored_name
 
     save_uploaded_file(audio, stored_path)
+    scan = inspect_saved_upload(
+        stored_path,
+        original_filename=original_filename,
+        user_id=user["id"],
+        request=request,
+    )
 
-    meeting_title = title.strip() or Path(audio.filename or "瀏覽器錄音").stem or "瀏覽器錄音"
+    meeting_title = title.strip() or Path(original_filename).stem or "瀏覽器錄音"
     processor_config = {
         "asr_model_id": asr_model["id"],
         "asr_provider": asr_model["provider"],
@@ -1029,19 +1064,21 @@ async def upload_meeting(
         user_id=user["id"],
         category="audio",
         title=meeting_title,
-        original_filename=audio.filename or stored_name,
+        original_filename=original_filename,
         stored_path=str(stored_path),
         mime_type=audio.content_type,
         file_size=stored_path.stat().st_size,
         status="processing",
         analyzer=asr_model["name"],
         processor_config_json=json.dumps(processor_config, ensure_ascii=False),
+        scan_status=scan.status,
+        scan_engine=scan.engine,
     )
     meeting = create_meeting(
         user_id=user["id"],
         source="web_upload",
         title=meeting_title,
-        original_filename=audio.filename or stored_name,
+        original_filename=original_filename,
         audio_path=str(stored_path),
         status="processing",
         nas_asset_id=asset["id"],
@@ -1127,7 +1164,7 @@ async def meeting_audio(meeting_id: int, user: dict = Depends(current_user)) -> 
 
 @app.post("/api/nas-assets/upload")
 async def upload_nas_asset(
-    background_tasks: BackgroundTasks,
+    request: Request,
     title: str = Form(default=""),
     audio_model_id: str = Form(default=""),
     audio_api_key: str = Form(default=""),
@@ -1143,12 +1180,19 @@ async def upload_nas_asset(
     file: UploadFile = File(...),
     user: dict = Depends(current_user),
 ) -> dict:
-    suffix = Path(file.filename or "nas-file").suffix.lower()
+    original_filename = safe_upload_filename(file.filename, "nas-file")
+    suffix = Path(original_filename).suffix.lower()
     stored_name = f"{uuid.uuid4().hex}{suffix}"
     stored_path = NAS_ASSETS_DIR / stored_name
     stored_path.parent.mkdir(parents=True, exist_ok=True)
 
     save_uploaded_file(file, stored_path)
+    scan = inspect_saved_upload(
+        stored_path,
+        original_filename=original_filename,
+        user_id=user["id"],
+        request=request,
+    )
 
     category = classify_asset(stored_path, file.content_type)
     previous_asset = None
@@ -1202,12 +1246,12 @@ async def upload_nas_asset(
         analyzer = video_model["name"]
     else:
         analyzer = analyzer_for_category(category)
-    asset_title = title.strip() or (previous_asset or {}).get("title") or Path(file.filename or stored_name).stem or "NAS asset"
+    asset_title = title.strip() or (previous_asset or {}).get("title") or Path(original_filename).stem or "NAS asset"
     asset = create_nas_asset(
         user_id=int(previous_asset["user_id"]) if previous_asset else user["id"],
         category=category,
         title=asset_title,
-        original_filename=file.filename or stored_name,
+        original_filename=original_filename,
         stored_path=str(stored_path),
         mime_type=file.content_type,
         file_size=stored_path.stat().st_size,
@@ -1218,6 +1262,8 @@ async def upload_nas_asset(
         owner_group_id=previous_asset["owner_group_id"] if previous_asset else owner_group_id,
         content_sha256=file_sha256(stored_path),
         supersedes_asset_id=supersedes_asset_id,
+        scan_status=scan.status,
+        scan_engine=scan.engine,
     )
     if previous_asset:
         previous_permissions = get_asset_permissions(previous_asset["id"])
@@ -1229,22 +1275,13 @@ async def upload_nas_asset(
                 owner_group_id=previous_permissions["owner_group_id"],
                 grants=previous_permissions["grants"],
             )
-    if category in {"audio", "video"}:
-        await enqueue_media_job(
-            "asset",
-            asset["id"],
-            audio_api_key=selected_audio_key,
-            video_api_key=selected_video_key,
-            translation_api_key=selected_translation_key,
-        )
-    else:
-        background_tasks.add_task(
-            process_nas_asset,
-            asset["id"],
-            selected_audio_key,
-            selected_video_key,
-            selected_translation_key,
-        )
+    await enqueue_media_job(
+        "asset",
+        asset["id"],
+        audio_api_key=selected_audio_key,
+        video_api_key=selected_video_key,
+        translation_api_key=selected_translation_key,
+    )
     await manager.broadcast(
         {
             "type": "nas_asset_uploaded",
@@ -2133,6 +2170,13 @@ async def reprocess_nas_asset(
         if video_model["requires_api_key"] and not video_api_key:
             raise HTTPException(status_code=400, detail=f"重新處理需要 {video_model.get('api_key_label') or 'API Key'}")
 
+    if asset["category"] == "audio":
+        for segment_index in list_audio_segment_transcriptions(asset_id):
+            update_audio_segment_transcription(asset_id, segment_index, status="queued", progress=0)
+    elif asset["category"] == "pdf":
+        for cached_page in (Path(asset["stored_path"]).parent / f"asset_{asset_id}_pages").glob("*.ocr.txt"):
+            cached_page.unlink()
+
     updated = update_nas_asset(
         asset_id,
         status="processing",
@@ -2157,7 +2201,7 @@ async def reprocess_nas_asset(
             audio_api_key=audio_api_key,
             translation_api_key=translation_api_key,
         )
-    elif asset["category"] == "video":
+    else:
         await enqueue_media_job(
             "asset",
             asset_id,
@@ -2165,8 +2209,6 @@ async def reprocess_nas_asset(
             video_api_key=video_api_key,
             translation_api_key=translation_api_key,
         )
-    else:
-        background_tasks.add_task(process_nas_asset, asset_id)
     await manager.broadcast(
         {
             "type": "nas_asset_uploaded",
@@ -2197,6 +2239,31 @@ async def opencc_nas_asset(asset_id: int, user: dict = Depends(current_user)) ->
         }
     )
     return result
+
+
+@app.post("/api/nas-assets/{asset_id}/cancel-processing")
+async def cancel_nas_asset_processing(asset_id: int, user: dict = Depends(current_user)) -> dict:
+    asset = require_nas_asset_access(get_nas_asset(asset_id), user)
+    if not user_can_manage_asset(asset_id, user_id=user["id"], role=user["role"]):
+        raise HTTPException(status_code=403, detail="Permission denied")
+    if asset["status"] != "processing":
+        raise HTTPException(status_code=409, detail="此資產目前沒有執行中的背景任務")
+    meeting = get_meeting_by_nas_asset_id(asset_id)
+    job_type = "meeting" if meeting else "asset"
+    record_id = int(meeting["id"] if meeting else asset_id)
+    job = await cancel_media_job(job_type, record_id)
+    if not job:
+        raise HTTPException(status_code=404, detail="找不到背景任務")
+    await manager.broadcast(
+        {
+            "type": "nas_asset_processed",
+            "asset_id": asset_id,
+            "title": asset["title"],
+            "message": "已送出取消背景處理要求",
+            "asset": get_nas_asset(asset_id),
+        }
+    )
+    return {"asset": get_nas_asset(asset_id), "job": job}
 
 
 @app.get("/api/nas-assets/{asset_id}/chunk-images/{chunk_id}")
@@ -3039,7 +3106,7 @@ async def ingest_line_pdf(
     file: UploadFile = File(...),
     _: None = Depends(require_line_integration),
 ) -> dict:
-    filename = file.filename or "line-upload.pdf"
+    filename = safe_upload_filename(file.filename, "line-upload.pdf")
     if Path(filename).suffix.lower() != ".pdf" and file.content_type != "application/pdf":
         raise HTTPException(status_code=400, detail="Only PDF files are accepted by this endpoint")
 
@@ -3069,6 +3136,12 @@ async def ingest_line_pdf(
     stored_path = NAS_ASSETS_DIR / f"{uuid.uuid4().hex}.pdf"
     stored_path.parent.mkdir(parents=True, exist_ok=True)
     save_uploaded_file(file, stored_path)
+    scan = inspect_saved_upload(
+        stored_path,
+        original_filename=filename,
+        user_id=owner["id"],
+        request=None,
+    )
 
     title = Path(filename).stem or "LINE PDF"
     asset = create_nas_asset(
@@ -3081,6 +3154,8 @@ async def ingest_line_pdf(
         file_size=stored_path.stat().st_size,
         status="processing",
         analyzer="RAG Builder",
+        scan_status=scan.status,
+        scan_engine=scan.engine,
     )
     document = create_line_document(
         line_source_id=source["id"],

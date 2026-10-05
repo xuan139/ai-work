@@ -12,9 +12,6 @@ from app.db import get_user_by_id, get_user_by_username
 
 SESSION_COOKIE = "ai_work_session"
 SESSION_TTL_SECONDS = 60 * 60 * 8
-SECRET_KEY = os.getenv("APP_SECRET_KEY", "dev-demo-secret-change-me")
-
-
 def hash_password(password: str, salt: bytes | None = None) -> str:
     salt = salt or os.urandom(16)
     digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 120_000)
@@ -34,7 +31,8 @@ def verify_password(password: str, stored: str) -> bool:
 
 
 def _sign(payload: str) -> str:
-    return hmac.new(SECRET_KEY.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).hexdigest()
+    secret = os.getenv("APP_SECRET_KEY", "dev-demo-secret-change-me")
+    return hmac.new(secret.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).hexdigest()
 
 
 def create_session_token(user_id: int, session_version: int = 1) -> str:

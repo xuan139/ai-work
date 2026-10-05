@@ -1,9 +1,12 @@
+import asyncio
 import os
 import tempfile
 import unittest
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
+from app.asr_catalog import get_asr_model
+from app.asr_service import run_segmented_asr_with_audit
 from app.media_segmentation import (
     DEFAULT_SPLIT_THRESHOLD_BYTES,
     MediaSegment,
@@ -15,6 +18,7 @@ from app.media_segmentation import (
     list_archived_media_segments,
     media_requires_segmentation,
     media_segment_seconds,
+    SegmentBatch,
 )
 
 
@@ -98,6 +102,41 @@ class MediaSegmentationTests(unittest.TestCase):
 
             self.assertEqual(archived[0]["filename"], "segment-0001.mkv")
             self.assertEqual(listed[0]["file_size"], len(b"video-segment"))
+
+    def test_completed_audio_segment_is_reused_after_retry(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = root / "meeting.m4a"
+            source.write_bytes(b"meeting")
+            segments = []
+            for index in range(2):
+                path = root / f"source-{index}.wav"
+                path.write_bytes(f"audio-{index}".encode())
+                segments.append(MediaSegment(path, index, index * 600.0, 600.0))
+            batch = SegmentBatch(segments, True, 1200.0)
+            model_id = "local:whisper-cpp-small"
+            model = get_asr_model(model_id)
+            call = AsyncMock(side_effect=[
+                {"text": "first", "model": model, "engine": model["engine"], "metadata": {}},
+                RuntimeError("interrupted"),
+                {"text": "second", "model": model, "engine": model["engine"], "metadata": {}},
+            ])
+            with (
+                patch.dict(os.environ, {"AUDIO_SEGMENT_ARCHIVE_DIR": str(root / "archive")}),
+                patch("app.asr_service.prepare_media_segments", return_value=batch),
+                patch("app.asr_service.run_asr_with_audit", call),
+            ):
+                with self.assertRaisesRegex(RuntimeError, "interrupted"):
+                    asyncio.run(run_segmented_asr_with_audit(
+                        path=source, model_id=model_id, api_key=None, user_id=1,
+                        segment_archive_asset_id=42,
+                    ))
+                result = asyncio.run(run_segmented_asr_with_audit(
+                    path=source, model_id=model_id, api_key=None, user_id=1,
+                    segment_archive_asset_id=42,
+                ))
+            self.assertEqual(result["text"], "first\nsecond")
+            self.assertEqual(call.await_count, 3)
 
 
 if __name__ == "__main__":

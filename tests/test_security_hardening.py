@@ -1,7 +1,11 @@
 import os
+import tempfile
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
+from app import db
+from app.auth import create_session_token, read_session_token
 from app.mcp_orchestrator import McpPlanningError, resolve_planned_tool
 from app.security import assess_prompt, filter_untrusted_contexts, security_headers, validate_production_security
 
@@ -82,6 +86,37 @@ class SecurityHardeningTests(unittest.TestCase):
         headers = security_headers()
         self.assertIn("frame-ancestors 'none'", headers["Content-Security-Policy"])
         self.assertEqual(headers["X-Frame-Options"], "DENY")
+
+    def test_session_signature_uses_current_configured_secret(self) -> None:
+        with patch.dict(os.environ, {"APP_SECRET_KEY": "first-secret"}):
+            token = create_session_token(1)
+            self.assertIsNotNone(read_session_token(token))
+        with patch.dict(os.environ, {"APP_SECRET_KEY": "second-secret"}):
+            self.assertIsNone(read_session_token(token))
+
+    def test_database_schema_has_no_api_key_or_oauth_secret_columns(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            with patch.object(db, "DB_PATH", Path(directory) / "security.db"):
+                db.init_db()
+                with db.connect() as conn:
+                    tables = [
+                        row["name"]
+                        for row in conn.execute(
+                            "SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'"
+                        ).fetchall()
+                    ]
+                    forbidden: list[str] = []
+                    for table in tables:
+                        columns = conn.execute(f'PRAGMA table_info("{table}")').fetchall()
+                        forbidden.extend(
+                            f"{table}.{column['name']}"
+                            for column in columns
+                            if any(
+                                marker in str(column["name"]).lower()
+                                for marker in ("api_key", "access_token", "refresh_token", "client_secret")
+                            )
+                        )
+        self.assertEqual(forbidden, [])
 
 
 if __name__ == "__main__":

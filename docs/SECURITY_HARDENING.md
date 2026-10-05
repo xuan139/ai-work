@@ -31,6 +31,9 @@
 - systemd 使用獨立 `aiwork` 帳號、`NoNewPrivileges`、唯讀系統目錄及 Kernel／SUID 限制。
 - Proxy forwarded IP 只信任設定值，預設 `127.0.0.1`，不再信任任意來源。
 - 上傳採串流與容量上限，儲存檔名使用隨機 UUID，不使用使用者檔名作為實體路徑。
+- 上傳、NAS 收件與網路匯入會檢查檔名及執行 ClamAV 掃描；正式模式設為 `AI_WORK_UPLOAD_SCAN_MODE=required`，掃描失敗時檔案進隔離區，不進解析流程。
+- 隔離檔以隨機名稱保存，隔離原因、雜湊及操作者寫入安全事件與資料庫；一般使用者不能從資產頁下載隔離檔。
+- OCR、語音與影片處理由 SQLite 持久化佇列追蹤；重啟後恢復未完成任務，長音訊逐片續跑，掃描型 PDF 逐頁續跑，缺失向量由背景循環補建。
 - 備份建立後先驗證；設定 passphrase file 時使用 AES-256-CBC、PBKDF2 加密。
 
 ## 2. Prompt 攻擊分層防護
@@ -62,7 +65,7 @@
 - 公司 API Key 放 `/etc/ai-work/ai-work.env`，權限維持 `0640 root:aiwork`。
 - 啟用 Ubuntu 自動安全更新、SSH Key、停用 SSH 密碼登入與 root 遠端登入。
 - 防火牆只允許必要來源；管理介面建議限制公司 VPN 或 Tailscale。
-- 安裝 ClamAV 或企業端點防護，對上傳原始檔與解壓內容掃描；高風險檔案隔離而非直接解析。
+- 確認 ClamAV 病毒碼已更新，對 EICAR 測試檔驗證隔離流程；含壓縮檔的深層掃描能力需依 ClamAV 設定另行驗收。
 - 設定每日加密備份、異機保存、保留週期，並至少實際演練一次還原。
 - 將 Nginx、systemd、登入、安全事件與 MCP audit 導入集中式日誌／SIEM。
 - 執行弱點掃描、依賴套件掃描與外部滲透測試，修正後才能放正式資料。
@@ -89,10 +92,16 @@
 
 ## 6. 自動預檢
 
-正式環境部署完成後執行：
+在包含 `.git` 與 `tests/` 的原始碼 checkout 先執行自動審計；部署後再於 Ubuntu 執行正式環境預檢：
 
 ```bash
+cd /path/to/ai-work-source
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt -r requirements-security.txt
+./deploy/self-hosted/security-audit.sh
 sudo /opt/ai-work/deploy/self-hosted/security-check.sh
 ```
 
-預檢會驗證正式模式、HTTPS、loopback 綁定、Secret、管理員密碼、設定檔權限、systemd 服務、公開健康檢查與 HSTS。全部顯示 `PASS` 才進入客戶測試；惡意檔案掃描、備份還原、權限穿透與外部滲透測試仍需依本文件第 3、5 節另行驗收。
+預檢會驗證正式模式、HTTPS、loopback 綁定、Secret、初始管理員密碼、ClamAV、隔離區、設定檔權限、systemd 服務、公開健康檢查與 HSTS。自動審計會檢查 Python 依賴漏洞、高風險靜態告警、Git 已追蹤密鑰，以及安全回歸測試。惡意檔案實測、備份還原、權限穿透、外部弱點掃描與滲透測試仍需在獲授權的客戶測試環境完成。
+
+單台 NAS 可先使用內建 SQLite 佇列；此版本不宣稱多主機 Worker 共享佇列。取消長時間的單次 OCR／ASR／影片推論會在該階段返回後生效；已完成的音訊片段與 OCR 頁面仍保留，手動「重新處理」則重新執行相應階段。若雲端 ASR 只提供單次上傳的 API Key，服務重啟後須有公司環境變數中的 Key 才能自動續跑。

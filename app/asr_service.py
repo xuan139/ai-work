@@ -9,7 +9,7 @@ from app.asr_catalog import get_asr_model
 from app.asr_runtime import AsrRuntimeError, transcribe_audio
 from app.db import create_llm_call
 from app.media_segmentation import MediaSegmentationError, archive_audio_segments, prepare_media_segments
-from app.segment_transcriptions import update_audio_segment_transcription
+from app.segment_transcriptions import list_audio_segment_transcriptions, update_audio_segment_transcription
 from app.text_normalization import normalize_asr_text
 
 
@@ -74,13 +74,17 @@ async def run_segmented_asr_with_audit(
     user_id: int,
     progress: Callable[[int, int], None] | None = None,
     segment_archive_asset_id: int | None = None,
+    cancel_check: Callable[[], None] | None = None,
 ) -> dict[str, Any]:
+    if cancel_check:
+        cancel_check()
     try:
         batch = await asyncio.to_thread(prepare_media_segments, path, "audio")
     except MediaSegmentationError as exc:
         raise AsrRuntimeError(str(exc)) from exc
 
     try:
+        resolved_model = get_asr_model(model_id)
         if not batch.segmented:
             result = await run_asr_with_audit(
                 path=path,
@@ -88,6 +92,8 @@ async def run_segmented_asr_with_audit(
                 api_key=api_key,
                 user_id=user_id,
             )
+            if cancel_check:
+                cancel_check()
             result["metadata"] = {
                 **(result.get("metadata") or {}),
                 "segmented": False,
@@ -109,8 +115,27 @@ async def run_segmented_asr_with_audit(
         segment_results: list[dict[str, Any]] = []
         transcript_parts: list[str] = []
         total = len(batch.segments)
+        completed_records = (
+            list_audio_segment_transcriptions(segment_archive_asset_id)
+            if segment_archive_asset_id is not None else {}
+        )
         for completed, segment in enumerate(batch.segments, start=1):
-            if segment_archive_asset_id is not None:
+            if cancel_check:
+                cancel_check()
+            previous = completed_records.get(segment.index, {})
+            reusable = (
+                previous.get("status") == "completed"
+                and previous.get("model_id") == resolved_model["id"]
+                and isinstance(previous.get("transcript"), str)
+            )
+            if reusable:
+                result = {
+                    "text": previous["transcript"],
+                    "model": resolved_model,
+                    "engine": resolved_model["engine"],
+                    "metadata": {"resumed_from_segment_archive": True},
+                }
+            elif segment_archive_asset_id is not None:
                 update_audio_segment_transcription(
                     segment_archive_asset_id,
                     segment.index,
@@ -119,34 +144,37 @@ async def run_segmented_asr_with_audit(
                     model_id=model_id,
                     error_message=None,
                 )
-            try:
-                result = await run_asr_with_audit(
-                    path=segment.path,
-                    model_id=model_id,
-                    api_key=api_key,
-                    user_id=user_id,
-                )
-            except Exception as exc:
+            if not reusable:
+                try:
+                    result = await run_asr_with_audit(
+                        path=segment.path,
+                        model_id=model_id,
+                        api_key=api_key,
+                        user_id=user_id,
+                    )
+                except Exception as exc:
+                    if segment_archive_asset_id is not None:
+                        update_audio_segment_transcription(
+                            segment_archive_asset_id,
+                            segment.index,
+                            status="failed",
+                            progress=100,
+                            error_message=str(exc),
+                        )
+                    raise
+                if cancel_check:
+                    cancel_check()
                 if segment_archive_asset_id is not None:
                     update_audio_segment_transcription(
                         segment_archive_asset_id,
                         segment.index,
-                        status="failed",
+                        status="completed",
                         progress=100,
-                        error_message=str(exc),
+                        model_id=result["model"]["id"],
+                        model_name=result["model"].get("name") or result["model"]["id"],
+                        transcript=result["text"],
+                        error_message=None,
                     )
-                raise
-            if segment_archive_asset_id is not None:
-                update_audio_segment_transcription(
-                    segment_archive_asset_id,
-                    segment.index,
-                    status="completed",
-                    progress=100,
-                    model_id=result["model"]["id"],
-                    model_name=result["model"].get("name") or result["model"]["id"],
-                    transcript=result["text"],
-                    error_message=None,
-                )
             segment_results.append(
                 {
                     "index": segment.index,

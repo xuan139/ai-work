@@ -122,6 +122,16 @@ def archive_media_segments(asset_id: int, category: str, segments: list[MediaSeg
             json.dumps(manifest, ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
+        if category == "audio" and target.exists():
+            old_manifest = list_archived_media_segments(asset_id, "audio")
+            old_transcripts = target / "transcriptions.json"
+            if old_transcripts.is_file() and len(old_manifest) == len(manifest) and all(
+                old.get("index") == new.get("index")
+                and old.get("start_seconds") == new.get("start_seconds")
+                and old.get("file_size") == new.get("file_size")
+                for old, new in zip(old_manifest, manifest)
+            ):
+                shutil.copy2(old_transcripts, staging / "transcriptions.json")
         if target.exists():
             target.replace(backup)
         staging.replace(target)

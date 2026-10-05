@@ -22,7 +22,7 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get install -y --no-install-recommends \
   python3 python3-venv python3-pip ffmpeg curl ca-certificates openssl \
-  smartmontools nvme-cli sudo
+  smartmontools nvme-cli sudo clamav clamav-daemon
 
 if ! id aiwork >/dev/null 2>&1; then
   useradd --system --home-dir "$STATE_DIR" --create-home --shell /usr/sbin/nologin aiwork
@@ -34,8 +34,10 @@ install -d -o root -g root -m 0755 "$INSTALL_DIR"
 install -d -o aiwork -g aiwork -m 0750 \
   "$STATE_DIR/data" \
   "$STATE_DIR/storage" \
+  "$STATE_DIR/storage/quarantine" \
   "$STATE_DIR/mock_nas/inbox" \
-  "$STATE_DIR/mock_nas/processed"
+  "$STATE_DIR/mock_nas/processed" \
+  "$STATE_DIR/mock_nas/rejected"
 install -d -o root -g aiwork -m 0750 "$CONFIG_DIR"
 
 rm -rf "$INSTALL_DIR/app" "$INSTALL_DIR/static" "$INSTALL_DIR/deploy" "$INSTALL_DIR/docs"
@@ -69,10 +71,12 @@ if [[ ! -f "$CONFIG_FILE" ]]; then
     deployment_env="production"
     cookie_secure="true"
     bind_host="127.0.0.1"
+    upload_scan_mode="required"
   else
     deployment_env="development"
     cookie_secure="false"
     bind_host="0.0.0.0"
+    upload_scan_mode="optional"
   fi
 
   sed \
@@ -84,6 +88,7 @@ if [[ ! -f "$CONFIG_FILE" ]]; then
     -e "s|^AI_WORK_ENV=.*|AI_WORK_ENV=$deployment_env|" \
     -e "s|^AI_WORK_COOKIE_SECURE=.*|AI_WORK_COOKIE_SECURE=$cookie_secure|" \
     -e "s|^AI_WORK_BIND_HOST=.*|AI_WORK_BIND_HOST=$bind_host|" \
+    -e "s|^AI_WORK_UPLOAD_SCAN_MODE=.*|AI_WORK_UPLOAD_SCAN_MODE=$upload_scan_mode|" \
     "$SCRIPT_DIR/.env.example" > "$CONFIG_FILE"
   chmod 0640 "$CONFIG_FILE"
   chown root:aiwork "$CONFIG_FILE"
@@ -93,6 +98,28 @@ else
   credentials_created=0
   public_url="$(sed -n 's/^AI_WORK_PUBLIC_URL=//p' "$CONFIG_FILE" | tail -n 1)"
 fi
+
+ensure_config_value() {
+  local key="$1"
+  local value="$2"
+  if ! grep -q "^${key}=" "$CONFIG_FILE"; then
+    printf '%s=%s\n' "$key" "$value" >> "$CONFIG_FILE"
+  fi
+}
+
+configured_environment="$(sed -n 's/^AI_WORK_ENV=//p' "$CONFIG_FILE" | tail -n 1)"
+default_scan_mode="optional"
+if [[ "$configured_environment" == "production" ]]; then
+  default_scan_mode="required"
+fi
+ensure_config_value MEDIA_JOB_MAX_ATTEMPTS 3
+ensure_config_value MEDIA_JOB_RETRY_BASE_SECONDS 5
+ensure_config_value AI_WORK_UPLOAD_SCAN_MODE "$default_scan_mode"
+ensure_config_value AI_WORK_CLAMAV_COMMAND clamscan
+ensure_config_value AI_WORK_CLAMAV_TIMEOUT_SECONDS 600
+ensure_config_value AI_WORK_QUARANTINE_DIR "$STATE_DIR/storage/quarantine"
+chmod 0640 "$CONFIG_FILE"
+chown root:aiwork "$CONFIG_FILE"
 
 chown -R root:root "$INSTALL_DIR/app" "$INSTALL_DIR/static" "$INSTALL_DIR/deploy" "$INSTALL_DIR/docs"
 chown -R root:root "$INSTALL_DIR/.venv"
