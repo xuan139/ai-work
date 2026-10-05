@@ -24,7 +24,7 @@ from reportlab.platypus import (
 
 
 ROOT = Path(__file__).resolve().parents[2]
-OUTPUT = ROOT / "output" / "pdf" / "AI-Work-NAS-2026年9月已完成工作记录-李轩.pdf"
+OUTPUT = ROOT / "output" / "pdf" / "AI-Work-NAS-2026年9月已完成工作紀錄-李軒.pdf"
 
 NAVY = colors.HexColor("#163A59")
 BLUE = colors.HexColor("#2F9FDC")
@@ -318,7 +318,7 @@ def page_decorator(canvas, doc) -> None:
     canvas.rect(18 * mm, 11 * mm, 31 * mm, 1.8 * mm, fill=1, stroke=0)
     canvas.setFillColor(MUTED)
     canvas.setFont("HeitiTC", 6.8)
-    canvas.drawString(20 * mm, 5.2 * mm, "AI Work NAS | 2026 年 9 月已完成工作记录")
+    canvas.drawString(20 * mm, 5.2 * mm, "AI Work NAS | 2026 年 9 月已完成工作紀錄")
     canvas.drawRightString(width - 20 * mm, 5.2 * mm, str(doc.page))
     canvas.restoreState()
 
@@ -330,11 +330,11 @@ def build_story(styles):
         [
             Spacer(1, 28 * mm),
             p("AI WORK NAS MONTHLY DELIVERY REPORT", styles["cover_kicker"]),
-            p("AI Work NAS<br/>已完成工作记录", styles["cover_title"]),
-            p("报告期间：2026 年 9 月 1 日至 9 月 30 日", styles["cover_subtitle"]),
-            p("负责人：李轩", styles["h2"]),
+            p("AI Work NAS<br/>已完成工作紀錄", styles["cover_title"]),
+            p("報告期間：2026 年 9 月 1 日至 9 月 30 日", styles["cover_subtitle"]),
+            p("負責人：李軒", styles["h2"]),
             p(
-                "本报告依据项目 Git 提交记录、产品说明与部署文件整理，记录 AI Work NAS 在 2026 年 9 月完成的研发、整合、产品化与交付成果。",
+                "本報告依據專案 Git 提交紀錄、產品說明與部署檔案整理，紀錄 AI Work NAS 在 2026 年 9 月完成的研發、整合、產品化與交付成果。",
                 styles["base"],
             ),
             Spacer(1, 8 * mm),
@@ -348,10 +348,10 @@ def build_story(styles):
             p("9/27", styles["metric"]),
         ],
         [
-            p("期间 Git 提交", styles["metric_label"]),
-            p("新增代码行", styles["metric_label"]),
-            p("首个 Demo 提交", styles["metric_label"]),
-            p("期间最后交付", styles["metric_label"]),
+            p("期間 Git 提交", styles["metric_label"]),
+            p("新增程式碼行", styles["metric_label"]),
+            p("首個 Demo 提交", styles["metric_label"]),
+            p("期間最後交付", styles["metric_label"]),
         ],
     ]
     metric_table = Table(metrics, colWidths=[42 * mm] * 4)
@@ -372,20 +372,20 @@ def build_story(styles):
             Spacer(1, 9 * mm),
             p("月度成果摘要", styles["h2"]),
             p(
-                "9 月完成了从概念 Demo 到可在 Ubuntu 原生部署的 AI Work NAS 产品雏形。系统已具备 NAS 文件收件、多模态处理、会议转写、RAG、模型调用审计、企业整合、自动化工作流、企业 Wiki 与本地模型管理等核心能力。",
+                "9 月完成了從概念 Demo 到可在 Ubuntu 原生部署的 AI Work NAS 產品雛形。系統已具備 NAS 檔案收件、多模態處理、會議轉寫、RAG、模型呼叫審計、企業整合、自動化工作流、企業 Wiki 與本地模型管理等核心能力。",
                 styles["callout"],
             ),
             card_grid(
                 [
-                    ("企业 AI 入口", "完成统一 AI Work 门户、账号登录、繁体中文与英文界面，以及全域模型配置。"),
-                    ("NAS 数据处理", "完成 PDF、DOCX、图片、音频、视频和一般文件的上传、处理与状态展示。"),
-                    ("企业系统整合", "完成 LINE、Odoo、Gmail、Google Drive、Excel SQL 与 MCP 的主要连接能力。"),
-                    ("产品化部署", "完成 Ubuntu 原生安装、systemd 服务、可选 AI 模块及硬件规格推荐。"),
+                    ("企業 AI 入口", "完成統一 AI Work 門戶、帳號登入、繁體中文與英文介面，以及全域模型配置。"),
+                    ("NAS 資料處理", "完成 PDF、DOCX、圖片、音訊、影片和一般檔案的上傳、處理與狀態展示。"),
+                    ("企業系統整合", "完成 LINE、Odoo、Gmail、Google Drive、Excel SQL 與 MCP 的主要連線能力。"),
+                    ("產品化部署", "完成 Ubuntu 原生安裝、systemd 服務、可選 AI 模組及硬體規格推薦。"),
                 ],
                 styles,
             ),
             Spacer(1, 8 * mm),
-            p("报告状态：研发完成记录　统计来源：Git 历史与项目文档", styles["small"]),
+            p("報告狀態：研發完成紀錄　統計來源：Git 歷史與專案文件", styles["small"]),
             PageBreak(),
         ]
     )
@@ -393,37 +393,37 @@ def build_story(styles):
     story.extend(
         [
             p("01　月度里程碑", styles["h1"]),
-            p("9 月的工作按基础能力、企业整合、自动化知识库及产品化四个阶段推进。", styles["base"]),
+            p("9 月的工作按基礎能力、企業整合、自動化知識庫及產品化四個階段推進。", styles["base"]),
             Spacer(1, 4 * mm),
             Timeline(),
             Spacer(1, 4 * mm),
             make_table(
                 [
-                    ["期间", "完成重点", "代表性交付"],
-                    ["9/9-9/10", "核心 Demo 与 NAS 多模态处理", "登录、会议记录、模型选择、上传入口、文档 RAG、PDF 页面渲染、PaddleOCR、NAS 模型管理"],
-                    ["9/12", "企业工作流与 LINE 治理", "企业 NAS AI 场景、LINE 群组流程、权限及管理入口"],
-                    ["9/18-9/20", "MCP 与企业数据连接", "MCP 管理、Odoo 唯读工具、Gmail、Google Drive、Excel SQL、CSV 与 TSV"],
-                    ["9/21", "统一模型与自动化", "系统 LLM/ASR 设置、录音入口优化、n8n 工作区与处理完成回调"],
-                    ["9/23", "企业知识与 Odoo 展示", "自动企业 Wiki、内容清理、Odoo 联系人兼容及制造企业数据种子"],
-                    ["9/26-9/27", "Ubuntu 产品化", "原生 self-hosted 安装、可选 AI 模块、硬件推荐、Odoo 指南、SSD CLI MCP 与 Storage MCP 方案"],
+                    ["期間", "完成重點", "代表性交付"],
+                    ["9/9-9/10", "核心 Demo 與 NAS 多模態處理", "登入、會議紀錄、模型選擇、上傳入口、文件 RAG、PDF 頁面渲染、PaddleOCR、NAS 模型管理"],
+                    ["9/12", "企業工作流與 LINE 治理", "企業 NAS AI 場景、LINE 群組流程、權限及管理入口"],
+                    ["9/18-9/20", "MCP 與企業資料連線", "MCP 管理、Odoo 唯讀工具、Gmail、Google Drive、Excel SQL、CSV 與 TSV"],
+                    ["9/21", "統一模型與自動化", "系統 LLM/ASR 設定、錄音入口最佳化、n8n 工作區與處理完成回呼"],
+                    ["9/23", "企業知識與 Odoo 展示", "自動企業 Wiki、內容清理、Odoo 聯絡人相容及製造企業資料種子"],
+                    ["9/26-9/27", "Ubuntu 產品化", "原生 self-hosted 安裝、可選 AI 模組、硬體推薦、Odoo 指南、SSD CLI MCP 與 Storage MCP 方案"],
                 ],
                 [24 * mm, 46 * mm, 98 * mm],
                 styles,
                 font_size=7.3,
             ),
             Spacer(1, 8 * mm),
-            p("版本与代码治理", styles["h2"]),
+            p("版本與程式碼治理", styles["h2"]),
             *bullets(
                 [
-                    "项目建立 Git 版本历史，并持续推送至 GitHub 远端仓库。",
-                    "9 月期间累计 49 次提交，变更统计为新增 35,760 行、删除 1,722 行。",
-                    "9 月 18 日采用专有授权条款，明确未经授权不得复制、修改、散布、托管或商业使用。",
-                    "功能以小步提交方式持续验证，提交记录可追溯到具体日期和交付主题。",
+                    "專案建立 Git 版本歷史，並持續推送至 GitHub 遠端儲存庫。",
+                    "9 月期間累計 49 次提交，變更統計為新增 35,760 行、刪除 1,722 行。",
+                    "9 月 18 日採用專有授權條款，明確未經授權不得複製、修改、散佈、託管或商業使用。",
+                    "功能以小步提交方式持續驗證，提交紀錄可追溯到具體日期和交付主題。",
                 ],
                 styles,
             ),
             p(
-                "说明：代码行统计来自 Git numstat 汇总，用于呈现研发规模，不等同于功能质量或测试覆盖率。",
+                "說明：程式碼行統計來自 Git numstat 彙總，用於呈現研發規模，不等同於功能品質或測試覆蓋率。",
                 styles["note"],
             ),
             PageBreak(),
@@ -432,48 +432,48 @@ def build_story(styles):
 
     story.extend(
         [
-            p("02　核心平台与 NAS 能力", styles["h1"]),
-            p("本月完成 AI Work NAS 的主要业务入口，并建立文件进入、处理、保存、检索与再次利用的闭环。", styles["base"]),
-            p("门户、账号与体验", styles["h2"]),
+            p("02　核心平台與 NAS 能力", styles["h1"]),
+            p("本月完成 AI Work NAS 的主要業務入口，並建立檔案進入、處理、儲存、檢索與再次利用的閉環。", styles["base"]),
+            p("門戶、帳號與體驗", styles["h2"]),
             *bullets(
                 [
-                    "完成 FastAPI Web 门户、身份验证、管理员与一般账号基础能力。",
-                    "完成繁体中文界面，并支持切换英文；主视觉统一为蓝白企业风格。",
-                    "完成 AI Work、会议记录、NAS 上传、模型管理及设置管理等主要菜单结构。",
-                    "关键按钮及菜单加入处理中状态，降低长任务期间的不确定感。",
+                    "完成 FastAPI Web 門戶、身份驗證、管理員與一般帳號基礎能力。",
+                    "完成繁體中文介面，並支援切換英文；主視覺統一為藍白企業風格。",
+                    "完成 AI Work、會議紀錄、NAS 上傳、模型管理及設定管理等主要選單結構。",
+                    "關鍵按鈕及選單加入處理中狀態，降低長任務期間的不確定感。",
                 ],
                 styles,
             ),
-            p("会议录音与音视频处理", styles["h2"]),
+            p("會議錄音與音影片處理", styles["h2"]),
             *bullets(
                 [
-                    "浏览器录音保存原始音频，并进入 NAS 会议归档与转写流程。",
-                    "建立本地与云端 ASR 目录，可配置 whisper.cpp、faster-whisper、SenseVoice、Paraformer 及云端转写服务。",
-                    "完成大文件串流上传、后台 Worker、长音频及视频自动切片、切片进度和逐片转写能力。",
-                    "完成简体转繁体 OpenCC 处理、原始音视频播放、分段播放、分段下载及逐字稿下载。",
-                    "视频分析支持 YOLO，并加入非 CPU 推理失败后自动回退 CPU 的路由逻辑。",
+                    "瀏覽器錄音儲存原始音訊，並進入 NAS 會議歸檔與轉寫流程。",
+                    "建立本地與雲端 ASR 目錄，可配置 whisper.cpp、faster-whisper、SenseVoice、Paraformer 及雲端轉寫服務。",
+                    "完成大檔案串流上傳、後臺 Worker、長音訊及影片自動切片、切片進度和逐片轉寫能力。",
+                    "完成簡體轉繁體 OpenCC 處理、原始音影片播放、分段播放、分段下載及逐字稿下載。",
+                    "影片分析支援 YOLO，並加入非 CPU 推理失敗後自動回退 CPU 的路由邏輯。",
                 ],
                 styles,
             ),
-            p("文档、图片与 RAG", styles["h2"]),
+            p("文件、圖片與 RAG", styles["h2"]),
             *bullets(
                 [
-                    "PDF 以 PyMuPDF 渲染每页图片；有文字层时使用 pypdf，扫描件则调用 PaddleOCR。",
-                    "RAG chunk 保存页码、内容类型及页面图片路径，查询结果可显示来源页码与预览。",
-                    "图片文件进入 OCR 与 RAG 流程；DOCX、文字及一般文件进入统一 NAS 资产管理。",
-                    "音频逐字稿写入知识库，使会议内容能够与文件内容采用同一查询入口。",
-                    "完成 Qwen Embedding 连接方案，并使用向量相似度加关键字的混合检索。",
+                    "PDF 以 PyMuPDF 渲染每頁圖片；有文字層時使用 pypdf，掃描件則呼叫 PaddleOCR。",
+                    "RAG chunk 儲存頁碼、內容類型及頁面圖片路徑，查詢結果可顯示來源頁碼與預覽。",
+                    "圖片檔案進入 OCR 與 RAG 流程；DOCX、文字及一般檔案進入統一 NAS 資產管理。",
+                    "音訊逐字稿寫入知識庫，使會議內容能夠與檔案內容採用同一查詢入口。",
+                    "完成 Qwen Embedding 連線方案，並使用向量相似度加關鍵字的混合檢索。",
                 ],
                 styles,
             ),
-            p("模型调用、快取与审计", styles["h2"]),
+            p("模型呼叫、快取與審計", styles["h2"]),
             *bullets(
                 [
-                    "接入本地 Qwen3 4B OpenAI 兼容接口，并纳入本地与云端模型下拉选择。",
-                    "模型调用无论成功或失败均记录时间、调用者、供应商、模型、输入、输出与状态。",
-                    "建立相似问题快取，优先查询 NAS 既有结果，减少重复云端 API 调用。",
-                    "提供强制发送选项，让使用者可绕过快取重新调用模型。",
-                    "系统层统一选择 LLM 与 ASR，其他页面复用管理员配置。",
+                    "接入本地 Qwen3 4B OpenAI 相容介面，並納入本地與雲端模型下拉選擇。",
+                    "模型呼叫無論成功或失敗均紀錄時間、呼叫者、供應商、模型、輸入、輸出與狀態。",
+                    "建立相似問題快取，優先查詢 NAS 既有結果，減少重複雲端 API 呼叫。",
+                    "提供強制傳送選項，讓使用者可繞過快取重新呼叫模型。",
+                    "系統層統一選擇 LLM 與 ASR，其他頁面複用管理員配置。",
                 ],
                 styles,
             ),
@@ -483,47 +483,47 @@ def build_story(styles):
 
     story.extend(
         [
-            p("03　企业整合、MCP 与自动化", styles["h1"]),
-            p("本月已从单一问答工具扩展为可连接企业资料、协作平台和自动化流程的受控入口。", styles["base"]),
+            p("03　企業整合、MCP 與自動化", styles["h1"]),
+            p("本月已從單一問答工具擴展為可連線企業資料、協作平台和自動化流程的受控入口。", styles["base"]),
             make_table(
                 [
-                    ["整合项目", "9 月完成内容", "使用边界"],
-                    ["LINE", "PDF 摘要、会议逐字稿及处理结果推送；企业群组查询与管理入口", "以企业管理场景为主，保留调用记录"],
-                    ["Odoo MCP", "Goldsys Odoo 唯读连接、联系人查询修正、Odoo 19 字段兼容、制造企业示范数据", "只读优先；不允许模型任意修改业务资料"],
-                    ["Gmail", "OAuth Token 更新、稳定 REST API 唯读 MCP、搜索规范化及最近邮件数量修正", "读取邮件；控制送入本地模型的上下文长度"],
-                    ["Google Drive", "基于 Drive REST API 的本地唯读 MCP", "使用 drive.readonly 授权"],
-                    ["Excel SQL", "NAS Excel SQL MCP，并扩充 XLSX、CSV、TSV 数据查询", "面向用户上传表格的数据分析"],
-                    ["Monday / Linear", "企业项目管理 MCP 注册与只读连接结构", "统一纳入 MCP 管理分类"],
-                    ["NAS Demo MCP", "NAS 资源查询工具及 LLM 到 MCP 再到最终答案的完整链路", "工具白名单与审计"],
+                    ["整合專案", "9 月完成內容", "使用邊界"],
+                    ["LINE", "PDF 摘要、會議逐字稿及處理結果推送；企業群組查詢與管理入口", "以企業管理場景為主，保留呼叫紀錄"],
+                    ["Odoo MCP", "Goldsys Odoo 唯讀連線、聯絡人查詢修正、Odoo 19 欄位相容、製造企業示範資料", "只讀優先；不允許模型任意修改業務資料"],
+                    ["Gmail", "OAuth Token 更新、穩定 REST API 唯讀 MCP、搜尋規範化及最近郵件數量修正", "讀取郵件；控制送入本地模型的上下文長度"],
+                    ["Google Drive", "基於 Drive REST API 的本地唯讀 MCP", "使用 drive.readonly 授權"],
+                    ["Excel SQL", "NAS Excel SQL MCP，並擴充 XLSX、CSV、TSV 資料查詢", "面向使用者上傳表格的資料分析"],
+                    ["Monday / Linear", "企業專案管理 MCP 註冊與只讀連線結構", "統一納入 MCP 管理分類"],
+                    ["NAS Demo MCP", "NAS 資源查詢工具及 LLM 到 MCP 再到最終答案的完整鏈路", "工具白名單與審計"],
                 ],
                 [30 * mm, 91 * mm, 47 * mm],
                 styles,
                 font_size=7.1,
             ),
             Spacer(1, 8 * mm),
-            p("LLM 到 MCP 完整链路", styles["h2"]),
+            p("LLM 到 MCP 完整鏈路", styles["h2"]),
             p(
-                "使用者提出问题后，系统由当前 LLM 判断是否需要工具，选择已启用的 MCP Server 与唯读工具，取得企业资料，再由 LLM 结合工具结果生成最终答案。工具输入、输出与最终模型调用均保留记录。",
+                "使用者提出問題後，系統由當前 LLM 判斷是否需要工具，選擇已啟用的 MCP Server 與唯讀工具，取得企業資料，再由 LLM 結合工具結果生成最終答案。工具輸入、輸出與最終模型呼叫均保留紀錄。",
                 styles["callout"],
             ),
-            p("n8n 自动化", styles["h2"]),
+            p("n8n 自動化", styles["h2"]),
             *bullets(
                 [
-                    "完成受保护的 n8n 工作区，并修正子路径静态资源代理。",
-                    "完成 AI Work NAS 文件处理工作流：上传音频或 PDF 后，由 AI Work 处理，再触发 n8n Execution。",
-                    "完成 n8n 回调 Token 注入及 HTTPS 保护回调端点。",
-                    "流程可将处理结果回传 AI Work，并继续调用 LINE 推送服务。",
-                    "当 LINE 群组状态过期时，n8n Execution 仍可正常结束并保留执行记录。",
+                    "完成受保護的 n8n 工作區，並修正子路徑靜態資源代理。",
+                    "完成 AI Work NAS 檔案處理工作流：上傳音訊或 PDF 後，由 AI Work 處理，再觸發 n8n Execution。",
+                    "完成 n8n 回呼 Token 注入及 HTTPS 保護回呼端點。",
+                    "流程可將處理結果回傳 AI Work，並繼續呼叫 LINE 推送服務。",
+                    "當 LINE 群組狀態過期時，n8n Execution 仍可正常結束並保留執行紀錄。",
                 ],
                 styles,
             ),
-            p("企业 Wiki", styles["h2"]),
+            p("企業 Wiki", styles["h2"]),
             *bullets(
                 [
-                    "完成 NAS 已处理资产自动生成企业 Wiki 页面及既有资料回填。",
-                    "完成 Wiki 增量更新、来源引用、全文与向量检索结构。",
-                    "修正旧静态资源、内容乱码、重叠显示与抽取噪声。",
-                    "Wiki 以可阅读知识页呈现资料，而不是直接暴露原始 RAG chunks。",
+                    "完成 NAS 已處理資產自動生成企業 Wiki 頁面及既有資料回填。",
+                    "完成 Wiki 增量更新、來源引用、全文與向量檢索結構。",
+                    "修正舊靜態資源、內容亂碼、重疊顯示與抽取噪聲。",
+                    "Wiki 以可閱讀知識頁呈現資料，而不是直接暴露原始 RAG chunks。",
                 ],
                 styles,
             ),
@@ -533,46 +533,46 @@ def build_story(styles):
 
     story.extend(
         [
-            p("04　模型管理与 Ubuntu 产品化", styles["h1"]),
-            p("9 月底完成第一版可交付产品线与 Ubuntu 原生安装方式，为客户自行下载安装和测试建立基础。", styles["base"]),
+            p("04　模型管理與 Ubuntu 產品化", styles["h1"]),
+            p("9 月底完成第一版可交付產品線與 Ubuntu 原生安裝方式，為客戶自行下載安裝和測試建立基礎。", styles["base"]),
             p("NAS 模型管理", styles["h2"]),
             *bullets(
                 [
-                    "模型管理独立为管理员菜单，显示本地模型安装状态、文件大小、下载进度及运行时状态。",
-                    "提供下载、取消和重试操作；模型文件不完整时不会被识别为已安装。",
-                    "集中管理系统 LLM 与语音模型，实际业务页面直接使用管理员选择的优先模型。",
-                    "支持本地 Qwen3 4B、Qwen3 Embedding、whisper.cpp 及可扩展的 OCR、ASR、YOLO 能力。",
+                    "模型管理獨立為管理員選單，顯示本地模型安裝狀態、檔案大小、下載進度及執行時狀態。",
+                    "提供下載、取消和重試操作；模型檔案不完整時不會被識別為已安裝。",
+                    "集中管理系統 LLM 與語音模型，實際業務頁面直接使用管理員選擇的優先模型。",
+                    "支援本地 Qwen3 4B、Qwen3 Embedding、whisper.cpp 及可擴展的 OCR、ASR、YOLO 能力。",
                 ],
                 styles,
             ),
             p("Ubuntu 原生 Self-hosted", styles["h2"]),
             *bullets(
                 [
-                    "完成无需 Docker 的 Ubuntu 22.04/24.04 原生安装方案。",
-                    "安装器建立 aiwork 系统账号、Python 虚拟环境、持久化目录、环境配置与 systemd 服务。",
-                    "安装完成后自动执行健康检查，并生成随机 Session Key 与首次管理员密码。",
-                    "提供 Core、Knowledge、Meetings、Complete 与 Custom 安装方案。",
-                    "可选安装 OCR、Embedding、Whisper 和本地 LLM；核心门户不依赖这些模型也能启动。",
-                    "提供安装、状态检查、备份及升级脚本，为后续 GitHub Release 产品包做准备。",
+                    "完成無需 Docker 的 Ubuntu 22.04/24.04 原生安裝方案。",
+                    "安裝器建立 aiwork 系統帳號、Python 虛擬環境、持久化目錄、環境配置與 systemd 服務。",
+                    "安裝完成後自動執行健康檢查，並生成隨機 Session Key 與首次管理員密碼。",
+                    "提供 Core、Knowledge、Meetings、Complete 與 Custom 安裝方案。",
+                    "可選安裝 OCR、Embedding、Whisper 和本地 LLM；核心門戶不依賴這些模型也能啟動。",
+                    "提供安裝、狀態檢查、備份及升級指令碼，為後續 GitHub Release 產品包做準備。",
                 ],
                 styles,
             ),
-            p("硬件自动检测与模型推荐", styles["h2"]),
+            p("硬體自動檢測與模型推薦", styles["h2"]),
             *bullets(
                 [
-                    "检测 CPU 核心、系统 RAM、可用磁盘、NVIDIA GPU、VRAM 与 CUDA Toolkit。",
-                    "依据资源建议 Qwen3 0.6B、1.7B 或 4B 等本地模型，并预留运行空间。",
-                    "本地 LLM 与 Embedding 服务默认只绑定 127.0.0.1，避免直接暴露到公网。",
-                    "不自动安装 NVIDIA 驱动或 CUDA，降低安装器对主机环境的破坏风险。",
+                    "檢測 CPU 核心、系統 RAM、可用磁碟、NVIDIA GPU、VRAM 與 CUDA Toolkit。",
+                    "依據資源建議 Qwen3 0.6B、1.7B 或 4B 等本地模型，並預留執行空間。",
+                    "本地 LLM 與 Embedding 服務預設只繫結 127.0.0.1，避免直接暴露到公網。",
+                    "不自動安裝 NVIDIA 驅動或 CUDA，降低安裝器對主機環境的破壞風險。",
                 ],
                 styles,
             ),
-            p("NAS 存储工具", styles["h2"]),
+            p("NAS 儲存工具", styles["h2"]),
             *bullets(
                 [
-                    "完成只读 NAS SSD CLI MCP，可查询 SSD/NVMe 设备、空间使用及 SMART/NVMe 健康状态。",
-                    "工具不接受任意 Shell 指令，不执行格式化、固件更新、写入或删除。",
-                    "完成 NAS Storage MCP 扩充方案，规划自动识别 mdadm、ZFS、Btrfs 或硬件 RAID。",
+                    "完成只讀 NAS SSD CLI MCP，可查詢 SSD/NVMe 裝置、空間使用及 SMART/NVMe 健康狀態。",
+                    "工具不接受任意 Shell 指令，不執行格式化、韌體更新、寫入或刪除。",
+                    "完成 NAS Storage MCP 擴充方案，規劃自動識別 mdadm、ZFS、Btrfs 或硬體 RAID。",
                 ],
                 styles,
             ),
@@ -582,62 +582,62 @@ def build_story(styles):
 
     story.extend(
         [
-            p("05　交付清单与阶段结论", styles["h1"]),
-            p("截至 2026 年 9 月 30 日，项目已形成可展示、可继续部署验证的企业 AI NAS 产品雏形。", styles["base"]),
+            p("05　交付清單與階段結論", styles["h1"]),
+            p("截至 2026 年 9 月 30 日，專案已形成可展示、可繼續部署驗證的企業 AI NAS 產品雛形。", styles["base"]),
             make_table(
                 [
-                    ["交付物", "完成状态", "说明"],
-                    ["AI Work NAS Web Portal", "已完成", "账号登录、繁中/英文、主要业务菜单与蓝白企业界面"],
-                    ["NAS 多模态资料处理", "已完成", "音频、视频、PDF、DOCX、图片及一般文件处理入口"],
-                    ["会议记录与逐字稿", "已完成", "录音、上传、后台切片、ASR、播放、下载与知识库查询"],
-                    ["RAG 与模型调用", "已完成", "混合检索、来源引用、相似问题快取、调用审计"],
-                    ["企业系统连接", "已完成首阶段", "LINE、Odoo、Gmail、Drive、Excel SQL、Monday/Linear 结构"],
-                    ["MCP Agent 链路", "已完成", "LLM 选工具、执行唯读 MCP、LLM 生成最终回答"],
-                    ["n8n 自动化", "已完成 Demo", "文件处理完成后建立 Execution 并回调 AI Work/LINE"],
-                    ["企业 Wiki", "已完成首阶段", "自动生成、增量更新、来源引用及搜索"],
-                    ["Ubuntu 原生安装包", "已完成首阶段", "systemd、自助安装、可选模块、硬件推荐、备份与升级"],
-                    ["专有授权与文档", "已完成", "LICENSE、产品线、安装指南、Odoo/SSD/Storage MCP 文档"],
+                    ["交付物", "完成狀態", "說明"],
+                    ["AI Work NAS Web Portal", "已完成", "帳號登入、繁中/英文、主要業務選單與藍白企業介面"],
+                    ["NAS 多模態資料處理", "已完成", "音訊、影片、PDF、DOCX、圖片及一般檔案處理入口"],
+                    ["會議紀錄與逐字稿", "已完成", "錄音、上傳、後臺切片、ASR、播放、下載與知識庫查詢"],
+                    ["RAG 與模型呼叫", "已完成", "混合檢索、來源引用、相似問題快取、呼叫審計"],
+                    ["企業系統連線", "已完成首階段", "LINE、Odoo、Gmail、Drive、Excel SQL、Monday/Linear 結構"],
+                    ["MCP Agent 鏈路", "已完成", "LLM 選工具、執行唯讀 MCP、LLM 生成最終回答"],
+                    ["n8n 自動化", "已完成 Demo", "檔案處理完成後建立 Execution 並回調 AI Work/LINE"],
+                    ["企業 Wiki", "已完成首階段", "自動生成、增量更新、來源引用及搜尋"],
+                    ["Ubuntu 原生安裝包", "已完成首階段", "systemd、自助安裝、可選模組、硬體推薦、備份與升級"],
+                    ["專有授權與文件", "已完成", "LICENSE、產品線、安裝指南、Odoo/SSD/Storage MCP 文件"],
                 ],
                 [54 * mm, 28 * mm, 86 * mm],
                 styles,
                 font_size=7.2,
             ),
             Spacer(1, 8 * mm),
-            p("阶段结论", styles["h2"]),
+            p("階段結論", styles["h2"]),
             Spacer(1, 2 * mm),
             p(
-                "9 月完成的成果证明 AI Work NAS 已能围绕 NAS 数据主权建立完整 Demo：资料进入 NAS 后，可由本地或云端模型处理，形成逐字稿、RAG、Wiki 与企业查询结果，并通过 MCP、LINE 与 n8n 对接外部流程。月底进一步完成 Ubuntu 原生安装及硬件推荐，使项目从开发环境迈入可交付测试阶段。",
+                "9 月完成的成果證明 AI Work NAS 已能圍繞 NAS 資料主權建立完整 Demo：資料進入 NAS 後，可由本地或雲端模型處理，形成逐字稿、RAG、Wiki 與企業查詢結果，並透過 MCP、LINE 與 n8n 對接外部流程。月底進一步完成 Ubuntu 原生安裝及硬體推薦，使專案從開發環境邁入可交付測試階段。",
                 styles["callout"],
             ),
-            p("后续阶段建议", styles["h2"]),
+            p("後續階段建議", styles["h2"]),
             *bullets(
                 [
-                    "建立正式版本号、签名安装包与 GitHub Release 校验流程。",
-                    "扩大跨用户权限、审计分页、Prompt Injection 防护及企业安全验收。",
-                    "补齐生产监控、备份还原、依赖扫描与外部渗透测试。",
+                    "建立正式版本號、簽名安裝包與 GitHub Release 校驗流程。",
+                    "擴大跨使用者權限、審計分頁、Prompt Injection 防護及企業安全驗收。",
+                    "補齊生產監控、備份還原、依賴掃描與外部滲透測試。",
                 ],
                 styles,
             ),
             Spacer(1, 5 * mm),
             p(
-                "本报告仅记录 2026 年 9 月 1 日至 9 月 30 日期间已经提交或形成文档的成果。正式商业上线仍需完成生产环境安全、性能、备份与运维验收。",
+                "本報告僅紀錄 2026 年 9 月 1 日至 9 月 30 日期間已經提交或形成文件的成果。正式商業上線仍需完成生產環境安全、效能、備份與運維驗收。",
                 styles["note"],
             ),
             Spacer(1, 3 * mm),
             make_table(
                 [
-                    ["项目", "内容"],
-                    ["项目名称", "AI Work NAS"],
-                    ["报告期间", "2026 年 9 月 1 日至 9 月 30 日"],
-                    ["负责人", "李轩"],
-                    ["报告信息", "月度研发与交付完成记录 | 整理日期：2026 年 10 月 5 日"],
+                    ["專案", "內容"],
+                    ["專案名稱", "AI Work NAS"],
+                    ["報告期間", "2026 年 9 月 1 日至 9 月 30 日"],
+                    ["負責人", "李軒"],
+                    ["報告資訊", "月度研發與交付完成紀錄 | 整理日期：2026 年 10 月 5 日"],
                 ],
                 [45 * mm, 123 * mm],
                 styles,
                 font_size=7.0,
             ),
             Spacer(1, 4 * mm),
-            p("负责人：李轩", styles["right"]),
+            p("負責人：李軒", styles["right"]),
         ]
     )
     return story
@@ -654,9 +654,9 @@ def main() -> None:
         rightMargin=20 * mm,
         topMargin=18 * mm,
         bottomMargin=20 * mm,
-        title="AI Work NAS 2026 年 9 月已完成工作记录",
-        author="李轩",
-        subject="AI Work NAS 月度研发与交付完成记录",
+        title="AI Work NAS 2026 年 9 月已完成工作紀錄",
+        author="李軒",
+        subject="AI Work NAS 月度研發與交付完成紀錄",
     )
     doc.build(build_story(styles), onFirstPage=page_decorator, onLaterPages=page_decorator)
     print(OUTPUT)
