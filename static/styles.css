@@ -856,6 +856,12 @@ button:disabled {
   font-weight: 700;
 }
 
+.nav-link {
+  display: flex;
+  align-items: center;
+  text-decoration: none;
+}
+
 .nav-item:hover,
 .nav-item.active {
   color: #105f96;

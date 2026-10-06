@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="zh-Hant">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#dff2ff" />
+    <title>LangChain Odoo Demo · AI Work</title>
+    <link rel="stylesheet" href="/static/langchain-demo.css?v=1" />
+    <script src="/static/langchain-demo.js?v=1" defer></script>
+  </head>
+  <body>
+    <div class="demo-shell">
+      <aside class="demo-side">
+        <a class="brand" href="/" aria-label="AI Work"><span class="brand-mark">AW</span><span><strong>AI Work</strong><small>NAS · Enterprise AI</small></span></a>
+        <div class="side-content">
+          <p class="overline">LANGCHAIN / ODOO MCP</p>
+          <h1 data-i18n="title">企業資料問答</h1>
+          <p class="side-copy" data-i18n="description">透過 LangChain 串接現有模型與 Odoo 唯讀 MCP，查詢真實企業資料。</p>
+          <div class="workflow" aria-label="LangChain workflow">
+            <div><span>01</span><p data-i18n="stepPlan">規劃查詢工具</p></div>
+            <div><span>02</span><p data-i18n="stepMcp">讀取 Odoo 資料</p></div>
+            <div><span>03</span><p data-i18n="stepAnswer">生成引用答案</p></div>
+          </div>
+          <div class="examples">
+            <h2 data-i18n="examples">試試這些問題</h2>
+            <button type="button" data-example="contacts" data-i18n="contactExample">查詢最新 10 位聯絡人</button>
+            <button type="button" data-example="sales" data-i18n="salesExample">查詢最新 10 筆銷售訂單</button>
+            <button type="button" data-example="purchases" data-i18n="purchaseExample">查詢最新 10 筆採購訂單</button>
+          </div>
+        </div>
+        <a class="back-link" href="/"><span aria-hidden="true">←</span> <span data-i18n="back">返回 AI Work</span></a>
+      </aside>
+
+      <main class="demo-main">
+        <header class="topbar">
+          <div><p class="overline" data-i18n="eyebrow">獨立體驗頁面</p><h2>LangChain <span>×</span> Odoo</h2></div>
+          <div class="top-actions"><span id="username" class="user-name"></span><div class="language-switch" role="group" aria-label="Language"><button type="button" data-lang="zh-Hant">繁</button><button type="button" data-lang="en">EN</button></div></div>
+        </header>
+        <div class="content-wrap">
+          <section class="status-bar" aria-label="Service status">
+            <div><span class="status-label" data-i18n="modelLabel">目前模型</span><strong id="modelName">--</strong></div>
+            <div><span class="status-label" data-i18n="odooLabel">Odoo MCP</span><strong id="odooStatus" class="status-value"><span class="status-dot"></span><span data-i18n="checking">檢查中</span></strong></div>
+            <span class="read-only" data-i18n="readOnly">唯讀存取</span>
+          </section>
+          <div id="messages" class="messages" role="log" aria-live="polite">
+            <div class="empty-state" id="emptyState"><span class="empty-symbol" aria-hidden="true">LC</span><p class="overline">LANGCHAIN LCEL</p><h3 data-i18n="emptyTitle">向 Odoo 提問</h3><p data-i18n="emptyCopy">選擇左側範例，或輸入要查詢的企業資料。結果會標明實際使用的 MCP 工具。</p></div>
+          </div>
+          <form id="askForm" class="composer">
+            <label for="question" data-i18n="inputLabel">您的問題</label>
+            <div class="input-row"><textarea id="question" rows="1" maxlength="2000" required data-i18n-placeholder="placeholder" placeholder="例如：查詢最新 10 筆銷售訂單與總額"></textarea><button id="sendButton" type="submit" data-i18n="send">送出</button></div>
+            <div class="composer-bottom"><p id="formHint" data-i18n="hint">保留最近對話脈絡；僅讀取 Odoo，不會修改資料。</p><button id="clearButton" type="button" data-i18n="clear">清空記憶</button></div>
+          </form>
+        </div>
+      </main>
+      <aside class="trace-side">
+        <p class="overline" data-i18n="traceEyebrow">執行追蹤</p>
+        <h2 data-i18n="traceTitle">LangChain 流程</h2>
+        <p class="trace-copy" data-i18n="traceCopy">送出問題後，這裡會顯示實際執行的查詢鏈。</p>
+        <ol id="traceList" class="trace-list"><li data-i18n="traceIdle">等待提問</li></ol>
+        <div class="trace-foot"><strong data-i18n="auditTitle">企業稽核</strong><p data-i18n="auditCopy">模型與 MCP 呼叫沿用 AI Work 的登入身分與稽核記錄。</p></div>
+      </aside>
+    </div>
+  </body>
+</html>

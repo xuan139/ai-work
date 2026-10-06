@@ -46,6 +46,7 @@ from app.db import (
     get_meeting,
     get_meeting_by_nas_asset_id,
     get_mcp_server,
+    list_langchain_demo_messages,
     get_nas_asset,
     get_asset_permissions,
     get_custom_model,
@@ -62,6 +63,8 @@ from app.db import (
     search_llm_calls,
     list_meetings,
     list_mcp_servers,
+    save_langchain_demo_exchange,
+    clear_langchain_demo_messages,
     list_nas_assets,
     list_network_assets,
     list_pending_network_assets,
@@ -120,6 +123,7 @@ from app.knowledge_service import (
 from app.llm_catalog import PRICING_UPDATED_AT, get_model, model_summary, provider_summary
 from app.llm_cache import lookup_llm_cache, normalize_llm_prompt, store_llm_cache, suggest_llm_prompts
 from app.llm_runtime import LlmRuntimeError, company_api_key_for_model, run_llm
+from app.langchain_demo import run_odoo_langchain_demo
 from app.drive_mcp import DRIVE_MCP_TOOLS, handle_drive_mcp_request
 from app.excel_mcp import EXCEL_MCP_TOOLS, handle_excel_mcp_request
 from app.file_security import UploadScanResult, UploadSecurityError, inspect_uploaded_file, validated_upload_filename
@@ -661,6 +665,11 @@ async def index() -> FileResponse:
     )
 
 
+@app.get("/langchain-demo")
+async def langchain_demo_page(user: dict = Depends(current_user)) -> FileResponse:
+    return FileResponse(STATIC_DIR / "langchain-demo.html", headers={"Cache-Control": "no-cache"})
+
+
 @app.get("/manifest.webmanifest", include_in_schema=False)
 async def web_app_manifest() -> FileResponse:
     return FileResponse(
@@ -909,6 +918,61 @@ async def admin_mcp_servers(admin: dict = Depends(require_admin)) -> dict:
 async def available_mcp_tools(user: dict = Depends(current_user)) -> dict:
     servers = available_mcp_servers(list_mcp_servers())
     return {"servers": [public_mcp_server(server) for server in servers]}
+
+
+@app.get("/api/langchain-demo/status")
+async def langchain_demo_status(user: dict = Depends(current_user)) -> dict:
+    odoo = next((
+        server for server in available_mcp_servers(list_mcp_servers())
+        if server["slug"] == "odoo" and any(tool["name"] == "search_read" for tool in server["tools"])
+    ), None)
+    return {
+        "odoo": public_mcp_server(odoo) if odoo else None,
+        "model": current_llm_model()["name"],
+    }
+
+
+@app.get("/api/langchain-demo/messages")
+async def langchain_demo_messages(user: dict = Depends(current_user)) -> dict:
+    return {"messages": list_langchain_demo_messages(user["id"])}
+
+
+@app.delete("/api/langchain-demo/messages")
+async def langchain_demo_clear(user: dict = Depends(current_user)) -> dict:
+    clear_langchain_demo_messages(user["id"])
+    return {"ok": True}
+
+
+@app.post("/api/langchain-demo/ask")
+async def langchain_demo_ask(payload: dict, user: dict = Depends(current_user)) -> dict:
+    prompt = str(payload.get("prompt") or "").strip()
+    if not prompt or len(prompt) > 2000:
+        raise HTTPException(status_code=400, detail="問題需介於 1 至 2,000 個字元")
+    guard_prompt(prompt, user, "langchain_demo")
+    limiter_key = f"user:{user['id']}"
+    if not LLM_LIMITER.allowed(limiter_key):
+        raise HTTPException(status_code=429, detail="模型呼叫過於頻繁，請稍後再試")
+    LLM_LIMITER.record(limiter_key)
+    odoo = next((
+        server for server in available_mcp_servers(list_mcp_servers())
+        if server["slug"] == "odoo" and any(tool["name"] == "search_read" for tool in server["tools"])
+    ), None)
+    if not odoo:
+        raise HTTPException(status_code=503, detail="Odoo 唯讀 MCP 尚未連線，請管理員先完成設定")
+    model_id = current_llm_model()["id"]
+    lock = LLM_RUN_LOCKS.setdefault((user["id"], model_id), asyncio.Lock())
+    async with lock:
+        history = list_langchain_demo_messages(user["id"], limit=6)
+        result = await run_odoo_langchain_demo(
+            prompt=prompt,
+            model_id=model_id,
+            user=user,
+            server=odoo,
+            run_model=run_model_with_audit,
+            history=history,
+        )
+        save_langchain_demo_exchange(user["id"], prompt, result["answer"], result["source"])
+        return result
 
 
 @app.post("/api/admin/mcp/servers", status_code=201)

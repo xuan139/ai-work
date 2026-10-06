@@ -44,6 +44,8 @@ uvicorn app.main:app --reload
 
 Open `http://127.0.0.1:8000`.
 
+The standalone [LangChain Odoo demo](/langchain-demo) is available from the AI Work sidebar after login. It uses LangChain LCEL to plan a read-only `search_read` call through the configured Odoo MCP, then passes the returned data to the globally selected LLM for a sourced answer. The page shows each step and keeps per-user conversation memory in SQLite; Clear memory deletes only the current user's demo conversation. Odoo MCP must be enabled and connected in MCP Management. Model and MCP calls retain their existing audit trail.
+
 Default login:
 
 - username: `admin`

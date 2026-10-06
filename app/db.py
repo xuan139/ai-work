@@ -928,6 +928,20 @@ def init_db() -> None:
             )
             """
         )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS langchain_demo_messages (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
+                content TEXT NOT NULL,
+                source_json TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            )
+            """
+        )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_langchain_demo_user_id ON langchain_demo_messages(user_id, id)")
         _ensure_column(conn, "mcp_audit_logs", "trace_id", "TEXT")
         _ensure_column(conn, "mcp_audit_logs", "parent_call_id", "INTEGER")
         _ensure_column(conn, "mcp_audit_logs", "request_method", "TEXT")
@@ -1198,6 +1212,34 @@ def get_mcp_server(server_id: int) -> dict[str, Any] | None:
     with connect() as conn:
         row = conn.execute("SELECT * FROM mcp_servers WHERE id = ?", (server_id,)).fetchone()
     return _row_to_dict(row)
+
+
+def list_langchain_demo_messages(user_id: int, limit: int = 100) -> list[dict[str, Any]]:
+    with connect() as conn:
+        rows = conn.execute(
+            "SELECT id, role, content, source_json, created_at FROM langchain_demo_messages "
+            "WHERE user_id = ? ORDER BY id DESC LIMIT ?",
+            (user_id, limit),
+        ).fetchall()
+    return [dict(row) for row in reversed(rows)]
+
+
+def save_langchain_demo_exchange(user_id: int, question: str, answer: str, source: dict[str, Any]) -> None:
+    with connect() as conn:
+        conn.execute(
+            "INSERT INTO langchain_demo_messages (user_id, role, content) VALUES (?, 'user', ?)",
+            (user_id, question),
+        )
+        conn.execute(
+            "INSERT INTO langchain_demo_messages (user_id, role, content, source_json) "
+            "VALUES (?, 'assistant', ?, ?)",
+            (user_id, answer, json.dumps(source, ensure_ascii=False)),
+        )
+
+
+def clear_langchain_demo_messages(user_id: int) -> None:
+    with connect() as conn:
+        conn.execute("DELETE FROM langchain_demo_messages WHERE user_id = ?", (user_id,))
 
 
 def create_mcp_server(values: dict[str, Any]) -> dict[str, Any]:
