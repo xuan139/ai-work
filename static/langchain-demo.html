@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="theme-color" content="#dff2ff" />
     <title>LangChain Odoo Demo · AI Work</title>
-    <link rel="stylesheet" href="/static/langchain-demo.css?v=1" />
-    <script src="/static/langchain-demo.js?v=1" defer></script>
+    <link rel="stylesheet" href="/static/langchain-demo.css?v=2" />
+    <script src="/static/langchain-demo.js?v=2" defer></script>
   </head>
   <body>
     <div class="demo-shell">
@@ -22,10 +22,12 @@
             <div><span>03</span><p data-i18n="stepAnswer">生成引用答案</p></div>
           </div>
           <div class="examples">
-            <h2 data-i18n="examples">試試這些問題</h2>
-            <button type="button" data-example="contacts" data-i18n="contactExample">查詢最新 10 位聯絡人</button>
-            <button type="button" data-example="sales" data-i18n="salesExample">查詢最新 10 筆銷售訂單</button>
-            <button type="button" data-example="purchases" data-i18n="purchaseExample">查詢最新 10 筆採購訂單</button>
+            <h2 data-i18n="examples">連續提問範例</h2>
+            <button type="button" data-example="sales" data-i18n="salesExample">1. 查詢最新銷售訂單</button>
+            <button type="button" data-example="salesFollowup" data-i18n="salesFollowupExample">2. 剛才那筆訂單的客戶是誰？</button>
+            <button type="button" data-example="purchases" data-i18n="purchaseExample">1. 查詢最新採購訂單</button>
+            <button type="button" data-example="purchaseFollowup" data-i18n="purchaseFollowupExample">2. 剛才那筆採購單的供應商是誰？</button>
+            <button type="button" data-example="contacts" data-i18n="contactExample">查詢最新 3 位聯絡人</button>
           </div>
         </div>
         <a class="back-link" href="/"><span aria-hidden="true">←</span> <span data-i18n="back">返回 AI Work</span></a>
@@ -40,6 +42,7 @@
           <section class="status-bar" aria-label="Service status">
             <div><span class="status-label" data-i18n="modelLabel">目前模型</span><strong id="modelName">--</strong></div>
             <div><span class="status-label" data-i18n="odooLabel">Odoo MCP</span><strong id="odooStatus" class="status-value"><span class="status-dot"></span><span data-i18n="checking">檢查中</span></strong></div>
+            <div><span class="status-label" data-i18n="memoryLabel">對話記憶</span><strong id="memoryCount">0 輪</strong></div>
             <span class="read-only" data-i18n="readOnly">唯讀存取</span>
           </section>
           <div id="messages" class="messages" role="log" aria-live="polite">

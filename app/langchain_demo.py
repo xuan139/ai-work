@@ -91,6 +91,10 @@ async def run_odoo_langchain_demo(
         if plan["action"] != "tool":
             raise HTTPException(status_code=422, detail="無法選定適用的 Odoo 唯讀工具，請具體指出要查詢的資料")
         if plan["tool_name"] == "search_read":
+            schema = next((tool.get("inputSchema") or {}) for tool in demo_server["tools"] if tool["name"] == "search_read")
+            domain = plan["arguments"].get("domain")
+            if isinstance(domain, list) and schema.get("properties", {}).get("domain", {}).get("type") == "string":
+                plan["arguments"]["domain"] = json.dumps(domain, ensure_ascii=False)
             limit = plan["arguments"].get("limit")
             if isinstance(limit, int) and not isinstance(limit, bool):
                 plan["arguments"]["limit"] = min(max(limit, 1), 20)

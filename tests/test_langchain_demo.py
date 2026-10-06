@@ -33,7 +33,9 @@ class LangChainDemoTests(unittest.TestCase):
             "endpoint": "https://odoo.example.com/mcp",
             "tools_json": json.dumps(
                 [
-                    {"name": "search_read", "description": "Search Odoo records", "inputSchema": {"type": "object"}},
+                    {"name": "search_read", "description": "Search Odoo records", "inputSchema": {
+                        "type": "object", "properties": {"domain": {"type": "string"}},
+                    }},
                     {"name": "create_records", "inputSchema": {"type": "object"}},
                 ]
             ),
@@ -49,7 +51,7 @@ class LangChainDemoTests(unittest.TestCase):
             side_effect=[
                 {"call_id": 11, "answer": json.dumps({
                     "action": "tool", "server_id": 42, "tool_name": "search_read",
-                    "arguments": {"model": "sale.order", "domain": "[]", "limit": 10},
+                    "arguments": {"model": "sale.order", "domain": [], "limit": 10},
                 })},
                 {"call_id": 12, "model": "Qwen3 4B", "answer": "最新銷售訂單為 S00001。"},
             ]
@@ -70,6 +72,7 @@ class LangChainDemoTests(unittest.TestCase):
         self.assertIn("S00001", run_model.await_args_list[1].kwargs["prompt"])
         self.assertIn("untrusted data", run_model.await_args_list[1].kwargs["system_prompt"])
         tool.assert_called_once()
+        self.assertEqual(tool.call_args.args[2]["domain"], "[]")
         with db.connect() as conn:
             audit = conn.execute("SELECT * FROM mcp_audit_logs WHERE user_id = ?", (self.user["id"],)).fetchone()
         self.assertEqual(audit["status"], "completed")

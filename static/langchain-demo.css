@@ -21,6 +21,8 @@ a { color: inherit; }
 .examples h2 { font-size: 13px; margin: 0 0 12px; }
 .examples button { display: block; width: 100%; margin: 0 0 8px; padding: 11px 12px; border: 1px solid #b7d9ef; border-radius: 6px; background: #f8fcff; color: #24577c; text-align: left; font-size: 12px; line-height: 1.4; }
 .examples button:hover, .examples button:focus-visible { border-color: #2497d2; background: #fff; }
+.examples button:disabled { opacity: .6; cursor: not-allowed; }
+.examples button:nth-of-type(3), .examples button:nth-of-type(5) { margin-top:14px; }
 .back-link { margin-top: auto; color: #17699e; font-weight: 700; text-decoration: none; font-size: 13px; }
 .demo-main { min-width: 0; min-height: 100vh; display: flex; flex-direction: column; }
 .topbar { min-height: 90px; border-bottom: 1px solid #e0edf5; display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 18px 32px; }
@@ -74,4 +76,4 @@ a { color: inherit; }
 .trace-foot { margin-top: auto; border-top: 1px solid #d9eaf5; padding-top: 18px; font-size: 12px; }
 .trace-foot p { color: #6c8598; line-height: 1.6; }
 @media (max-width: 1180px) { .demo-shell { grid-template-columns: 240px minmax(0, 1fr); } .trace-side { grid-column: 2; border-left: 0; border-top: 1px solid #e0edf5; } .trace-list { display: flex; gap: 15px; margin: 15px 0; } .trace-list li { border-left: 0; padding: 0 0 0 30px; flex: 1; } .trace-foot { margin-top: 0; } }
-@media (max-width: 700px) { .demo-shell { display: block; } .demo-side { padding: 15px; gap: 0; } .side-content { display: none; } .back-link { margin-top: 12px; } .topbar { min-height: 72px; padding: 13px 18px; } .topbar h2 { font-size: 19px; } .content-wrap { padding: 15px 18px; min-height: calc(100vh - 155px); } .status-bar { gap: 14px; flex-wrap: wrap; } .read-only { margin-left: 0; } .messages { max-height: none; } .trace-side { padding: 20px 18px; } .trace-list { display: block; } .trace-list li { padding-bottom: 18px; } }
+@media (max-width: 700px) { .demo-shell { display: block; } .demo-side { padding: 15px; gap: 0; } .side-content { display: block; } .side-content > .overline, .side-content h1, .side-copy, .workflow { display: none; } .examples { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; margin-top: 12px; } .examples h2 { grid-column: 1 / -1; margin: 0; } .examples button, .examples button:nth-of-type(3), .examples button:nth-of-type(5) { margin: 0; } .back-link { margin-top: 12px; } .topbar { min-height: 72px; padding: 13px 18px; } .topbar h2 { font-size: 19px; } .content-wrap { padding: 15px 18px; min-height: calc(100vh - 155px); } .status-bar { gap: 14px; flex-wrap: wrap; } .read-only { margin-left: 0; } .messages { max-height: none; } .trace-side { padding: 20px 18px; } .trace-list { display: block; } .trace-list li { padding-bottom: 18px; } }
