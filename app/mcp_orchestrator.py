@@ -228,6 +228,25 @@ def build_final_prompt(
     )
 
 
+def normalize_mes_result(result: dict[str, Any]) -> dict[str, Any]:
+    """FactorySemantics MCP returns JSON in one text content block."""
+    if result.get("structuredContent") is not None or result.get("isError"):
+        return result
+    content = result.get("content")
+    if not isinstance(content, list) or len(content) != 1:
+        return result
+    block = content[0]
+    if not isinstance(block, dict) or block.get("type") != "text":
+        return result
+    try:
+        parsed = json.loads(block.get("text") or "")
+    except (TypeError, json.JSONDecodeError):
+        return result
+    if not isinstance(parsed, dict) or parsed.get("source") != "FactorySemantics MES":
+        return result
+    return {**result, "structuredContent": parsed}
+
+
 def _is_read_only_tool(tool: object, server: dict[str, Any]) -> bool:
     if not isinstance(tool, dict) or not tool.get("name"):
         return False

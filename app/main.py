@@ -145,6 +145,7 @@ from app.mcp_orchestrator import (
     build_known_business_plan,
     build_final_prompt,
     build_planner_prompt,
+    normalize_mes_result,
     parse_mcp_plan,
     public_mcp_server,
     resolve_planned_tool,
@@ -2672,6 +2673,9 @@ async def run_model_with_mcp(
             parent_call_id=planner_call_id,
         )
         raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    if server["slug"] == "factory-mes":
+        tool_result = normalize_mes_result(tool_result)
 
     create_mcp_audit_log(
         server_id=server["id"],

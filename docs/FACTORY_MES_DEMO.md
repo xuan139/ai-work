@@ -16,6 +16,9 @@ credentials in the AI Work repository.
 2. Generate `MES_SECRET_KEY`, `MES_ADMIN_PASSWORD`, `FSMES_AGENT_PASSWORD`, and
    `FSMES_ANALYST_PASSWORD` in `/home/ubuntu/.config/ai-work-mes/env` (mode 600).
    Both services use the same analyst password. Keep the file out of Git.
+   The upstream lab pack creates a default `ADMIN` password; change it with
+   `fsmes set-password ADMIN` against the bottling database before offering
+   the demo to users. Do not proxy the plant API or MCP to the public internet.
 3. Install `deploy/factory-mes-plant.service` and
    `deploy/factory-mes-mcp.service` under `/etc/systemd/system/`, then enable
    and start them in that order.

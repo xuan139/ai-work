@@ -12,6 +12,7 @@ from app.mcp_orchestrator import (
     available_mcp_servers,
     build_known_business_plan,
     build_final_prompt,
+    normalize_mes_result,
     parse_mcp_plan,
     resolve_planned_tool,
 )
@@ -148,6 +149,19 @@ class McpAgentTests(unittest.TestCase):
 
         self.assertIn('"subject":"Status"', prompt)
         self.assertNotIn("duplicate text that should not be included", prompt)
+
+    def test_mes_text_result_becomes_structured_source(self) -> None:
+        raw = {
+            "content": [{"type": "text", "text": json.dumps({
+                "source": "FactorySemantics MES", "plant": "bottling", "orders": [],
+            })}],
+            "isError": False,
+        }
+        normalized = normalize_mes_result(raw)
+        self.assertEqual(normalized["structuredContent"]["plant"], "bottling")
+        self.assertNotIn("structuredContent", normalize_mes_result({
+            "content": [{"type": "text", "text": '{"source":"unknown"}'}],
+        }))
 
     def test_complete_llm_mcp_llm_chain_writes_tool_audit(self) -> None:
         planner = {
