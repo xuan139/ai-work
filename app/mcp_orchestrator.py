@@ -26,6 +26,12 @@ ODOO_READ_ONLY_TOOLS = {
     "whoami",
 }
 
+MES_READ_ONLY_TOOLS = {
+    "mes_overdue_orders",
+    "mes_line_downtime_today",
+    "mes_work_order_production_quality",
+}
+
 
 def available_mcp_servers(
     servers: list[dict[str, Any]],
@@ -230,6 +236,8 @@ def _is_read_only_tool(tool: object, server: dict[str, Any]) -> bool:
         return True
     if server.get("slug") == "odoo":
         return str(tool["name"]) in ODOO_READ_ONLY_TOOLS
+    if server.get("slug") == "factory-mes":
+        return endpoint == "http://127.0.0.1:8310/mcp" and str(tool["name"]) in MES_READ_ONLY_TOOLS
     annotations = tool.get("annotations")
     return bool(
         isinstance(annotations, dict)

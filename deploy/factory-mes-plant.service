@@ -1,0 +1,20 @@
+[Unit]
+Description=FactorySemantics MES simulated bottling plant
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/factorysemantics-mes
+EnvironmentFile=/home/ubuntu/.config/ai-work-mes/env
+Environment=FSMES_PLANT_REGISTRY=/home/ubuntu/factorysemantics-mes/labs/multiplant/fleet.toml
+ExecStart=/home/ubuntu/factory-mes-venv/bin/fsmes plant bottling run
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

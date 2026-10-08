@@ -1,0 +1,20 @@
+[Unit]
+Description=AI Work read-only FactorySemantics MES MCP
+After=factory-mes-plant.service
+Requires=factory-mes-plant.service
+
+[Service]
+Type=simple
+User=ubuntu
+Group=ubuntu
+WorkingDirectory=/home/ubuntu/ai-work
+EnvironmentFile=/home/ubuntu/.config/ai-work-mes/env
+Environment=MES_READONLY_API_URL=http://127.0.0.1:8010
+ExecStart=/home/ubuntu/factory-mes-venv/bin/python -m app.mes_mcp
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

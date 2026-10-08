@@ -757,6 +757,12 @@
                 </label>
                 <span id="aiworkMcpStatus" class="mcp-run-status"></span>
               </div>
+              <div id="mesQuestionExamples" class="mes-question-examples" hidden>
+                <span data-i18n="aiwork.mesExamples">MES 查詢範例</span>
+                <button type="button" data-mes-question="overdue" data-i18n="aiwork.mesOverdue">目前哪些工單延誤？</button>
+                <button type="button" data-mes-question="downtime" data-i18n="aiwork.mesDowntime">這條產線今天為何停機？</button>
+                <button type="button" data-mes-question="order" data-i18n="aiwork.mesOrder">WO-ACME-4711 的生產品質紀錄</button>
+              </div>
               <div class="button-row">
                 <button id="runModelButton" class="primary-button" type="button" data-i18n="aiwork.runModel">送出</button>
                 <button id="forceRunModelButton" class="secondary-button force-send-button" type="button" data-i18n="aiwork.forceRunModel" data-i18n-attr="title:aiwork.forceRunHint" title="忽略快取並實際呼叫模型，可能產生費用">強制送出</button>

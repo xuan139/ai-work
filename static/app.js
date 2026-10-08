@@ -856,6 +856,11 @@ const messages = {
       mcpNotUsed: "LLM 判斷本次問題不需要工具",
       mcpArguments: "工具參數",
       mcpResult: "工具結果",
+      mesExamples: "MES 查詢範例",
+      mesOverdue: "目前哪些工單延誤？",
+      mesDowntime: "這條產線今天為何停機？",
+      mesOrder: "WO-ACME-4711 的生產與品質紀錄是什麼？",
+      mesSource: "MES 資料來源",
       useTitle: "使用 {model}",
       useSelectModel: "請先選擇模型",
       useWaiting: "等待選擇模型",
@@ -1833,6 +1838,11 @@ const messages = {
       mcpNotUsed: "The LLM determined that this request did not need a tool",
       mcpArguments: "Tool Arguments",
       mcpResult: "Tool Result",
+      mesExamples: "MES sample questions",
+      mesOverdue: "Which work orders are overdue?",
+      mesDowntime: "Why did the line stop today?",
+      mesOrder: "What are the production and quality records for WO-ACME-4711?",
+      mesSource: "MES data source",
       useTitle: "Use {model}",
       useSelectModel: "Select a model to begin",
       useWaiting: "Waiting for model",
@@ -2134,6 +2144,7 @@ const els = {
   forceRunModelButton: document.querySelector("#forceRunModelButton"),
   useMcpToggle: document.querySelector("#useMcpToggle"),
   aiworkMcpServerSelect: document.querySelector("#aiworkMcpServerSelect"),
+  mesQuestionExamples: document.querySelector("#mesQuestionExamples"),
   aiworkMcpStatus: document.querySelector("#aiworkMcpStatus"),
   modelResponseBox: document.querySelector("#modelResponseBox"),
   llmCallSearch: document.querySelector("#llmCallSearch"),
@@ -2674,6 +2685,8 @@ function renderAiworkMcpControls() {
     ? t("aiwork.mcpReady", { servers: servers.length, tools: toolCount })
     : t("aiwork.mcpUnavailable");
   els.aiworkMcpStatus.classList.toggle("unavailable", !servers.length);
+  const selected = servers.find((server) => String(server.id) === state.selectedMcpServerId);
+  els.mesQuestionExamples.hidden = !state.useMcp || selected?.slug !== "factory-mes";
 }
 
 function renderMcpServers() {
@@ -2696,7 +2709,7 @@ function renderMcpServers() {
   }
 
   const categories = [
-    { key: "nas", slugs: ["nas-demo", "nas-filesystem", "notion"] },
+    { key: "nas", slugs: ["nas-demo", "factory-mes", "nas-filesystem", "notion"] },
     {
       key: "office",
       slugs: [
@@ -5331,8 +5344,15 @@ function renderMcpExecutionTrace(mcp) {
       </details>
     `;
   }
+  const isMes = state.availableMcpServers.some(
+    (server) => server.id === mcp.server_id && server.slug === "factory-mes",
+  );
+  const source = mcp.result?.structuredContent || {};
   return `
-    <details class="mcp-execution-trace">
+    ${isMes
+      ? `<p class="mes-source">${escapeHtml(t("aiwork.mesSource"))}: ${escapeHtml(mcp.server)} · ${escapeHtml(source.plant || "bottling")}</p>`
+      : ""}
+    <details class="mcp-execution-trace"${isMes ? " open" : ""}>
       <summary>${escapeHtml(t("aiwork.mcpTrace"))} · ${escapeHtml(mcp.server)} / ${escapeHtml(mcp.tool)}</summary>
       <strong>${escapeHtml(t("aiwork.mcpArguments"))}</strong>
       <pre>${escapeHtml(JSON.stringify(mcp.arguments || {}, null, 2))}</pre>
@@ -6139,6 +6159,16 @@ els.useMcpToggle.addEventListener("change", () => {
 });
 els.aiworkMcpServerSelect.addEventListener("change", () => {
   state.selectedMcpServerId = els.aiworkMcpServerSelect.value;
+  renderAiworkMcpControls();
+});
+els.mesQuestionExamples.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-mes-question]");
+  if (!button) return;
+  const key = { overdue: "mesOverdue", downtime: "mesDowntime", order: "mesOrder" }[button.dataset.mesQuestion];
+  if (!key) return;
+  els.llmPromptInput.value = t(`aiwork.${key}`);
+  hideLlmSuggestions();
+  els.llmPromptInput.focus();
 });
 els.llmPromptInput.addEventListener("input", debounce(loadLlmSuggestions, 220));
 els.llmPromptInput.addEventListener("focus", () => loadLlmSuggestions());

@@ -13,6 +13,13 @@ DB_PATH = DATA_DIR / "app.db"
 
 MCP_CATALOG_TEMPLATES = (
     {
+        "slug": "factory-mes", "name": "FactorySemantics MES 唯讀", "transport": "streamable_http",
+        "endpoint": "http://127.0.0.1:8310/mcp", "auth_type": "none", "auth_env_var": None,
+        "description": "本機模擬產線的唯讀 MES：逾期工單、今日停機、工單生產與品質紀錄。資料由 FactorySemantics 提供。",
+        "description_en": "Read-only simulated MES line: overdue orders, today's downtime, and work-order production and quality records. Powered by FactorySemantics.",
+        "source_url": "https://github.com/factorysemantics/factorysemantics-mes", "is_enabled": False,
+    },
+    {
         "slug": "nas-demo", "name": "NAS Demo MCP", "transport": "streamable_http",
         "endpoint": "http://127.0.0.1:8000/mcp/nas", "auth_type": "none", "auth_env_var": None,
         "description": "AI Work 內建唯讀 NAS 示範工具，可查詢系統狀態、共享資料夾、示範檔案與近期活動。",

@@ -80,6 +80,27 @@ class McpAgentTests(unittest.TestCase):
         tools = available_mcp_servers([odoo])[0]["tools"]
         self.assertEqual([tool["name"] for tool in tools], ["search_read", "whoami"])
 
+    def test_factory_mes_exposes_only_three_business_queries(self) -> None:
+        mes = {
+            **self.server,
+            "slug": "factory-mes",
+            "endpoint": "http://127.0.0.1:8310/mcp",
+            "tools_json": json.dumps([
+                {"name": "mes_overdue_orders"},
+                {"name": "mes_line_downtime_today"},
+                {"name": "mes_work_order_production_quality"},
+                {"name": "create_order", "annotations": {"readOnlyHint": True}},
+            ]),
+        }
+        tools = available_mcp_servers([mes])[0]["tools"]
+        self.assertEqual([tool["name"] for tool in tools], [
+            "mes_overdue_orders", "mes_line_downtime_today",
+            "mes_work_order_production_quality",
+        ])
+        self.assertEqual(available_mcp_servers([{**mes, "endpoint": "https://other.example/mcp"}]), [])
+        with self.assertRaises(McpPlanningError):
+            resolve_planned_tool({"server_id": mes["id"], "tool_name": "create_order", "arguments": {}}, [mes | {"tools": tools}])
+
     def test_odoo_contact_request_routes_directly_to_res_partner(self) -> None:
         odoo = {
             **self.server,
