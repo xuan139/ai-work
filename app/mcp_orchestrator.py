@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from typing import Any
 
 
@@ -84,6 +85,25 @@ def build_known_business_plan(
     servers: list[dict[str, Any]],
 ) -> dict[str, Any] | None:
     normalized = user_prompt.casefold()
+    if len(servers) == 1 and servers[0].get("slug") == "factory-mes":
+        server = servers[0]
+        tool_name = None
+        arguments: dict[str, Any] = {}
+        if any(term in normalized for term in ("逾期", "延誤", "延误", "overdue")):
+            tool_name = "mes_overdue_orders"
+        elif any(term in normalized for term in ("停機", "停机", "downtime", "line stop")):
+            tool_name = "mes_line_downtime_today"
+        else:
+            match = re.search(r"WO-[A-Za-z0-9_-]+", user_prompt, re.IGNORECASE)
+            if match:
+                tool_name = "mes_work_order_production_quality"
+                arguments = {"code": match.group(0)}
+        if tool_name and any(tool.get("name") == tool_name for tool in server.get("tools") or []):
+            return {
+                "action": "tool", "server_id": int(server["id"]),
+                "tool_name": tool_name, "arguments": arguments,
+            }
+
     contact_terms = ("聯絡人", "聯繫人", "联络人", "联系人", "contact", "contacts")
     if not any(term in normalized for term in contact_terms):
         return None

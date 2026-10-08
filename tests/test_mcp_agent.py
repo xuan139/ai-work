@@ -102,6 +102,12 @@ class McpAgentTests(unittest.TestCase):
         with self.assertRaises(McpPlanningError):
             resolve_planned_tool({"server_id": mes["id"], "tool_name": "create_order", "arguments": {}}, [mes | {"tools": tools}])
 
+        planned = mes | {"tools": tools}
+        self.assertEqual(build_known_business_plan("目前哪些工單延誤？", [planned])["tool_name"], "mes_overdue_orders")
+        self.assertEqual(build_known_business_plan("這條產線今天為何停機？", [planned])["tool_name"], "mes_line_downtime_today")
+        order_plan = build_known_business_plan("WO-ACME-4711 的生產與品質紀錄", [planned])
+        self.assertEqual(order_plan["arguments"], {"code": "WO-ACME-4711"})
+
     def test_odoo_contact_request_routes_directly_to_res_partner(self) -> None:
         odoo = {
             **self.server,
