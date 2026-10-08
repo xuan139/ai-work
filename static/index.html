@@ -11,7 +11,7 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png" />
     <link rel="apple-touch-icon" href="/static/icons/icon-192.png" />
-    <link rel="stylesheet" href="/static/styles.css?v=langchain-demo-v1" />
+    <link rel="stylesheet" href="/static/styles.css?v=mes-demo-v1" />
   </head>
   <body>
     <div id="globalBusyIndicator" class="global-busy-indicator" role="status" aria-live="polite" hidden>
@@ -58,6 +58,7 @@
         </div>
         <nav class="nav-list" aria-label="主導覽" data-i18n-attr="aria-label:sidebar.navLabel">
           <button class="nav-item" type="button" data-view="aiwork">AI Work</button>
+          <button class="nav-item" type="button" data-view="mes" data-i18n="nav.mes">MES 產線演示</button>
           <a class="nav-item nav-link" href="/langchain-demo" data-i18n="nav.langchainDemo">LangChain Odoo Demo</a>
           <button class="nav-item" type="button" data-view="wiki" data-i18n="nav.wiki">企業 Wiki</button>
           <button class="nav-item active" type="button" data-view="dashboard" data-i18n="nav.dashboard">總覽</button>
@@ -820,6 +821,58 @@
           </div>
         </section>
 
+        <section id="mesSection" class="view-section mes-demo-view" hidden>
+          <header class="mes-demo-header">
+            <div>
+              <p class="eyebrow" data-i18n="mes.eyebrow">FactorySemantics · NAS AI Work</p>
+              <h1 data-i18n="mes.title">MES 產線演示</h1>
+            </div>
+            <span class="mes-demo-readonly" data-i18n="mes.readOnly">模擬產線 · 唯讀</span>
+          </header>
+          <div class="mes-demo-meta">
+            <div><span data-i18n="mes.plant">產線</span><strong>bottling</strong></div>
+            <div><span data-i18n="mes.model">目前模型</span><strong id="mesCurrentModel">--</strong></div>
+            <div><span data-i18n="mes.connection">MES MCP</span><strong id="mesConnectionStatus" role="status">--</strong></div>
+          </div>
+          <div class="mes-demo-layout">
+            <div class="mes-demo-main">
+              <section class="mes-demo-examples" aria-labelledby="mesExamplesHeading">
+                <h2 id="mesExamplesHeading" data-i18n="mes.examples">示範查詢</h2>
+                <div class="mes-example-list">
+                  <button type="button" data-mes-demo-question="overdue" data-i18n="aiwork.mesOverdue">目前哪些工單延誤？</button>
+                  <button type="button" data-mes-demo-question="downtime" data-i18n="aiwork.mesDowntime">這條產線今天為何停機？</button>
+                  <button type="button" data-mes-demo-question="order" data-i18n="aiwork.mesOrder">WO-ACME-4711 的生產與品質紀錄是什麼？</button>
+                </div>
+              </section>
+              <form id="mesDemoForm" class="mes-demo-form">
+                <label for="mesDemoPrompt" data-i18n="mes.question">您的問題</label>
+                <div class="mes-demo-composer">
+                  <textarea id="mesDemoPrompt" rows="2" maxlength="4000" required placeholder="輸入工單編號或產線問題" data-i18n-attr="placeholder:mes.placeholder"></textarea>
+                  <button id="mesDemoSend" class="primary-button" type="submit" data-i18n="mes.send">查詢 MES</button>
+                </div>
+              </form>
+              <section id="mesDemoResponse" class="mes-demo-response" aria-live="polite" hidden>
+                <div class="mes-demo-response-heading"><h2 data-i18n="mes.answer">模型回答</h2><span id="mesResponseModel"></span></div>
+                <pre id="mesResponseText"></pre>
+                <div id="mesSourceBlock" class="mes-source-block" hidden>
+                  <strong data-i18n="mes.source">MES 資料來源</strong>
+                  <span id="mesSourceName"></span>
+                  <ul id="mesSourcePaths"></ul>
+                </div>
+              </section>
+            </div>
+            <aside class="mes-demo-trace" aria-labelledby="mesTraceHeading">
+              <h2 id="mesTraceHeading" data-i18n="mes.trace">工具呼叫軌跡</h2>
+              <p id="mesTraceIdle" data-i18n="mes.traceIdle">等待查詢</p>
+              <div id="mesTraceDetails" hidden>
+                <ol id="mesTraceSteps"></ol>
+                <div class="mes-trace-arguments"><strong data-i18n="mes.arguments">工具參數</strong><pre id="mesTraceArguments"></pre></div>
+                <details><summary data-i18n="mes.rawResult">查看 MES 原始結果</summary><pre id="mesTraceResult"></pre></details>
+              </div>
+            </aside>
+          </div>
+        </section>
+
         <section id="mcpSection" class="view-section" hidden>
           <div class="mcp-hero">
             <div>
@@ -1234,6 +1287,6 @@
       </section>
     </div>
 
-    <script src="/static/app.js?v=langchain-demo-v1"></script>
+    <script src="/static/app.js?v=mes-demo-v1"></script>
   </body>
 </html>

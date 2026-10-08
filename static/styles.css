@@ -3404,6 +3404,200 @@ button:disabled {
   font-weight: 700;
 }
 
+.mes-demo-view {
+  color: var(--ink);
+}
+
+.mes-demo-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px;
+  padding-bottom: 22px;
+  border-bottom: 1px solid var(--line);
+}
+
+.mes-demo-header h1 {
+  margin: 6px 0 0;
+  font-size: 30px;
+  line-height: 1.2;
+}
+
+.mes-demo-readonly {
+  color: var(--teal-dark);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.mes-demo-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 30px;
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.mes-demo-meta div {
+  display: grid;
+  gap: 4px;
+  min-width: 130px;
+}
+
+.mes-demo-meta span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.mes-demo-meta strong {
+  font-size: 15px;
+}
+
+#mesConnectionStatus.connected { color: var(--teal-dark); }
+
+.mes-demo-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(270px, 340px);
+  gap: 34px;
+  padding-top: 28px;
+}
+
+.mes-demo-main,
+.mes-demo-trace {
+  min-width: 0;
+}
+
+.mes-demo-view h2 {
+  margin: 0 0 16px;
+  font-size: 18px;
+}
+
+.mes-example-list {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.mes-example-list button {
+  min-height: 68px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f4faff;
+  color: var(--ink);
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+.mes-example-list button:hover:not(:disabled) { border-color: var(--teal-dark); }
+.mes-example-list button:disabled { cursor: not-allowed; opacity: 0.6; }
+
+.mes-demo-form {
+  display: grid;
+  gap: 10px;
+  margin-top: 28px;
+}
+
+.mes-demo-form label { font-weight: 700; }
+
+.mes-demo-composer {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.mes-demo-composer textarea {
+  flex: 1;
+  min-width: 0;
+  min-height: 76px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  resize: vertical;
+  font: inherit;
+}
+
+.mes-demo-composer button { min-width: 114px; }
+
+.mes-demo-response {
+  margin-top: 30px;
+  padding-top: 22px;
+  border-top: 1px solid var(--line);
+}
+
+.mes-demo-response-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.mes-demo-response-heading span { color: var(--muted); font-size: 13px; }
+
+.mes-demo-response > pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font: inherit;
+  line-height: 1.65;
+}
+
+.mes-demo-response.error > pre { color: var(--red); }
+
+.mes-source-block {
+  display: grid;
+  gap: 7px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+  font-size: 13px;
+}
+
+.mes-source-block strong { color: var(--teal-dark); }
+.mes-source-block ul { margin: 0; padding-left: 19px; color: var(--muted); }
+.mes-source-block li { overflow-wrap: anywhere; }
+
+.mes-demo-trace {
+  padding-left: 25px;
+  border-left: 1px solid var(--line);
+}
+
+.mes-demo-trace > p { color: var(--muted); }
+
+.mes-demo-trace ol { margin: 0 0 25px; padding-left: 21px; }
+.mes-demo-trace li { margin-bottom: 14px; padding-left: 5px; }
+.mes-demo-trace li strong,
+.mes-demo-trace li span { display: block; }
+.mes-demo-trace li strong { font-size: 13px; }
+.mes-demo-trace li span { margin-top: 3px; color: var(--muted); font-size: 12px; overflow-wrap: anywhere; }
+.mes-demo-trace details { margin-top: 20px; }
+.mes-demo-trace summary { color: var(--teal-dark); cursor: pointer; font-weight: 700; }
+
+.mes-demo-trace pre {
+  max-height: 270px;
+  overflow: auto;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f8fbfe;
+  font-size: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1100px) {
+  .mes-demo-layout { grid-template-columns: 1fr; }
+  .mes-demo-trace { padding: 22px 0 0; border-left: 0; border-top: 1px solid var(--line); }
+}
+
+@media (max-width: 720px) {
+  .mes-demo-header { align-items: flex-start; flex-direction: column; }
+  .mes-example-list { grid-template-columns: 1fr; }
+  .mes-example-list button { min-height: 48px; }
+  .mes-demo-composer { flex-direction: column; }
+  .mes-demo-composer button { min-height: 44px; }
+}
+
 .mcp-execution-trace summary {
   color: var(--teal-dark);
   font-size: 13px;

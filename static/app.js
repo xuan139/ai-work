@@ -23,6 +23,7 @@ const messages = {
       models: "模型管理",
       meetings: "資料庫查詢",
       aiwork: "AI Work",
+      mes: "MES 產線演示",
       langchainDemo: "LangChain Odoo Demo",
       wiki: "企業 Wiki",
       settings: "設定與管理",
@@ -30,6 +31,14 @@ const messages = {
       n8n: "n8n 自動化",
       lineAdmin: "LINE 企業管理",
       accounts: "帳號管理",
+    },
+    mes: {
+      eyebrow: "FactorySemantics · NAS AI Work", title: "MES 產線演示", readOnly: "模擬產線 · 唯讀",
+      plant: "產線", model: "目前模型", connection: "MES MCP", connected: "已連線", unavailable: "未連線",
+      examples: "示範查詢", question: "您的問題", placeholder: "輸入工單編號或產線問題", send: "查詢 MES",
+      sending: "查詢中…", answer: "模型回答", source: "MES 資料來源", trace: "工具呼叫軌跡",
+      traceIdle: "等待查詢", arguments: "工具參數", rawResult: "查看 MES 原始結果",
+      tool: "唯讀 MCP 工具", result: "MES 查詢結果", final: "模型生成答案", noTool: "本次未使用 MES 工具",
     },
     wiki: {
       eyebrow: "NAS 企業知識",
@@ -1005,6 +1014,7 @@ const messages = {
       models: "Model Management",
       meetings: "Knowledge Search",
       aiwork: "AI Work",
+      mes: "MES Line Demo",
       wiki: "Enterprise Wiki",
       langchainDemo: "LangChain Odoo Demo",
       settings: "Settings & Management",
@@ -1012,6 +1022,14 @@ const messages = {
       n8n: "n8n Automation",
       lineAdmin: "LINE Enterprise",
       accounts: "Account Management",
+    },
+    mes: {
+      eyebrow: "FactorySemantics · NAS AI Work", title: "MES Line Demo", readOnly: "Simulated line · Read-only",
+      plant: "Plant", model: "Current model", connection: "MES MCP", connected: "Connected", unavailable: "Unavailable",
+      examples: "Sample queries", question: "Your question", placeholder: "Enter a work order or line question", send: "Query MES",
+      sending: "Querying…", answer: "Model answer", source: "MES data source", trace: "Tool call trace",
+      traceIdle: "Waiting for a query", arguments: "Tool arguments", rawResult: "View raw MES result",
+      tool: "Read-only MCP tool", result: "MES query result", final: "Model answer", noTool: "No MES tool used",
     },
     wiki: {
       eyebrow: "NAS Enterprise Knowledge",
@@ -2025,6 +2043,9 @@ const state = {
   availableMcpServers: [],
   useMcp: false,
   selectedMcpServerId: "auto",
+  mesBusy: false,
+  mesLastResult: null,
+  mesError: null,
   editingMcpServerId: null,
   mcpSearchQuery: "",
   n8nStatus: null,
@@ -2056,6 +2077,7 @@ const els = {
     models: document.querySelector("#modelsSection"),
     meetings: document.querySelector("#meetingsSection"),
     aiwork: document.querySelector("#aiworkSection"),
+    mes: document.querySelector("#mesSection"),
     mcp: document.querySelector("#mcpSection"),
     n8n: document.querySelector("#n8nSection"),
     lineAdmin: document.querySelector("#lineAdminSection"),
@@ -2145,6 +2167,22 @@ const els = {
   useMcpToggle: document.querySelector("#useMcpToggle"),
   aiworkMcpServerSelect: document.querySelector("#aiworkMcpServerSelect"),
   mesQuestionExamples: document.querySelector("#mesQuestionExamples"),
+  mesCurrentModel: document.querySelector("#mesCurrentModel"),
+  mesConnectionStatus: document.querySelector("#mesConnectionStatus"),
+  mesDemoForm: document.querySelector("#mesDemoForm"),
+  mesDemoPrompt: document.querySelector("#mesDemoPrompt"),
+  mesDemoSend: document.querySelector("#mesDemoSend"),
+  mesDemoResponse: document.querySelector("#mesDemoResponse"),
+  mesResponseModel: document.querySelector("#mesResponseModel"),
+  mesResponseText: document.querySelector("#mesResponseText"),
+  mesSourceBlock: document.querySelector("#mesSourceBlock"),
+  mesSourceName: document.querySelector("#mesSourceName"),
+  mesSourcePaths: document.querySelector("#mesSourcePaths"),
+  mesTraceIdle: document.querySelector("#mesTraceIdle"),
+  mesTraceDetails: document.querySelector("#mesTraceDetails"),
+  mesTraceSteps: document.querySelector("#mesTraceSteps"),
+  mesTraceArguments: document.querySelector("#mesTraceArguments"),
+  mesTraceResult: document.querySelector("#mesTraceResult"),
   aiworkMcpStatus: document.querySelector("#aiworkMcpStatus"),
   modelResponseBox: document.querySelector("#modelResponseBox"),
   llmCallSearch: document.querySelector("#llmCallSearch"),
@@ -2334,6 +2372,7 @@ function applyLanguage(lang) {
   renderKeyStatus();
   renderModelUsePanel();
   renderAiworkMcpControls();
+  renderMesDemo();
   renderLlmSuggestions();
   renderLlmCallHistory();
   renderDashboardAssets();
@@ -2543,6 +2582,7 @@ async function refreshViewData(name) {
   if (name === "models") return loadLocalModels();
   if (name === "meetings") return loadMeetings();
   if (name === "aiwork") return Promise.all([loadLlmCatalog(), loadLlmCalls(), loadAvailableMcpServers()]);
+  if (name === "mes") return Promise.all([loadLlmCatalog(), loadAvailableMcpServers()]).then(renderMesDemo);
   if (name === "mcp") return loadMcpServers();
   if (name === "n8n") return loadN8nStatus();
   if (name === "lineAdmin") return loadLineAdmin();
@@ -2665,6 +2705,92 @@ async function loadAvailableMcpServers() {
     state.selectedMcpServerId = "auto";
   }
   renderAiworkMcpControls();
+  renderMesDemo();
+}
+
+function mesDemoServer() {
+  return state.availableMcpServers.find((server) => server.slug === "factory-mes") || null;
+}
+
+function renderMesDemo() {
+  const server = mesDemoServer();
+  els.mesCurrentModel.textContent = state.currentLlmModel?.name || "--";
+  els.mesConnectionStatus.textContent = t(server ? "mes.connected" : "mes.unavailable");
+  els.mesConnectionStatus.classList.toggle("connected", Boolean(server));
+  els.mesDemoSend.disabled = !server || state.mesBusy;
+  els.mesDemoSend.textContent = t(state.mesBusy ? "mes.sending" : "mes.send");
+  els.mesDemoPrompt.disabled = state.mesBusy;
+  document.querySelectorAll("[data-mes-demo-question]").forEach((button) => {
+    button.disabled = !server || state.mesBusy;
+  });
+
+  const result = state.mesLastResult;
+  if (!result && !state.mesError) return;
+  els.mesDemoResponse.hidden = false;
+  els.mesDemoResponse.classList.toggle("error", Boolean(state.mesError));
+  els.mesResponseModel.textContent = state.mesError ? "" : result.model || "";
+  els.mesResponseText.textContent = state.mesError || result.answer || "";
+
+  const mcp = result?.mcp;
+  const source = mcp?.result?.structuredContent || {};
+  const used = Boolean(mcp?.used && mcp.server_id === server?.id);
+  els.mesSourceBlock.hidden = !used;
+  els.mesTraceIdle.hidden = used;
+  els.mesTraceDetails.hidden = !used;
+  if (!used) {
+    els.mesTraceIdle.textContent = result ? t("mes.noTool") : t("mes.traceIdle");
+    return;
+  }
+
+  els.mesSourceName.textContent = `${source.source || mcp.server} · ${source.plant || "bottling"}`;
+  els.mesSourcePaths.replaceChildren();
+  for (const path of source.source_paths || []) {
+    const item = document.createElement("li");
+    item.textContent = path;
+    els.mesSourcePaths.appendChild(item);
+  }
+  els.mesTraceSteps.replaceChildren();
+  for (const [label, detail] of [
+    [t("mes.tool"), `${mcp.server} / ${mcp.tool}`],
+    [t("mes.result"), `${source.source || mcp.server} · ${source.plant || "bottling"}`],
+    [t("mes.final"), result.model || ""],
+  ]) {
+    const item = document.createElement("li");
+    const title = document.createElement("strong");
+    title.textContent = label;
+    const value = document.createElement("span");
+    value.textContent = detail;
+    item.append(title, value);
+    els.mesTraceSteps.appendChild(item);
+  }
+  els.mesTraceArguments.textContent = JSON.stringify(mcp.arguments || {}, null, 2);
+  els.mesTraceResult.textContent = JSON.stringify(source || mcp.result || {}, null, 2);
+}
+
+async function runMesDemo() {
+  const server = mesDemoServer();
+  const prompt = els.mesDemoPrompt.value.trim();
+  if (!server || !prompt || state.mesBusy) return;
+  state.mesBusy = true;
+  state.mesError = null;
+  renderMesDemo();
+  try {
+    state.mesLastResult = await api("/api/llm/run", {
+      method: "POST",
+      body: JSON.stringify({
+        prompt,
+        use_mcp: true,
+        mcp_server_id: server.id,
+        api_key: state.apiKeys[providerKeyId(state.currentLlmModel?.provider || "")] || "",
+      }),
+    });
+  } catch (error) {
+    state.mesLastResult = null;
+    state.mesError = error.message;
+  } finally {
+    state.mesBusy = false;
+    renderMesDemo();
+  }
 }
 
 function renderAiworkMcpControls() {
@@ -6169,6 +6295,24 @@ els.mesQuestionExamples.addEventListener("click", (event) => {
   els.llmPromptInput.value = t(`aiwork.${key}`);
   hideLlmSuggestions();
   els.llmPromptInput.focus();
+});
+els.mesDemoForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  runMesDemo().catch((error) => showToast(error.message, t("errors.requestFailed")));
+});
+els.mesDemoPrompt.addEventListener("keydown", (event) => {
+  if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
+    event.preventDefault();
+    runMesDemo().catch((error) => showToast(error.message, t("errors.requestFailed")));
+  }
+});
+els.sections.mes.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-mes-demo-question]");
+  if (!button) return;
+  const key = { overdue: "mesOverdue", downtime: "mesDowntime", order: "mesOrder" }[button.dataset.mesDemoQuestion];
+  if (!key) return;
+  els.mesDemoPrompt.value = t(`aiwork.${key}`);
+  runMesDemo().catch((error) => showToast(error.message, t("errors.requestFailed")));
 });
 els.llmPromptInput.addEventListener("input", debounce(loadLlmSuggestions, 220));
 els.llmPromptInput.addEventListener("focus", () => loadLlmSuggestions());
