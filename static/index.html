@@ -11,7 +11,7 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png" />
     <link rel="apple-touch-icon" href="/static/icons/icon-192.png" />
-    <link rel="stylesheet" href="/static/styles.css?v=mes-demo-v1" />
+    <link rel="stylesheet" href="/static/styles.css?v=evaluation-v2" />
   </head>
   <body>
     <div id="globalBusyIndicator" class="global-busy-indicator" role="status" aria-live="polite" hidden>
@@ -74,6 +74,7 @@
             <button id="mcpNav" class="nav-item nav-subitem" type="button" data-view="mcp" data-i18n="nav.mcp" hidden>MCP 管理</button>
             <button id="n8nNav" class="nav-item nav-subitem" type="button" data-view="n8n" data-i18n="nav.n8n" hidden>n8n 自動化</button>
             <button id="lineAdminNav" class="nav-item nav-subitem" type="button" data-view="lineAdmin" data-i18n="nav.lineAdmin" hidden>LINE 企業管理</button>
+            <button id="evaluationNav" class="nav-item nav-subitem" type="button" data-view="evaluation" data-i18n="nav.evaluation" hidden>AI 評測中心</button>
             <button id="accountNav" class="nav-item nav-subitem" type="button" data-view="accounts" data-i18n="nav.accounts" hidden>帳號管理</button>
           </div>
         </nav>
@@ -218,12 +219,6 @@
               <button id="askKnowledgeButton" class="primary-button" type="button" data-i18n="wiki.askButton">查詢知識庫</button>
             </div>
             <article id="knowledgeAnswer" class="knowledge-answer" hidden></article>
-            <details id="ragEvaluationPanel" class="rag-evaluation-panel" hidden>
-              <summary data-i18n="wiki.evalTitle">RAG 品質評測</summary>
-              <p data-i18n="wiki.evalCopy">執行管理員建立的固定題庫，檢查 Recall@5、MRR、引用與權限洩漏。</p>
-              <button id="runRagEvaluation" class="secondary-button" type="button" data-i18n="wiki.evalRun">執行評測</button>
-              <pre id="ragEvaluationResult"></pre>
-            </details>
           </section>
           <section class="wiki-search-band">
             <label class="wiki-search-box">
@@ -1002,6 +997,67 @@
           </section>
         </section>
 
+        <section id="evaluationSection" class="view-section evaluation-view" hidden>
+          <header class="evaluation-header">
+            <div>
+              <p class="eyebrow" data-i18n="evaluation.eyebrow">企業 AI 治理</p>
+              <h1 data-i18n="evaluation.title">AI 評測中心</h1>
+              <p data-i18n="evaluation.copy">以核准題庫和真實普通員工權限執行完整知識問答，檢查答案、引用、拒答與跨部門資料隔離。</p>
+            </div>
+            <div class="evaluation-header-actions">
+              <button id="newEvaluationCase" class="secondary-button" type="button" data-i18n="evaluation.newCase">新增測試題</button>
+              <button id="runEvaluationSuite" class="primary-button" type="button" data-i18n="evaluation.runApproved">執行已核准題庫</button>
+            </div>
+          </header>
+
+          <div class="evaluation-metrics" aria-label="評測摘要" data-i18n-attr="aria-label:evaluation.metricsLabel">
+            <article><span id="evaluationCaseCount">0</span><strong data-i18n="evaluation.cases">測試題</strong></article>
+            <article><span id="evaluationPassRate">--</span><strong data-i18n="evaluation.passRate">自動通過率</strong></article>
+            <article><span id="evaluationFactScore">--</span><strong data-i18n="evaluation.factScore">事實正確率</strong></article>
+            <article><span id="evaluationCitationScore">--</span><strong data-i18n="evaluation.citationScore">引用支持率</strong></article>
+            <article><span id="evaluationLeaks">0</span><strong data-i18n="evaluation.leaks">權限洩漏</strong></article>
+          </div>
+
+          <section id="evaluationCaseEditor" class="evaluation-editor" hidden>
+            <div class="section-heading compact-heading">
+              <p class="eyebrow" data-i18n="evaluation.editorEyebrow">業務核准題庫</p>
+              <h2 id="evaluationEditorTitle" data-i18n="evaluation.createTitle">建立測試題</h2>
+            </div>
+            <form id="evaluationCaseForm">
+              <input id="evaluationCaseId" type="hidden" />
+              <div class="evaluation-form-grid">
+                <label><span data-i18n="evaluation.caseType">題型</span><select id="evaluationCaseType"><option value="normal" data-i18n="evaluation.types.normal">一般問答</option><option value="cross_file" data-i18n="evaluation.types.crossFile">跨文件問答</option><option value="insufficient" data-i18n="evaluation.types.insufficient">資料不足</option><option value="access_control" data-i18n="evaluation.types.accessControl">跨部門越權</option><option value="version" data-i18n="evaluation.types.version">版本／權限變更</option></select></label>
+                <label><span data-i18n="evaluation.employee">測試員工</span><select id="evaluationTestUser" required></select></label>
+                <label><span data-i18n="evaluation.expectedBehavior">預期行為</span><select id="evaluationExpectedBehavior"><option value="answer" data-i18n="evaluation.behaviors.answer">回答</option><option value="refuse" data-i18n="evaluation.behaviors.refuse">拒答</option></select></label>
+                <label><span data-i18n="evaluation.approval">業務核准</span><select id="evaluationApproval"><option value="draft" data-i18n="evaluation.approvals.draft">草稿</option><option value="approved" data-i18n="evaluation.approvals.approved">已核准</option></select></label>
+                <label><span data-i18n="evaluation.scope">檢索範圍</span><select id="evaluationScope"><option value="all_accessible" data-i18n="wiki.scopeAll">全部可存取資料</option><option value="mine" data-i18n="wiki.scopeMine">我的資料</option><option value="company" data-i18n="wiki.scopeCompany">公司共用資料</option></select></label>
+                <label class="evaluation-active-field"><input id="evaluationActive" type="checkbox" checked /><span data-i18n="evaluation.active">啟用此題</span></label>
+              </div>
+              <label><span data-i18n="evaluation.question">測試問題</span><textarea id="evaluationQuestion" rows="2" maxlength="2000" required></textarea></label>
+              <label><span data-i18n="evaluation.allowedSources">允許引用的 NAS 資料</span><select id="evaluationAllowedAssets" multiple size="5"></select></label>
+              <div class="evaluation-text-grid">
+                <label><span data-i18n="evaluation.requiredFacts">必須出現的事實（每行一項）</span><textarea id="evaluationRequiredFacts" rows="4"></textarea></label>
+                <label><span data-i18n="evaluation.prohibitedFacts">禁止出現的敏感事實（每行一項）</span><textarea id="evaluationProhibitedFacts" rows="4"></textarea></label>
+              </div>
+              <label><span data-i18n="evaluation.referenceAnswer">業務參考答案</span><textarea id="evaluationReferenceAnswer" rows="3"></textarea></label>
+              <p id="evaluationFormError" class="error-text" role="alert"></p>
+              <div class="evaluation-form-actions"><button id="cancelEvaluationCase" class="secondary-button" type="button" data-i18n="keyModal.cancel">取消</button><button class="primary-button" type="submit" data-i18n="evaluation.saveCase">儲存測試題</button></div>
+            </form>
+          </section>
+
+          <div class="evaluation-workspace">
+            <section class="evaluation-cases-panel">
+              <div class="evaluation-section-heading"><div><p class="eyebrow" data-i18n="evaluation.libraryEyebrow">固定測試集</p><h2 data-i18n="evaluation.libraryTitle">題庫管理</h2></div><button id="refreshEvaluation" class="icon-button" type="button" title="重新載入" data-i18n-attr="title:evaluation.refresh">↻</button></div>
+              <div id="evaluationCaseList" class="evaluation-case-list"></div>
+            </section>
+            <section class="evaluation-runs-panel">
+              <div class="evaluation-section-heading"><div><p class="eyebrow" data-i18n="evaluation.runsEyebrow">答案與證據</p><h2 data-i18n="evaluation.runsTitle">執行與人工審核</h2></div></div>
+              <div id="evaluationRunNotice" class="evaluation-run-notice" role="status"></div>
+              <div id="evaluationRunList" class="evaluation-run-list"></div>
+            </section>
+          </div>
+        </section>
+
         <section id="accountsSection" class="view-section" hidden>
           <div class="account-summary-band">
             <div>
@@ -1287,6 +1343,6 @@
       </section>
     </div>
 
-    <script src="/static/app.js?v=mes-demo-v1"></script>
+    <script src="/static/app.js?v=evaluation-v2"></script>
   </body>
 </html>

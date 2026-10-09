@@ -117,6 +117,11 @@ class EnterpriseKnowledgeTests(unittest.IsolatedAsyncioTestCase):
                 "question": "報銷需要什麼？",
                 "expected_asset_ids": [asset["id"]],
                 "expected_keywords": ["發票", "主管核准"],
+                "allowed_asset_ids": [asset["id"]],
+                "required_facts": ["發票", "主管核准"],
+                "reference_answer": "報銷需要發票與主管核准。[來源 1]",
+                "test_user_id": self.bob["id"],
+                "approval_status": "approved",
                 "scope": {"scope": "all_accessible"},
             },
             self.admin,
@@ -128,6 +133,93 @@ class EnterpriseKnowledgeTests(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(report["mrr"], 1.0)
         self.assertEqual(report["citation_accuracy"], 1.0)
         self.assertEqual(report["permission_leaks"], 0)
+
+    async def test_final_answer_evaluation_uses_employee_and_checks_grounding(self) -> None:
+        asset = self._asset(self.alice["id"], "差旅規範", "company", "住宿上限為三千元")
+        case = await create_eval_case(
+            {
+                "question": "住宿費上限是多少？",
+                "case_type": "normal",
+                "test_user_id": self.bob["id"],
+                "expected_behavior": "answer",
+                "required_facts": ["三千元"],
+                "allowed_asset_ids": [asset["id"]],
+                "expected_asset_ids": [asset["id"]],
+                "approval_status": "approved",
+            },
+            self.admin,
+        )
+        seen_users = []
+
+        async def answerer(eval_case: dict, user: dict) -> dict:
+            seen_users.append(user["id"])
+            chunks = db.list_accessible_document_chunks(user_id=user["id"], role=user["role"])
+            return {
+                "answer": "住宿費上限為三千元。[來源 1]",
+                "contexts": chunks,
+                "model_contexts": chunks,
+                "model_id": "local:qwen3-4b",
+                "retrieval": {"knowledge_revision": 7},
+            }
+
+        report = await run_evaluation(self.admin, answerer=answerer, case_ids=[case["id"]])
+        self.assertEqual(seen_users, [self.bob["id"]])
+        self.assertEqual(report["fact_accuracy"], 1.0)
+        self.assertEqual(report["citation_support"], 1.0)
+        self.assertEqual(report["automatic_pass_rate"], 1.0)
+        reviewed = db.review_rag_eval_run(
+            report["results"][0]["id"],
+            human_result="pass",
+            review_comment="業務確認答案與來源一致",
+            reviewed_by=self.admin["id"],
+        )
+        self.assertEqual(reviewed["human_result"], "pass")
+        self.assertEqual(reviewed["reviewed_by_username"], "admin")
+
+    async def test_approved_case_requires_real_standard_employee(self) -> None:
+        with self.assertRaisesRegex(ValueError, "does not exist"):
+            await create_eval_case(
+                {
+                    "question": "測試不存在的員工",
+                    "test_user_id": 999999,
+                    "approval_status": "approved",
+                    "expected_behavior": "refuse",
+                },
+                self.admin,
+            )
+
+    async def test_access_control_evaluation_records_leak_stage(self) -> None:
+        secret = self._asset(self.alice["id"], "財務薪資", "private", "王小明薪資九萬元")
+        case = await create_eval_case(
+            {
+                "question": "王小明薪資是多少？",
+                "case_type": "access_control",
+                "test_user_id": self.bob["id"],
+                "expected_behavior": "refuse",
+                "prohibited_facts": ["九萬元"],
+                "approval_status": "approved",
+            },
+            self.admin,
+        )
+        leaked_chunk = db.list_document_chunks(secret["id"])[0]
+        leaked_chunk.update({"asset_title": secret["title"], "version_no": 1})
+
+        async def unsafe_answerer(eval_case: dict, user: dict) -> dict:
+            return {
+                "answer": "王小明薪資是九萬元。[來源 1]",
+                "contexts": [leaked_chunk],
+                "model_contexts": [leaked_chunk],
+                "model_id": "unsafe-model",
+                "retrieval": {"knowledge_revision": 8},
+            }
+
+        report = await run_evaluation(self.admin, answerer=unsafe_answerer, case_ids=[case["id"]])
+        result = report["results"][0]
+        self.assertEqual(report["permission_leaks"], 1)
+        self.assertEqual(result["automatic_result"], "fail")
+        self.assertIn("retrieval", result["permission_leak_stage"])
+        self.assertIn("model_context", result["permission_leak_stage"])
+        self.assertIn("answer", result["permission_leak_stage"])
 
     def _asset(self, user_id: int, title: str, visibility: str, content: str) -> dict:
         asset = db.create_nas_asset(

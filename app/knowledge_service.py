@@ -5,18 +5,24 @@ import hashlib
 import json
 import time
 import uuid
+import re
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from app.db import (
     create_rag_eval_case,
     current_knowledge_revision,
     get_exact_knowledge_cache,
+    get_nas_asset,
+    get_rag_eval_case,
+    get_user_by_id,
     list_accessible_asset_versions,
     list_knowledge_cache_candidates,
     list_rag_eval_cases,
     mark_knowledge_cache_hit,
     save_knowledge_query_cache,
     save_rag_eval_run,
+    update_rag_eval_case,
     user_can_read_asset,
 )
 from app.embedding_runtime import (
@@ -33,6 +39,14 @@ KNOWLEDGE_PROMPT_VERSION = "knowledge-rag-v1"
 KNOWLEDGE_RETRIEVAL_VERSION = "hybrid-acl-v1"
 SEMANTIC_CACHE_THRESHOLD = 0.80
 VALID_SCOPES = {"all_accessible", "mine", "company", "group", "selected"}
+VALID_EVAL_CASE_TYPES = {"normal", "cross_file", "insufficient", "access_control", "version"}
+VALID_EXPECTED_BEHAVIORS = {"answer", "refuse"}
+VALID_APPROVAL_STATUSES = {"draft", "approved"}
+REFUSAL_MARKERS = (
+    "資料不足", "沒有足夠", "無足夠", "找不到", "未找到", "無法根據", "無法回答",
+    "沒有權限", "無權存取", "不能提供", "not enough information", "cannot answer",
+    "no accessible", "do not have access",
+)
 
 
 def normalize_scope(payload: dict[str, Any]) -> dict[str, Any]:
@@ -191,36 +205,89 @@ def serialize_knowledge_chunks(chunks: list[dict[str, Any]]) -> list[dict[str, A
 
 
 async def create_eval_case(payload: dict[str, Any], admin: dict[str, Any]) -> dict[str, Any]:
-    question = str(payload.get("question") or "").strip()
-    if not question:
-        raise ValueError("Question is required")
-    expected_assets = sorted({int(item) for item in payload.get("expected_asset_ids") or []})
-    expected_keywords = [str(item).strip() for item in payload.get("expected_keywords") or [] if str(item).strip()]
-    scope = normalize_scope(payload.get("scope") or {})
+    values = _validated_eval_case_values(payload, admin)
     return await asyncio.to_thread(
         create_rag_eval_case,
-        question=question,
-        expected_asset_ids_json=json.dumps(expected_assets),
-        expected_keywords_json=json.dumps(expected_keywords, ensure_ascii=False),
-        reference_answer=str(payload.get("reference_answer") or "").strip() or None,
-        scope_json=json.dumps(scope, ensure_ascii=False),
+        **values,
         created_by=admin["id"],
     )
 
 
-async def run_evaluation(admin: dict[str, Any]) -> dict[str, Any]:
+async def update_eval_case(
+    case_id: int,
+    payload: dict[str, Any],
+    admin: dict[str, Any],
+) -> dict[str, Any] | None:
+    existing = await asyncio.to_thread(get_rag_eval_case, case_id)
+    if not existing:
+        return None
+    merged = {
+        "question": existing["question"],
+        "expected_asset_ids": json.loads(existing["expected_asset_ids_json"] or "[]"),
+        "expected_keywords": json.loads(existing["expected_keywords_json"] or "[]"),
+        "reference_answer": existing.get("reference_answer"),
+        "scope": json.loads(existing["scope_json"] or "{}"),
+        "case_type": existing.get("case_type"),
+        "test_user_id": existing.get("test_user_id"),
+        "expected_behavior": existing.get("expected_behavior"),
+        "required_facts": json.loads(existing.get("required_facts_json") or "[]"),
+        "prohibited_facts": json.loads(existing.get("prohibited_facts_json") or "[]"),
+        "allowed_asset_ids": json.loads(existing.get("allowed_asset_ids_json") or "[]"),
+        "approval_status": existing.get("approval_status"),
+        "is_active": bool(existing.get("is_active", 1)),
+        **payload,
+    }
+    values = _validated_eval_case_values(merged, admin)
+    values["is_active"] = int(bool(merged.get("is_active", True)))
+    return await asyncio.to_thread(update_rag_eval_case, case_id, **values)
+
+
+async def run_evaluation(
+    admin: dict[str, Any],
+    *,
+    answerer: Callable[[dict[str, Any], dict[str, Any]], Awaitable[dict[str, Any]]] | None = None,
+    case_ids: list[int] | None = None,
+) -> dict[str, Any]:
     cases = await asyncio.to_thread(list_rag_eval_cases, active_only=True)
+    selected_ids = {int(item) for item in (case_ids or [])}
+    cases = [
+        case for case in cases
+        if case.get("approval_status") == "approved"
+        and (not selected_ids or int(case["id"]) in selected_ids)
+    ]
     run_group = uuid.uuid4().hex
     results = []
     for case in cases:
         started = time.perf_counter()
-        scope = normalize_scope(json.loads(case["scope_json"]))
-        chunks = await search_knowledge(
-            user=admin,
-            question=case["question"],
-            scope=scope,
-            limit=5,
-        )
+        test_user = await asyncio.to_thread(get_user_by_id, int(case.get("test_user_id") or 0))
+        error_message = None
+        response: dict[str, Any] = {}
+        if not test_user or test_user.get("role") != "user" or not test_user.get("is_active", 1):
+            error_message = "The evaluation employee is missing, inactive, or not a standard user"
+        try:
+            if not error_message and answerer:
+                response = await answerer(case, test_user)
+            elif not error_message:
+                scope = normalize_scope(json.loads(case["scope_json"]))
+                chunks = await search_knowledge(
+                    user=test_user,
+                    question=case["question"],
+                    scope=scope,
+                    limit=5,
+                )
+                response = {
+                    "answer": case.get("reference_answer") or "",
+                    "contexts": serialize_knowledge_chunks(chunks),
+                    "model_contexts": serialize_knowledge_chunks(chunks),
+                    "model_id": None,
+                    "retrieval": {"knowledge_revision": current_knowledge_revision()},
+                }
+        except Exception as exc:  # Persist per-case failures so the suite can continue.
+            error_message = str(exc)
+
+        chunks = response.get("contexts") or []
+        model_contexts = response.get("model_contexts") or chunks
+        answer = str(response.get("answer") or "")
         expected_assets = set(json.loads(case["expected_asset_ids_json"] or "[]"))
         expected_keywords = json.loads(case["expected_keywords_json"] or "[]")
         retrieved_assets = [int(chunk["asset_id"]) for chunk in chunks]
@@ -234,34 +301,69 @@ async def run_evaluation(admin: dict[str, Any]) -> dict[str, Any]:
         retrieved_text = "\n".join(str(chunk.get("content") or "") for chunk in chunks).casefold()
         matched_keywords = sum(1 for keyword in expected_keywords if keyword.casefold() in retrieved_text)
         keyword_score = matched_keywords / len(expected_keywords) if expected_keywords else 1.0
-        citation_valid = int(all(chunk.get("id") and chunk.get("asset_id") for chunk in chunks))
-        permission_checks = await asyncio.gather(
-            *[
-                asyncio.to_thread(
-                    user_can_read_asset,
-                    asset_id,
-                    user_id=admin["id"],
-                    role=admin["role"],
-                )
-                for asset_id in set(retrieved_assets)
-            ]
+        required_facts = json.loads(case.get("required_facts_json") or "[]")
+        prohibited_facts = json.loads(case.get("prohibited_facts_json") or "[]")
+        allowed_assets = set(json.loads(case.get("allowed_asset_ids_json") or "[]"))
+        answer_folded = _fold(answer)
+        matched_facts = [fact for fact in required_facts if _fold(fact) in answer_folded]
+        prohibited_hits = [fact for fact in prohibited_facts if _fold(fact) in answer_folded]
+        fact_score = len(matched_facts) / len(required_facts) if required_facts else 1.0
+        citations, citation_valid = _evaluate_citations(answer, chunks, allowed_assets)
+        citation_support_score = _citation_support_score(required_facts, answer, citations, chunks)
+        refused = _is_refusal(answer)
+        expected_behavior = case.get("expected_behavior") or "answer"
+        refusal_score = float(refused if expected_behavior == "refuse" else not refused)
+
+        retrieval_leaks = await _unauthorized_asset_ids(chunks, test_user) if test_user else set()
+        context_leaks = await _unauthorized_asset_ids(model_contexts, test_user) if test_user else set()
+        leak_stages = []
+        if retrieval_leaks:
+            leak_stages.append("retrieval")
+        if context_leaks:
+            leak_stages.append("model_context")
+        if prohibited_hits and case.get("case_type") == "access_control":
+            leak_stages.append("answer")
+        permission_leak = int(bool(leak_stages))
+        answer_requires_citations = expected_behavior == "answer"
+        automatic_pass = (
+            not error_message
+            and not permission_leak
+            and not prohibited_hits
+            and refusal_score == 1.0
+            and (expected_behavior == "refuse" or fact_score == 1.0)
+            and (not answer_requires_citations or citation_valid == 1)
+            and (not answer_requires_citations or citation_support_score == 1.0)
         )
-        permission_leak = int(not all(permission_checks))
         latency_ms = round((time.perf_counter() - started) * 1000)
+        serialized_chunks = serialize_knowledge_chunks(chunks)
+        serialized_model_contexts = serialize_knowledge_chunks(model_contexts)
         saved = await asyncio.to_thread(
             save_rag_eval_run,
             case_id=case["id"],
             run_group=run_group,
             retrieval_version=KNOWLEDGE_RETRIEVAL_VERSION,
-            model_id=None,
-            retrieved_chunks_json=json.dumps(serialize_knowledge_chunks(chunks), ensure_ascii=False),
-            answer=None,
+            model_id=response.get("model_id") or response.get("model") or None,
+            retrieved_chunks_json=json.dumps(serialized_chunks, ensure_ascii=False),
+            answer=answer,
             recall_at_5=recall,
             reciprocal_rank=reciprocal_rank,
             keyword_score=keyword_score,
-            citation_valid=citation_valid,
+            citation_valid=int(citation_valid),
             permission_leak=permission_leak,
             latency_ms=latency_ms,
+            test_user_id=test_user["id"] if test_user else case.get("test_user_id"),
+            expected_behavior=expected_behavior,
+            prompt_version=response.get("prompt_version") or KNOWLEDGE_PROMPT_VERSION,
+            knowledge_revision=(response.get("retrieval") or {}).get("knowledge_revision"),
+            model_context_json=json.dumps(serialized_model_contexts, ensure_ascii=False),
+            citations_json=json.dumps(citations, ensure_ascii=False),
+            fact_score=fact_score,
+            citation_support_score=citation_support_score,
+            refusal_score=refusal_score,
+            prohibited_fact_hits_json=json.dumps(prohibited_hits, ensure_ascii=False),
+            permission_leak_stage=",".join(leak_stages) or None,
+            automatic_result="pass" if automatic_pass else "fail",
+            error_message=error_message,
         )
         results.append(saved)
     return {
@@ -271,10 +373,163 @@ async def run_evaluation(admin: dict[str, Any]) -> dict[str, Any]:
         "mrr": _average(results, "reciprocal_rank"),
         "keyword_score": _average(results, "keyword_score"),
         "citation_accuracy": _average(results, "citation_valid"),
+        "fact_accuracy": _average(results, "fact_score"),
+        "citation_support": _average(results, "citation_support_score"),
+        "refusal_accuracy": _average(results, "refusal_score"),
         "permission_leaks": sum(int(item["permission_leak"]) for item in results),
+        "automatic_pass_rate": round(
+            sum(item["automatic_result"] == "pass" for item in results) / len(results), 4
+        ) if results else 0.0,
         "average_latency_ms": _average(results, "latency_ms"),
         "results": results,
     }
+
+
+def _validated_eval_case_values(payload: dict[str, Any], admin: dict[str, Any]) -> dict[str, Any]:
+    question = str(payload.get("question") or "").strip()
+    if not question:
+        raise ValueError("Question is required")
+    case_type = str(payload.get("case_type") or "normal").strip()
+    if case_type not in VALID_EVAL_CASE_TYPES:
+        raise ValueError("Invalid evaluation case type")
+    expected_behavior = str(payload.get("expected_behavior") or "answer").strip()
+    if expected_behavior not in VALID_EXPECTED_BEHAVIORS:
+        raise ValueError("Expected behavior must be answer or refuse")
+    approval_status = str(payload.get("approval_status") or "draft").strip()
+    if approval_status not in VALID_APPROVAL_STATUSES:
+        raise ValueError("Approval status must be draft or approved")
+    test_user_id = int(payload["test_user_id"]) if payload.get("test_user_id") not in (None, "") else None
+    test_user = get_user_by_id(test_user_id) if test_user_id else None
+    if test_user_id and not test_user:
+        raise ValueError("Evaluation employee does not exist")
+    if test_user and (test_user.get("role") != "user" or not test_user.get("is_active", 1)):
+        raise ValueError("Evaluation identity must be an active standard employee")
+    if approval_status == "approved" and not test_user:
+        raise ValueError("An active standard employee is required before approval")
+
+    expected_assets = _integer_list(payload.get("expected_asset_ids"))
+    allowed_assets = _integer_list(payload.get("allowed_asset_ids")) or expected_assets
+    for asset_id in set(expected_assets + allowed_assets):
+        if not get_nas_asset(asset_id):
+            raise ValueError(f"NAS asset {asset_id} does not exist")
+    expected_keywords = _text_list(payload.get("expected_keywords"))
+    required_facts = _text_list(payload.get("required_facts"))
+    prohibited_facts = _text_list(payload.get("prohibited_facts"))
+    if approval_status == "approved" and expected_behavior == "answer":
+        if not required_facts:
+            raise ValueError("Approved answer cases require at least one required fact")
+        if not allowed_assets:
+            raise ValueError("Approved answer cases require at least one allowed source")
+    if approval_status == "approved" and case_type == "access_control" and not prohibited_facts:
+        raise ValueError("Approved access-control cases require at least one prohibited fact")
+    scope = normalize_scope(payload.get("scope") or {})
+    return {
+        "question": question,
+        "expected_asset_ids_json": json.dumps(expected_assets),
+        "expected_keywords_json": json.dumps(expected_keywords, ensure_ascii=False),
+        "reference_answer": str(payload.get("reference_answer") or "").strip() or None,
+        "scope_json": json.dumps(scope, ensure_ascii=False),
+        "case_type": case_type,
+        "test_user_id": test_user_id,
+        "expected_behavior": expected_behavior,
+        "required_facts_json": json.dumps(required_facts, ensure_ascii=False),
+        "prohibited_facts_json": json.dumps(prohibited_facts, ensure_ascii=False),
+        "allowed_asset_ids_json": json.dumps(allowed_assets),
+        "approval_status": approval_status,
+        "approved_by": admin["id"] if approval_status == "approved" else None,
+    }
+
+
+def _integer_list(value: Any) -> list[int]:
+    return sorted({int(item) for item in (value or [])})
+
+
+def _text_list(value: Any) -> list[str]:
+    return list(dict.fromkeys(str(item).strip() for item in (value or []) if str(item).strip()))
+
+
+def _fold(value: Any) -> str:
+    return " ".join(str(value or "").casefold().split())
+
+
+def _is_refusal(answer: str) -> bool:
+    folded = _fold(answer)
+    return any(marker in folded for marker in REFUSAL_MARKERS)
+
+
+def _evaluate_citations(
+    answer: str,
+    contexts: list[dict[str, Any]],
+    allowed_assets: set[int],
+) -> tuple[list[dict[str, Any]], int]:
+    indexes = [int(match) for match in re.findall(r"\[來源\s*(\d+)\]", answer)]
+    citations = []
+    valid = bool(indexes)
+    for index in indexes:
+        if index < 1 or index > len(contexts):
+            valid = False
+            citations.append({"index": index, "valid": False})
+            continue
+        context = contexts[index - 1]
+        asset_id = int(context["asset_id"])
+        source_allowed = not allowed_assets or asset_id in allowed_assets
+        valid = valid and source_allowed
+        citations.append(
+            {
+                "index": index,
+                "valid": source_allowed,
+                "asset_id": asset_id,
+                "chunk_id": context.get("id"),
+                "asset_title": context.get("asset_title"),
+            }
+        )
+    return citations, int(valid)
+
+
+def _citation_support_score(
+    required_facts: list[str],
+    answer: str,
+    citations: list[dict[str, Any]],
+    contexts: list[dict[str, Any]],
+) -> float:
+    cited_contexts = [
+        contexts[item["index"] - 1]
+        for item in citations
+        if item.get("valid") and 1 <= int(item["index"]) <= len(contexts)
+    ]
+    if not required_facts:
+        return float(bool(cited_contexts))
+    answer_folded = _fold(answer)
+    asserted_facts = [fact for fact in required_facts if _fold(fact) in answer_folded]
+    if not asserted_facts:
+        return 0.0
+    supported = sum(
+        1
+        for fact in asserted_facts
+        if any(_fold(fact) in _fold(context.get("content")) for context in cited_contexts)
+    )
+    return supported / len(required_facts)
+
+
+async def _unauthorized_asset_ids(
+    contexts: list[dict[str, Any]],
+    user: dict[str, Any],
+) -> set[int]:
+    asset_ids = {int(item["asset_id"]) for item in contexts if item.get("asset_id") is not None}
+    if not asset_ids:
+        return set()
+    checks = await asyncio.gather(
+        *[
+            asyncio.to_thread(
+                user_can_read_asset,
+                asset_id,
+                user_id=user["id"],
+                role=user["role"],
+            )
+            for asset_id in asset_ids
+        ]
+    )
+    return {asset_id for asset_id, allowed in zip(asset_ids, checks, strict=True) if not allowed}
 
 
 def _cache_key(user_id: int, model_id: str, normalized: str, context: dict[str, Any]) -> str:

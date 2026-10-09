@@ -30,7 +30,32 @@ const messages = {
       mcp: "MCP 管理",
       n8n: "n8n 自動化",
       lineAdmin: "LINE 企業管理",
+      evaluation: "AI 評測中心",
       accounts: "帳號管理",
+    },
+    evaluation: {
+      eyebrow: "企業 AI 治理", title: "AI 評測中心",
+      copy: "以核准題庫和真實普通員工權限執行完整知識問答，檢查答案、引用、拒答與跨部門資料隔離。",
+      newCase: "新增測試題", runApproved: "執行已核准題庫", running: "評測執行中…",
+      metricsLabel: "評測摘要", cases: "測試題", passRate: "自動通過率", factScore: "事實正確率",
+      citationScore: "引用支持率", leaks: "權限洩漏", editorEyebrow: "業務核准題庫",
+      createTitle: "建立測試題", editTitle: "編輯測試題", caseType: "題型", employee: "測試員工",
+      expectedBehavior: "預期行為", approval: "業務核准", scope: "檢索範圍", active: "啟用此題",
+      question: "測試問題", allowedSources: "允許引用的 NAS 資料", requiredFacts: "必須出現的事實（每行一項）",
+      prohibitedFacts: "禁止出現的敏感事實（每行一項）", referenceAnswer: "業務參考答案",
+      saveCase: "儲存測試題", libraryEyebrow: "固定測試集", libraryTitle: "題庫管理", refresh: "重新載入",
+      runsEyebrow: "答案與證據", runsTitle: "執行與人工審核", noCases: "尚未建立測試題。",
+      noRuns: "尚無評測執行記錄。", draft: "草稿", approved: "已核准", inactive: "已停用",
+      runCase: "執行此題", edit: "編輯", answer: "最終答案", contexts: "檢索與模型上下文",
+      autoPass: "自動通過", autoFail: "自動失敗", permissionLeak: "權限洩漏：{stage}", noLeak: "未發現權限洩漏",
+      factMetric: "事實 {value}", citationMetric: "引用 {value}", refusalMetric: "行為 {value}",
+      model: "模型", employeeLabel: "員工", review: "人工審核", reviewPass: "通過", reviewFail: "不通過",
+      reviewRevise: "需修正", reviewComment: "審核意見", saveReview: "儲存審核", reviewed: "已由 {name} 審核",
+      runComplete: "評測完成：{passed}/{total} 題自動通過", approvedRequired: "沒有可執行的已核准題目。",
+      userPlaceholder: "選擇普通員工", sourcePlaceholder: "按住 Command／Ctrl 可複選", saved: "測試題已儲存",
+      reviewSaved: "人工審核已儲存", error: "評測操作失敗", errorDetail: "錯誤：{message}",
+      types: { normal: "一般問答", crossFile: "跨文件問答", insufficient: "資料不足", accessControl: "跨部門越權", version: "版本／權限變更" },
+      behaviors: { answer: "回答", refuse: "拒答" }, approvals: { draft: "草稿", approved: "已核准" },
     },
     mes: {
       eyebrow: "FactorySemantics · NAS AI Work", title: "MES 產線演示", readOnly: "模擬產線 · 唯讀",
@@ -1021,7 +1046,32 @@ const messages = {
       mcp: "MCP Management",
       n8n: "n8n Automation",
       lineAdmin: "LINE Enterprise",
+      evaluation: "AI Evaluation Center",
       accounts: "Account Management",
+    },
+    evaluation: {
+      eyebrow: "Enterprise AI Governance", title: "AI Evaluation Center",
+      copy: "Run the full knowledge-answering path with approved cases and real employee permissions to test answers, citations, refusals, and department isolation.",
+      newCase: "New test case", runApproved: "Run approved suite", running: "Evaluation running…",
+      metricsLabel: "Evaluation summary", cases: "Test cases", passRate: "Automatic pass rate", factScore: "Fact accuracy",
+      citationScore: "Citation support", leaks: "Permission leaks", editorEyebrow: "Business-approved suite",
+      createTitle: "Create test case", editTitle: "Edit test case", caseType: "Case type", employee: "Test employee",
+      expectedBehavior: "Expected behavior", approval: "Business approval", scope: "Retrieval scope", active: "Enable this case",
+      question: "Test question", allowedSources: "Allowed NAS sources", requiredFacts: "Required facts (one per line)",
+      prohibitedFacts: "Prohibited sensitive facts (one per line)", referenceAnswer: "Business reference answer",
+      saveCase: "Save test case", libraryEyebrow: "Fixed test set", libraryTitle: "Case library", refresh: "Reload",
+      runsEyebrow: "Answers and evidence", runsTitle: "Runs and human review", noCases: "No test cases yet.",
+      noRuns: "No evaluation runs yet.", draft: "Draft", approved: "Approved", inactive: "Inactive",
+      runCase: "Run this case", edit: "Edit", answer: "Final answer", contexts: "Retrieval and model context",
+      autoPass: "Auto pass", autoFail: "Auto fail", permissionLeak: "Permission leak: {stage}", noLeak: "No permission leak detected",
+      factMetric: "Facts {value}", citationMetric: "Citations {value}", refusalMetric: "Behavior {value}",
+      model: "Model", employeeLabel: "Employee", review: "Human review", reviewPass: "Pass", reviewFail: "Fail",
+      reviewRevise: "Revise", reviewComment: "Review comment", saveReview: "Save review", reviewed: "Reviewed by {name}",
+      runComplete: "Evaluation complete: {passed}/{total} cases passed automatically", approvedRequired: "There are no approved cases to run.",
+      userPlaceholder: "Select a standard employee", sourcePlaceholder: "Hold Command/Ctrl to select multiple", saved: "Test case saved",
+      reviewSaved: "Human review saved", error: "Evaluation action failed", errorDetail: "Error: {message}",
+      types: { normal: "Standard Q&A", crossFile: "Cross-document", insufficient: "Insufficient evidence", accessControl: "Cross-department access", version: "Version/permission change" },
+      behaviors: { answer: "Answer", refuse: "Refuse" }, approvals: { draft: "Draft", approved: "Approved" },
     },
     mes: {
       eyebrow: "FactorySemantics · NAS AI Work", title: "MES Line Demo", readOnly: "Simulated line · Read-only",
@@ -2052,6 +2102,10 @@ const state = {
   wikiPages: [],
   selectedWikiPageId: null,
   selectedWikiPage: null,
+  evaluationCases: [],
+  evaluationRuns: [],
+  evaluationEditingCaseId: null,
+  evaluationRunning: false,
 };
 
 const els = {
@@ -2081,6 +2135,7 @@ const els = {
     mcp: document.querySelector("#mcpSection"),
     n8n: document.querySelector("#n8nSection"),
     lineAdmin: document.querySelector("#lineAdminSection"),
+    evaluation: document.querySelector("#evaluationSection"),
     accounts: document.querySelector("#accountsSection"),
   },
   wikiSearchInput: document.querySelector("#wikiSearchInput"),
@@ -2094,9 +2149,35 @@ const els = {
   knowledgeQuestionInput: document.querySelector("#knowledgeQuestionInput"),
   askKnowledgeButton: document.querySelector("#askKnowledgeButton"),
   knowledgeAnswer: document.querySelector("#knowledgeAnswer"),
-  ragEvaluationPanel: document.querySelector("#ragEvaluationPanel"),
-  runRagEvaluation: document.querySelector("#runRagEvaluation"),
-  ragEvaluationResult: document.querySelector("#ragEvaluationResult"),
+  evaluationNav: document.querySelector("#evaluationNav"),
+  evaluationCaseCount: document.querySelector("#evaluationCaseCount"),
+  evaluationPassRate: document.querySelector("#evaluationPassRate"),
+  evaluationFactScore: document.querySelector("#evaluationFactScore"),
+  evaluationCitationScore: document.querySelector("#evaluationCitationScore"),
+  evaluationLeaks: document.querySelector("#evaluationLeaks"),
+  newEvaluationCase: document.querySelector("#newEvaluationCase"),
+  runEvaluationSuite: document.querySelector("#runEvaluationSuite"),
+  evaluationCaseEditor: document.querySelector("#evaluationCaseEditor"),
+  evaluationEditorTitle: document.querySelector("#evaluationEditorTitle"),
+  evaluationCaseForm: document.querySelector("#evaluationCaseForm"),
+  evaluationCaseId: document.querySelector("#evaluationCaseId"),
+  evaluationCaseType: document.querySelector("#evaluationCaseType"),
+  evaluationTestUser: document.querySelector("#evaluationTestUser"),
+  evaluationExpectedBehavior: document.querySelector("#evaluationExpectedBehavior"),
+  evaluationApproval: document.querySelector("#evaluationApproval"),
+  evaluationScope: document.querySelector("#evaluationScope"),
+  evaluationActive: document.querySelector("#evaluationActive"),
+  evaluationQuestion: document.querySelector("#evaluationQuestion"),
+  evaluationAllowedAssets: document.querySelector("#evaluationAllowedAssets"),
+  evaluationRequiredFacts: document.querySelector("#evaluationRequiredFacts"),
+  evaluationProhibitedFacts: document.querySelector("#evaluationProhibitedFacts"),
+  evaluationReferenceAnswer: document.querySelector("#evaluationReferenceAnswer"),
+  evaluationFormError: document.querySelector("#evaluationFormError"),
+  cancelEvaluationCase: document.querySelector("#cancelEvaluationCase"),
+  refreshEvaluation: document.querySelector("#refreshEvaluation"),
+  evaluationCaseList: document.querySelector("#evaluationCaseList"),
+  evaluationRunNotice: document.querySelector("#evaluationRunNotice"),
+  evaluationRunList: document.querySelector("#evaluationRunList"),
   totalMeetings: document.querySelector("#totalMeetings"),
   processingMeetings: document.querySelector("#processingMeetings"),
   completedMeetings: document.querySelector("#completedMeetings"),
@@ -2390,6 +2471,7 @@ function applyLanguage(lang) {
   renderN8nStatus();
   renderLineAdmin();
   renderAccountList();
+  renderEvaluationCenter();
   if (state.passwordResetUserId) {
     const resetUser = state.users.find((user) => user.id === state.passwordResetUserId);
     if (resetUser) els.passwordResetAccount.textContent = t("accounts.resetFor", { username: resetUser.username });
@@ -2535,7 +2617,7 @@ async function showApp() {
   els.lineAdminNav.hidden = !isAdmin;
   els.mcpNav.hidden = !isAdmin;
   els.n8nNav.hidden = !isAdmin;
-  els.ragEvaluationPanel.hidden = !isAdmin;
+  els.evaluationNav.hidden = !isAdmin;
   els.addCustomModelButton.hidden = !isAdmin;
   setManagementMenuExpanded(false);
   resetLlmAuditFilters();
@@ -2562,8 +2644,8 @@ function renderCurrentUser() {
 }
 
 function switchView(name) {
-  if (["models", "mcp", "n8n", "lineAdmin", "accounts"].includes(name) && state.user?.role !== "admin") name = "dashboard";
-  const isManagementView = ["models", "mcp", "n8n", "lineAdmin", "accounts"].includes(name);
+  if (["models", "mcp", "n8n", "lineAdmin", "evaluation", "accounts"].includes(name) && state.user?.role !== "admin") name = "dashboard";
+  const isManagementView = ["models", "mcp", "n8n", "lineAdmin", "evaluation", "accounts"].includes(name);
   Object.entries(els.sections).forEach(([key, section]) => {
     section.hidden = key !== name;
   });
@@ -2586,6 +2668,7 @@ async function refreshViewData(name) {
   if (name === "mcp") return loadMcpServers();
   if (name === "n8n") return loadN8nStatus();
   if (name === "lineAdmin") return loadLineAdmin();
+  if (name === "evaluation") return loadEvaluationCenter();
   if (name === "accounts") return loadAccounts();
 }
 
@@ -3462,21 +3545,224 @@ async function askEnterpriseKnowledge() {
   }
 }
 
-async function runRagEvaluationSuite() {
-  els.runRagEvaluation.disabled = true;
+async function loadEvaluationCenter() {
+  if (state.user?.role !== "admin") return;
+  const [caseResult, runResult] = await Promise.all([
+    api("/api/admin/rag-evaluations/cases"),
+    api("/api/admin/rag-evaluations/runs"),
+    loadAccounts(),
+    loadNasAssets({ background: true }),
+  ]);
+  state.evaluationCases = caseResult.cases || [];
+  state.evaluationRuns = runResult.runs || [];
+  renderEvaluationCenter();
+}
+
+function evaluationJsonList(value) {
   try {
-    const report = await api("/api/admin/rag-evaluations/run", { method: "POST", body: "{}" });
-    els.ragEvaluationResult.textContent = [
-      `Cases: ${report.case_count}`,
-      `Recall@5: ${Number(report.recall_at_5).toFixed(3)}`,
-      `MRR: ${Number(report.mrr).toFixed(3)}`,
-      `Citation accuracy: ${Number(report.citation_accuracy).toFixed(3)}`,
-      `Permission leaks: ${report.permission_leaks}`,
-      `Average latency: ${Number(report.average_latency_ms).toFixed(0)} ms`,
-    ].join("\n");
-  } finally {
-    els.runRagEvaluation.disabled = false;
+    const parsed = JSON.parse(value || "[]");
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
   }
+}
+
+function evaluationJsonObject(value) {
+  try {
+    const parsed = JSON.parse(value || "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function evaluationLines(value) {
+  return String(value || "").split("\n").map((item) => item.trim()).filter(Boolean);
+}
+
+function evaluationPercent(value) {
+  return `${Math.round(Number(value || 0) * 100)}%`;
+}
+
+function evaluationTypeLabel(type) {
+  const key = { normal: "normal", cross_file: "crossFile", insufficient: "insufficient", access_control: "accessControl", version: "version" }[type] || "normal";
+  return t(`evaluation.types.${key}`);
+}
+
+function renderEvaluationCenter() {
+  if (!els.evaluationCaseList || state.user?.role !== "admin") return;
+  const latestGroup = state.evaluationRuns[0]?.run_group;
+  const latestRuns = latestGroup ? state.evaluationRuns.filter((item) => item.run_group === latestGroup) : [];
+  const passed = latestRuns.filter((item) => item.automatic_result === "pass").length;
+  els.evaluationCaseCount.textContent = state.evaluationCases.length;
+  els.evaluationPassRate.textContent = latestRuns.length ? evaluationPercent(passed / latestRuns.length) : "--";
+  els.evaluationFactScore.textContent = latestRuns.length
+    ? evaluationPercent(latestRuns.reduce((sum, item) => sum + Number(item.fact_score || 0), 0) / latestRuns.length)
+    : "--";
+  els.evaluationCitationScore.textContent = latestRuns.length
+    ? evaluationPercent(latestRuns.reduce((sum, item) => sum + Number(item.citation_support_score || 0), 0) / latestRuns.length)
+    : "--";
+  els.evaluationLeaks.textContent = latestRuns.filter((item) => Number(item.permission_leak)).length;
+  els.runEvaluationSuite.disabled = state.evaluationRunning;
+  els.runEvaluationSuite.textContent = t(state.evaluationRunning ? "evaluation.running" : "evaluation.runApproved");
+
+  const employeeValue = els.evaluationTestUser.value;
+  const sourceValues = new Set([...els.evaluationAllowedAssets.selectedOptions].map((option) => option.value));
+  const employees = state.users.filter((user) => user.role === "user" && user.is_active);
+  els.evaluationTestUser.innerHTML = `<option value="">${escapeHtml(t("evaluation.userPlaceholder"))}</option>${employees
+    .map((user) => `<option value="${Number(user.id)}">${escapeHtml(user.username)}</option>`).join("")}`;
+  if ([...els.evaluationTestUser.options].some((option) => option.value === employeeValue)) els.evaluationTestUser.value = employeeValue;
+  els.evaluationAllowedAssets.innerHTML = state.nasAssets
+    .filter((asset) => asset.status === "completed" && Number(asset.chunk_count || 0) > 0)
+    .map((asset) => `<option value="${Number(asset.id)}">#${Number(asset.id)} · ${escapeHtml(asset.title || asset.original_filename)}</option>`)
+    .join("");
+  [...els.evaluationAllowedAssets.options].forEach((option) => { option.selected = sourceValues.has(option.value); });
+
+  if (!state.evaluationCases.length) {
+    els.evaluationCaseList.innerHTML = `<div class="empty-state compact">${escapeHtml(t("evaluation.noCases"))}</div>`;
+  } else {
+    els.evaluationCaseList.innerHTML = state.evaluationCases.map((item) => {
+      const required = evaluationJsonList(item.required_facts_json);
+      const prohibited = evaluationJsonList(item.prohibited_facts_json);
+      const status = !item.is_active ? t("evaluation.inactive") : t(`evaluation.approvals.${item.approval_status || "draft"}`);
+      return `
+        <article class="evaluation-case-row${item.is_active ? "" : " inactive"}">
+          <div class="evaluation-case-main">
+            <div class="evaluation-case-badges"><span>${escapeHtml(evaluationTypeLabel(item.case_type))}</span><span>${escapeHtml(status)}</span></div>
+            <strong>${escapeHtml(item.question)}</strong>
+            <p>${escapeHtml(t("evaluation.employeeLabel"))}: ${escapeHtml(item.test_username || "--")} · ${escapeHtml(t(`evaluation.behaviors.${item.expected_behavior || "answer"}`))}</p>
+            <small>${escapeHtml(t("evaluation.requiredFacts"))}: ${required.length} · ${escapeHtml(t("evaluation.prohibitedFacts"))}: ${prohibited.length}</small>
+          </div>
+          <div class="evaluation-case-actions">
+            <button type="button" class="secondary-button" data-evaluation-edit="${Number(item.id)}">${escapeHtml(t("evaluation.edit"))}</button>
+            <button type="button" class="primary-button" data-evaluation-run="${Number(item.id)}"${item.approval_status !== "approved" || !item.is_active ? " disabled" : ""}>${escapeHtml(t("evaluation.runCase"))}</button>
+          </div>
+        </article>`;
+    }).join("");
+  }
+  renderEvaluationRuns();
+}
+
+function renderEvaluationRuns() {
+  if (!state.evaluationRuns.length) {
+    els.evaluationRunList.innerHTML = `<div class="empty-state compact">${escapeHtml(t("evaluation.noRuns"))}</div>`;
+    return;
+  }
+  els.evaluationRunList.innerHTML = state.evaluationRuns.map((item) => {
+    const contexts = evaluationJsonList(item.retrieved_chunks_json);
+    const resultLabel = t(item.automatic_result === "pass" ? "evaluation.autoPass" : "evaluation.autoFail");
+    const leakLabel = item.permission_leak
+      ? t("evaluation.permissionLeak", { stage: item.permission_leak_stage || "unknown" })
+      : t("evaluation.noLeak");
+    return `
+      <article class="evaluation-run-row ${item.automatic_result === "pass" ? "pass" : "fail"}">
+        <div class="evaluation-run-heading"><div><span>${escapeHtml(evaluationTypeLabel(item.case_type))}</span><strong>${escapeHtml(item.question)}</strong></div><b>${escapeHtml(resultLabel)}</b></div>
+        <div class="evaluation-run-meta"><span>${escapeHtml(t("evaluation.employeeLabel"))}: ${escapeHtml(item.test_username || "--")}</span><span>${escapeHtml(t("evaluation.model"))}: ${escapeHtml(item.model_id || "--")}</span><span>${escapeHtml(formatDate(item.created_at))}</span></div>
+        <div class="evaluation-score-row"><span>${escapeHtml(t("evaluation.factMetric", { value: evaluationPercent(item.fact_score) }))}</span><span>${escapeHtml(t("evaluation.citationMetric", { value: evaluationPercent(item.citation_support_score) }))}</span><span>${escapeHtml(t("evaluation.refusalMetric", { value: evaluationPercent(item.refusal_score) }))}</span><span class="${item.permission_leak ? "danger" : ""}">${escapeHtml(leakLabel)}</span></div>
+        ${item.error_message ? `<p class="error-text">${escapeHtml(t("evaluation.errorDetail", { message: item.error_message }))}</p>` : ""}
+        <details><summary>${escapeHtml(t("evaluation.answer"))}</summary><pre>${escapeHtml(item.answer || "--")}</pre></details>
+        <details><summary>${escapeHtml(t("evaluation.contexts"))} · ${contexts.length}</summary><div class="evaluation-context-list">${contexts.map((context, index) => `<p><b>[${index + 1}] ${escapeHtml(context.asset_title || `Asset ${context.asset_id}`)}</b><span>${escapeHtml(context.content || "")}</span></p>`).join("")}</div></details>
+        <div class="evaluation-review-row">
+          <label><span>${escapeHtml(t("evaluation.review"))}</span><select data-review-result="${Number(item.id)}"><option value="">--</option><option value="pass"${item.human_result === "pass" ? " selected" : ""}>${escapeHtml(t("evaluation.reviewPass"))}</option><option value="fail"${item.human_result === "fail" ? " selected" : ""}>${escapeHtml(t("evaluation.reviewFail"))}</option><option value="revise"${item.human_result === "revise" ? " selected" : ""}>${escapeHtml(t("evaluation.reviewRevise"))}</option></select></label>
+          <label class="evaluation-review-comment"><span>${escapeHtml(t("evaluation.reviewComment"))}</span><input data-review-comment="${Number(item.id)}" maxlength="2000" value="${escapeHtml(item.review_comment || "")}" /></label>
+          <button type="button" class="secondary-button" data-review-save="${Number(item.id)}">${escapeHtml(t("evaluation.saveReview"))}</button>
+        </div>
+        ${item.reviewed_by_username ? `<small>${escapeHtml(t("evaluation.reviewed", { name: item.reviewed_by_username }))}</small>` : ""}
+      </article>`;
+  }).join("");
+}
+
+function openEvaluationCaseEditor(caseId = null) {
+  state.evaluationEditingCaseId = caseId;
+  const item = caseId ? state.evaluationCases.find((candidate) => candidate.id === caseId) : null;
+  els.evaluationCaseForm.reset();
+  els.evaluationCaseId.value = item?.id || "";
+  els.evaluationEditorTitle.textContent = t(item ? "evaluation.editTitle" : "evaluation.createTitle");
+  els.evaluationCaseType.value = item?.case_type || "normal";
+  els.evaluationExpectedBehavior.value = item?.expected_behavior || "answer";
+  els.evaluationApproval.value = item?.approval_status || "draft";
+  els.evaluationActive.checked = item ? Boolean(item.is_active) : true;
+  els.evaluationQuestion.value = item?.question || "";
+  els.evaluationRequiredFacts.value = evaluationJsonList(item?.required_facts_json).join("\n");
+  els.evaluationProhibitedFacts.value = evaluationJsonList(item?.prohibited_facts_json).join("\n");
+  els.evaluationReferenceAnswer.value = item?.reference_answer || "";
+  els.evaluationScope.value = evaluationJsonObject(item?.scope_json).scope || "all_accessible";
+  els.evaluationTestUser.value = item?.test_user_id ? String(item.test_user_id) : "";
+  const allowed = new Set(evaluationJsonList(item?.allowed_asset_ids_json).map(String));
+  [...els.evaluationAllowedAssets.options].forEach((option) => { option.selected = allowed.has(option.value); });
+  els.evaluationFormError.textContent = "";
+  els.evaluationCaseEditor.hidden = false;
+  els.evaluationCaseEditor.scrollIntoView({ behavior: "smooth", block: "start" });
+}
+
+function closeEvaluationCaseEditor() {
+  state.evaluationEditingCaseId = null;
+  els.evaluationCaseEditor.hidden = true;
+  els.evaluationFormError.textContent = "";
+}
+
+async function saveEvaluationCase() {
+  const payload = {
+    question: els.evaluationQuestion.value.trim(),
+    case_type: els.evaluationCaseType.value,
+    test_user_id: Number(els.evaluationTestUser.value) || null,
+    expected_behavior: els.evaluationExpectedBehavior.value,
+    approval_status: els.evaluationApproval.value,
+    scope: { scope: els.evaluationScope.value },
+    is_active: els.evaluationActive.checked,
+    required_facts: evaluationLines(els.evaluationRequiredFacts.value),
+    prohibited_facts: evaluationLines(els.evaluationProhibitedFacts.value),
+    reference_answer: els.evaluationReferenceAnswer.value.trim(),
+    allowed_asset_ids: [...els.evaluationAllowedAssets.selectedOptions].map((option) => Number(option.value)),
+    expected_asset_ids: [...els.evaluationAllowedAssets.selectedOptions].map((option) => Number(option.value)),
+    expected_keywords: evaluationLines(els.evaluationRequiredFacts.value),
+  };
+  const caseId = state.evaluationEditingCaseId;
+  await api(caseId ? `/api/admin/rag-evaluations/cases/${caseId}` : "/api/admin/rag-evaluations/cases", {
+    method: caseId ? "PATCH" : "POST",
+    body: JSON.stringify(payload),
+  });
+  closeEvaluationCaseEditor();
+  showToast(t("evaluation.saved"), t("nav.evaluation"));
+  await loadEvaluationCenter();
+}
+
+async function executeEvaluation(caseIds = []) {
+  if (state.evaluationRunning) return;
+  state.evaluationRunning = true;
+  els.evaluationRunNotice.textContent = t("evaluation.running");
+  renderEvaluationCenter();
+  try {
+    const report = await api("/api/admin/rag-evaluations/run", {
+      method: "POST",
+      body: JSON.stringify({ case_ids: caseIds }),
+    });
+    if (!report.case_count) {
+      els.evaluationRunNotice.textContent = t("evaluation.approvedRequired");
+    } else {
+      const passed = report.results.filter((item) => item.automatic_result === "pass").length;
+      els.evaluationRunNotice.textContent = t("evaluation.runComplete", { passed, total: report.case_count });
+    }
+    const runs = await api(`/api/admin/rag-evaluations/runs?run_group=${encodeURIComponent(report.run_group)}`);
+    state.evaluationRuns = [...(runs.runs || []), ...state.evaluationRuns.filter((item) => item.run_group !== report.run_group)];
+  } finally {
+    state.evaluationRunning = false;
+    renderEvaluationCenter();
+  }
+}
+
+async function saveEvaluationReview(runId) {
+  const humanResult = els.evaluationRunList.querySelector(`[data-review-result="${runId}"]`)?.value;
+  const reviewComment = els.evaluationRunList.querySelector(`[data-review-comment="${runId}"]`)?.value || "";
+  if (!humanResult) return;
+  const reviewed = await api(`/api/admin/rag-evaluations/runs/${runId}/review`, {
+    method: "POST",
+    body: JSON.stringify({ human_result: humanResult, review_comment: reviewComment }),
+  });
+  const index = state.evaluationRuns.findIndex((item) => item.id === runId);
+  if (index >= 0) state.evaluationRuns[index] = reviewed;
+  renderEvaluationCenter();
+  showToast(t("evaluation.reviewSaved"), t("nav.evaluation"));
 }
 
 function renderWikiDirectory() {
@@ -5984,8 +6270,39 @@ els.knowledgeAnswer.addEventListener("click", (event) => {
       .catch((error) => showToast(error.message, t("upload.actionFailed")));
   }
 });
-els.runRagEvaluation.addEventListener("click", () => {
-  runRagEvaluationSuite().catch((error) => showToast(error.message, t("errors.requestFailed")));
+els.newEvaluationCase.addEventListener("click", () => openEvaluationCaseEditor());
+els.cancelEvaluationCase.addEventListener("click", closeEvaluationCaseEditor);
+els.refreshEvaluation.addEventListener("click", () => {
+  loadEvaluationCenter().catch((error) => showToast(error.message, t("errors.requestFailed")));
+});
+els.runEvaluationSuite.addEventListener("click", () => {
+  executeEvaluation().catch((error) => showToast(error.message, t("errors.requestFailed")));
+});
+els.evaluationCaseForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  els.evaluationFormError.textContent = "";
+  saveEvaluationCase().catch((error) => {
+    els.evaluationFormError.textContent = error.message || t("errors.requestFailed");
+  });
+});
+els.evaluationCaseList.addEventListener("click", (event) => {
+  const editButton = event.target.closest("[data-evaluation-edit]");
+  if (editButton) {
+    openEvaluationCaseEditor(Number(editButton.dataset.evaluationEdit));
+    return;
+  }
+  const runButton = event.target.closest("[data-evaluation-run]");
+  if (runButton && !runButton.disabled) {
+    executeEvaluation([Number(runButton.dataset.evaluationRun)])
+      .catch((error) => showToast(error.message, t("errors.requestFailed")));
+  }
+});
+els.evaluationRunList.addEventListener("click", (event) => {
+  const reviewButton = event.target.closest("[data-review-save]");
+  if (reviewButton) {
+    saveEvaluationReview(Number(reviewButton.dataset.reviewSave))
+      .catch((error) => showToast(error.message, t("errors.requestFailed")));
+  }
 });
 els.networkAssetList.addEventListener("click", (event) => {
   const button = event.target.closest("[data-network-asset-id]");

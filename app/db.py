@@ -606,10 +606,21 @@ def init_db() -> None:
                 reference_answer TEXT,
                 scope_json TEXT NOT NULL DEFAULT '{"scope":"all_accessible"}',
                 created_by INTEGER NOT NULL,
+                case_type TEXT NOT NULL DEFAULT 'normal',
+                test_user_id INTEGER,
+                expected_behavior TEXT NOT NULL DEFAULT 'answer',
+                required_facts_json TEXT NOT NULL DEFAULT '[]',
+                prohibited_facts_json TEXT NOT NULL DEFAULT '[]',
+                allowed_asset_ids_json TEXT NOT NULL DEFAULT '[]',
+                approval_status TEXT NOT NULL DEFAULT 'draft',
+                approved_by INTEGER,
+                approved_at TEXT,
                 is_active INTEGER NOT NULL DEFAULT 1,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY(created_by) REFERENCES users(id)
+                FOREIGN KEY(created_by) REFERENCES users(id),
+                FOREIGN KEY(test_user_id) REFERENCES users(id),
+                FOREIGN KEY(approved_by) REFERENCES users(id)
             )
             """
         )
@@ -629,11 +640,56 @@ def init_db() -> None:
                 citation_valid INTEGER NOT NULL,
                 permission_leak INTEGER NOT NULL,
                 latency_ms INTEGER NOT NULL,
+                test_user_id INTEGER,
+                expected_behavior TEXT NOT NULL DEFAULT 'answer',
+                prompt_version TEXT,
+                knowledge_revision INTEGER,
+                model_context_json TEXT NOT NULL DEFAULT '[]',
+                citations_json TEXT NOT NULL DEFAULT '[]',
+                fact_score REAL NOT NULL DEFAULT 0,
+                citation_support_score REAL NOT NULL DEFAULT 0,
+                refusal_score REAL NOT NULL DEFAULT 0,
+                prohibited_fact_hits_json TEXT NOT NULL DEFAULT '[]',
+                permission_leak_stage TEXT,
+                automatic_result TEXT NOT NULL DEFAULT 'fail',
+                error_message TEXT,
+                human_result TEXT,
+                review_comment TEXT,
+                reviewed_by INTEGER,
+                reviewed_at TEXT,
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY(case_id) REFERENCES rag_eval_cases(id)
+                FOREIGN KEY(case_id) REFERENCES rag_eval_cases(id),
+                FOREIGN KEY(test_user_id) REFERENCES users(id),
+                FOREIGN KEY(reviewed_by) REFERENCES users(id)
             )
             """
         )
+        _ensure_column(conn, "rag_eval_cases", "case_type", "TEXT NOT NULL DEFAULT 'normal'")
+        _ensure_column(conn, "rag_eval_cases", "test_user_id", "INTEGER")
+        _ensure_column(conn, "rag_eval_cases", "expected_behavior", "TEXT NOT NULL DEFAULT 'answer'")
+        _ensure_column(conn, "rag_eval_cases", "required_facts_json", "TEXT NOT NULL DEFAULT '[]'")
+        _ensure_column(conn, "rag_eval_cases", "prohibited_facts_json", "TEXT NOT NULL DEFAULT '[]'")
+        _ensure_column(conn, "rag_eval_cases", "allowed_asset_ids_json", "TEXT NOT NULL DEFAULT '[]'")
+        _ensure_column(conn, "rag_eval_cases", "approval_status", "TEXT NOT NULL DEFAULT 'draft'")
+        _ensure_column(conn, "rag_eval_cases", "approved_by", "INTEGER")
+        _ensure_column(conn, "rag_eval_cases", "approved_at", "TEXT")
+        _ensure_column(conn, "rag_eval_runs", "test_user_id", "INTEGER")
+        _ensure_column(conn, "rag_eval_runs", "expected_behavior", "TEXT NOT NULL DEFAULT 'answer'")
+        _ensure_column(conn, "rag_eval_runs", "prompt_version", "TEXT")
+        _ensure_column(conn, "rag_eval_runs", "knowledge_revision", "INTEGER")
+        _ensure_column(conn, "rag_eval_runs", "model_context_json", "TEXT NOT NULL DEFAULT '[]'")
+        _ensure_column(conn, "rag_eval_runs", "citations_json", "TEXT NOT NULL DEFAULT '[]'")
+        _ensure_column(conn, "rag_eval_runs", "fact_score", "REAL NOT NULL DEFAULT 0")
+        _ensure_column(conn, "rag_eval_runs", "citation_support_score", "REAL NOT NULL DEFAULT 0")
+        _ensure_column(conn, "rag_eval_runs", "refusal_score", "REAL NOT NULL DEFAULT 0")
+        _ensure_column(conn, "rag_eval_runs", "prohibited_fact_hits_json", "TEXT NOT NULL DEFAULT '[]'")
+        _ensure_column(conn, "rag_eval_runs", "permission_leak_stage", "TEXT")
+        _ensure_column(conn, "rag_eval_runs", "automatic_result", "TEXT NOT NULL DEFAULT 'fail'")
+        _ensure_column(conn, "rag_eval_runs", "error_message", "TEXT")
+        _ensure_column(conn, "rag_eval_runs", "human_result", "TEXT")
+        _ensure_column(conn, "rag_eval_runs", "review_comment", "TEXT")
+        _ensure_column(conn, "rag_eval_runs", "reviewed_by", "INTEGER")
+        _ensure_column(conn, "rag_eval_runs", "reviewed_at", "TEXT")
         conn.execute(
             """
             CREATE TABLE IF NOT EXISTS security_events (
@@ -990,6 +1046,8 @@ def init_db() -> None:
         conn.execute("CREATE INDEX IF NOT EXISTS idx_asset_permissions_subject ON asset_permissions(subject_type, subject_id, asset_id)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_knowledge_cache_lookup ON knowledge_query_cache(user_id, model_id, knowledge_revision)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_rag_eval_runs_group ON rag_eval_runs(run_group, case_id)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_rag_eval_cases_test_user ON rag_eval_cases(test_user_id, approval_status)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_rag_eval_runs_review ON rag_eval_runs(human_result, created_at)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_security_events_created ON security_events(created_at, severity)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_wiki_pages_owner ON wiki_pages(owner_user_id, updated_at)")
         conn.execute("CREATE INDEX IF NOT EXISTS idx_wiki_sources_page ON wiki_sources(page_id, asset_id)")
@@ -3639,18 +3697,31 @@ def create_rag_eval_case(
     reference_answer: str | None,
     scope_json: str,
     created_by: int,
+    case_type: str = "normal",
+    test_user_id: int | None = None,
+    expected_behavior: str = "answer",
+    required_facts_json: str = "[]",
+    prohibited_facts_json: str = "[]",
+    allowed_asset_ids_json: str = "[]",
+    approval_status: str = "draft",
+    approved_by: int | None = None,
 ) -> dict[str, Any]:
     with connect() as conn:
         cursor = conn.execute(
             """
             INSERT INTO rag_eval_cases (
                 question, expected_asset_ids_json, expected_keywords_json,
-                reference_answer, scope_json, created_by
-            ) VALUES (?, ?, ?, ?, ?, ?)
+                reference_answer, scope_json, created_by, case_type, test_user_id,
+                expected_behavior, required_facts_json, prohibited_facts_json,
+                allowed_asset_ids_json, approval_status, approved_by, approved_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                      CASE WHEN ? = 'approved' THEN CURRENT_TIMESTAMP ELSE NULL END)
             """,
             (
                 question, expected_asset_ids_json, expected_keywords_json,
-                reference_answer, scope_json, created_by,
+                reference_answer, scope_json, created_by, case_type, test_user_id,
+                expected_behavior, required_facts_json, prohibited_facts_json,
+                allowed_asset_ids_json, approval_status, approved_by, approval_status,
             ),
         )
         row = conn.execute("SELECT * FROM rag_eval_cases WHERE id = ?", (cursor.lastrowid,)).fetchone()
@@ -3661,12 +3732,52 @@ def list_rag_eval_cases(*, active_only: bool = True) -> list[dict[str, Any]]:
     with connect() as conn:
         rows = conn.execute(
             f"""
-            SELECT * FROM rag_eval_cases
-            {'WHERE is_active = 1' if active_only else ''}
-            ORDER BY id
+            SELECT cases.*, test_user.username AS test_username,
+                   creator.username AS created_by_username,
+                   approver.username AS approved_by_username
+            FROM rag_eval_cases cases
+            LEFT JOIN users test_user ON test_user.id = cases.test_user_id
+            LEFT JOIN users creator ON creator.id = cases.created_by
+            LEFT JOIN users approver ON approver.id = cases.approved_by
+            {'WHERE cases.is_active = 1' if active_only else ''}
+            ORDER BY cases.id
             """
         ).fetchall()
     return [dict(row) for row in rows]
+
+
+def get_rag_eval_case(case_id: int) -> dict[str, Any] | None:
+    with connect() as conn:
+        row = conn.execute("SELECT * FROM rag_eval_cases WHERE id = ?", (case_id,)).fetchone()
+    return _row_to_dict(row)
+
+
+def update_rag_eval_case(case_id: int, **values: Any) -> dict[str, Any] | None:
+    allowed = {
+        "question", "expected_asset_ids_json", "expected_keywords_json", "reference_answer",
+        "scope_json", "case_type", "test_user_id", "expected_behavior",
+        "required_facts_json", "prohibited_facts_json", "allowed_asset_ids_json",
+        "approval_status", "approved_by", "is_active",
+    }
+    updates = {key: value for key, value in values.items() if key in allowed}
+    if not updates:
+        return get_rag_eval_case(case_id)
+    assignments = [f"{key} = ?" for key in updates]
+    params = list(updates.values())
+    if "approval_status" in updates:
+        assignments.append(
+            "approved_at = CASE WHEN ? = 'approved' THEN CURRENT_TIMESTAMP ELSE NULL END"
+        )
+        params.append(updates["approval_status"])
+    assignments.append("updated_at = CURRENT_TIMESTAMP")
+    params.append(case_id)
+    with connect() as conn:
+        conn.execute(
+            f"UPDATE rag_eval_cases SET {', '.join(assignments)} WHERE id = ?",
+            params,
+        )
+        row = conn.execute("SELECT * FROM rag_eval_cases WHERE id = ?", (case_id,)).fetchone()
+    return _row_to_dict(row)
 
 
 def save_rag_eval_run(**values: Any) -> dict[str, Any]:
@@ -3674,6 +3785,10 @@ def save_rag_eval_run(**values: Any) -> dict[str, Any]:
         "case_id", "run_group", "retrieval_version", "model_id",
         "retrieved_chunks_json", "answer", "recall_at_5", "reciprocal_rank",
         "keyword_score", "citation_valid", "permission_leak", "latency_ms",
+        "test_user_id", "expected_behavior", "prompt_version", "knowledge_revision",
+        "model_context_json", "citations_json", "fact_score", "citation_support_score",
+        "refusal_score", "prohibited_fact_hits_json", "permission_leak_stage",
+        "automatic_result", "error_message",
     )
     with connect() as conn:
         cursor = conn.execute(
@@ -3694,12 +3809,55 @@ def list_rag_eval_runs(run_group: str | None = None, limit: int = 200) -> list[d
     with connect() as conn:
         rows = conn.execute(
             f"""
-            SELECT * FROM rag_eval_runs {where}
-            ORDER BY datetime(created_at) DESC, id DESC LIMIT ?
+            SELECT runs.*, cases.question, cases.case_type, users.username AS test_username,
+                   reviewer.username AS reviewed_by_username
+            FROM rag_eval_runs runs
+            JOIN rag_eval_cases cases ON cases.id = runs.case_id
+            LEFT JOIN users ON users.id = runs.test_user_id
+            LEFT JOIN users reviewer ON reviewer.id = runs.reviewed_by
+            {where.replace('run_group', 'runs.run_group')}
+            ORDER BY datetime(runs.created_at) DESC, runs.id DESC LIMIT ?
             """,
             params,
         ).fetchall()
     return [dict(row) for row in rows]
+
+
+def get_rag_eval_run(run_id: int) -> dict[str, Any] | None:
+    with connect() as conn:
+        row = conn.execute(
+            """
+            SELECT runs.*, cases.question, cases.case_type, users.username AS test_username,
+                   reviewer.username AS reviewed_by_username
+            FROM rag_eval_runs runs
+            JOIN rag_eval_cases cases ON cases.id = runs.case_id
+            LEFT JOIN users ON users.id = runs.test_user_id
+            LEFT JOIN users reviewer ON reviewer.id = runs.reviewed_by
+            WHERE runs.id = ?
+            """,
+            (run_id,),
+        ).fetchone()
+    return _row_to_dict(row)
+
+
+def review_rag_eval_run(
+    run_id: int,
+    *,
+    human_result: str,
+    review_comment: str,
+    reviewed_by: int,
+) -> dict[str, Any] | None:
+    with connect() as conn:
+        conn.execute(
+            """
+            UPDATE rag_eval_runs
+            SET human_result = ?, review_comment = ?, reviewed_by = ?,
+                reviewed_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (human_result, review_comment, reviewed_by, run_id),
+        )
+    return get_rag_eval_run(run_id)
 
 
 def get_exact_llm_cache(user_id: int, model_id: str, normalized_prompt: str) -> dict[str, Any] | None:

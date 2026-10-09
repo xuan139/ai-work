@@ -46,6 +46,7 @@ from app.db import (
     get_meeting,
     get_meeting_by_nas_asset_id,
     get_mcp_server,
+    get_rag_eval_run,
     list_langchain_demo_messages,
     get_nas_asset,
     get_asset_permissions,
@@ -78,6 +79,7 @@ from app.db import (
     mark_line_query_cache_hit,
     mark_user_login,
     reset_user_password,
+    review_rag_eval_run,
     save_line_query_cache,
     search_document_chunks,
     seed_admin,
@@ -119,6 +121,7 @@ from app.knowledge_service import (
     search_knowledge,
     serialize_knowledge_chunks,
     store_knowledge_cache,
+    update_eval_case,
 )
 from app.llm_catalog import PRICING_UPDATED_AT, get_model, model_summary, provider_summary
 from app.llm_cache import lookup_llm_cache, normalize_llm_prompt, store_llm_cache, suggest_llm_prompts
@@ -1539,8 +1542,7 @@ async def knowledge_search(payload: dict, user: dict = Depends(current_user)) ->
     return {"question": question, "scope": scope, "contexts": serialize_knowledge_chunks(chunks)}
 
 
-@app.post("/api/knowledge/ask")
-async def knowledge_ask(payload: dict, user: dict = Depends(current_user)) -> dict:
+async def _answer_knowledge(payload: dict, user: dict) -> dict:
     question = str(payload.get("question") or "").strip()
     if not question:
         raise HTTPException(status_code=400, detail="Question is required")
@@ -1602,7 +1604,32 @@ async def knowledge_ask(payload: dict, user: dict = Depends(current_user)) -> di
             detail_json=json.dumps({"rejected_contexts": rejected_contexts}, ensure_ascii=False),
         )
     if not contexts:
-        raise HTTPException(status_code=404, detail="No accessible knowledge matched this query")
+        refusal_answer = "目前可存取的企業知識中沒有足夠資料回答這個問題。"
+        create_llm_call(
+            user_id=user["id"], provider=model["provider"], model_name=model["name"],
+            model_id=model["id"], prompt=question, response=refusal_answer,
+            status="completed", access_mode="policy_refusal", input_tokens=0,
+            output_tokens=0, total_tokens=0, channel="knowledge_rag",
+            source_ref=json.dumps(scope, ensure_ascii=False),
+            operation_type="knowledge_rag_refusal",
+        )
+        return {
+            "answer": refusal_answer,
+            "model": model["name"],
+            "model_id": model["id"],
+            "question": question,
+            "scope": scope,
+            "contexts": [],
+            "model_contexts": [],
+            "prompt_version": KNOWLEDGE_PROMPT_VERSION,
+            "retrieval": {
+                "method": "hybrid_acl",
+                "version": KNOWLEDGE_RETRIEVAL_VERSION,
+                "knowledge_revision": cache_context["knowledge_revision"],
+            },
+            "cache": {"hit": False, "bypassed": bypass_cache},
+            "refusal": {"reason": "no_accessible_context"},
+        }
     context_text = "\n\n".join(
         (
             f"[來源 {index}: {item['asset_title']} / V{item['version_no']}"
@@ -1633,6 +1660,9 @@ async def knowledge_ask(payload: dict, user: dict = Depends(current_user)) -> di
         "question": question,
         "scope": scope,
         "contexts": contexts,
+        "model_contexts": contexts,
+        "model_id": model["id"],
+        "prompt_version": KNOWLEDGE_PROMPT_VERSION,
         "retrieval": {
             "method": "hybrid_acl",
             "version": KNOWLEDGE_RETRIEVAL_VERSION,
@@ -1653,6 +1683,11 @@ async def knowledge_ask(payload: dict, user: dict = Depends(current_user)) -> di
     return response
 
 
+@app.post("/api/knowledge/ask")
+async def knowledge_ask(payload: dict, user: dict = Depends(current_user)) -> dict:
+    return await _answer_knowledge(payload, user)
+
+
 @app.get("/api/admin/rag-evaluations/cases")
 async def rag_evaluation_cases(admin: dict = Depends(require_admin)) -> dict:
     return {"cases": list_rag_eval_cases(active_only=False)}
@@ -1666,9 +1701,40 @@ async def add_rag_evaluation_case(payload: dict, admin: dict = Depends(require_a
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
+@app.patch("/api/admin/rag-evaluations/cases/{case_id}")
+async def edit_rag_evaluation_case(
+    case_id: int,
+    payload: dict,
+    admin: dict = Depends(require_admin),
+) -> dict:
+    try:
+        updated = await update_eval_case(case_id, payload, admin)
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if not updated:
+        raise HTTPException(status_code=404, detail="Evaluation case not found")
+    return updated
+
+
 @app.post("/api/admin/rag-evaluations/run")
-async def run_rag_evaluations(admin: dict = Depends(require_admin)) -> dict:
-    return await run_evaluation(admin)
+async def run_rag_evaluations(payload: dict, admin: dict = Depends(require_admin)) -> dict:
+    async def answer_case(case: dict, test_user: dict) -> dict:
+        scope = normalize_scope(json.loads(case["scope_json"] or "{}"))
+        return await _answer_knowledge(
+            {
+                "question": case["question"],
+                **scope,
+                "top_k": 5,
+                "force": True,
+            },
+            test_user,
+        )
+
+    try:
+        case_ids = [int(item) for item in payload.get("case_ids") or []]
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail="Invalid evaluation case id") from exc
+    return await run_evaluation(admin, answerer=answer_case, case_ids=case_ids)
 
 
 @app.get("/api/admin/rag-evaluations/runs")
@@ -1677,6 +1743,29 @@ async def rag_evaluation_runs(
     admin: dict = Depends(require_admin),
 ) -> dict:
     return {"runs": list_rag_eval_runs(run_group=run_group)}
+
+
+@app.post("/api/admin/rag-evaluations/runs/{run_id}/review")
+async def review_rag_evaluation_result(
+    run_id: int,
+    payload: dict,
+    admin: dict = Depends(require_admin),
+) -> dict:
+    if not get_rag_eval_run(run_id):
+        raise HTTPException(status_code=404, detail="Evaluation result not found")
+    human_result = str(payload.get("human_result") or "").strip()
+    if human_result not in {"pass", "fail", "revise"}:
+        raise HTTPException(status_code=400, detail="Review result must be pass, fail, or revise")
+    comment = str(payload.get("review_comment") or "").strip()
+    if len(comment) > 2000:
+        raise HTTPException(status_code=400, detail="Review comment is too long")
+    reviewed = review_rag_eval_run(
+        run_id,
+        human_result=human_result,
+        review_comment=comment,
+        reviewed_by=admin["id"],
+    )
+    return reviewed or {}
 
 
 @app.get("/api/admin/security/events")
