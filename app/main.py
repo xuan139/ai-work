@@ -110,6 +110,7 @@ from app.embedding_runtime import (
     pack_embedding,
     unpack_embedding,
 )
+from app.evaluation_baseline import seed_enterprise_evaluation_baseline
 from app.knowledge_service import (
     KNOWLEDGE_PROMPT_VERSION,
     KNOWLEDGE_RETRIEVAL_VERSION,
@@ -1699,6 +1700,11 @@ async def add_rag_evaluation_case(payload: dict, admin: dict = Depends(require_a
         return await create_eval_case(payload, admin)
     except (TypeError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/admin/rag-evaluations/bootstrap")
+async def bootstrap_rag_evaluation_baseline(admin: dict = Depends(require_admin)) -> dict:
+    return await asyncio.to_thread(seed_enterprise_evaluation_baseline, admin)
 
 
 @app.patch("/api/admin/rag-evaluations/cases/{case_id}")

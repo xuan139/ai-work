@@ -2380,6 +2380,15 @@ def get_processing_job(job_type: str, record_id: int) -> dict[str, Any] | None:
     return _row_to_dict(row)
 
 
+def get_nas_asset_by_source_url(source_url: str) -> dict[str, Any] | None:
+    with connect() as conn:
+        row = conn.execute(
+            "SELECT * FROM nas_assets WHERE source_url = ? ORDER BY id DESC LIMIT 1",
+            (source_url,),
+        ).fetchone()
+    return _row_to_dict(row)
+
+
 def claim_processing_job(job_type: str, record_id: int) -> dict[str, Any] | None:
     with connect() as conn:
         cursor = conn.execute(

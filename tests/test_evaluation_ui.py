@@ -14,6 +14,7 @@ class EvaluationUiTests(unittest.TestCase):
             "evaluationCaseForm",
             "evaluationTestUser",
             "evaluationAllowedAssets",
+            "bootstrapEvaluation",
             "runEvaluationSuite",
             "evaluationRunList",
         ):
@@ -22,6 +23,8 @@ class EvaluationUiTests(unittest.TestCase):
     def test_evaluation_javascript_wires_case_run_and_human_review(self) -> None:
         script = (ROOT / "static" / "app.js").read_text(encoding="utf-8")
         self.assertIn("async function executeEvaluation", script)
+        self.assertIn("async function bootstrapEvaluationBaseline", script)
+        self.assertIn("/api/admin/rag-evaluations/bootstrap", script)
         self.assertIn("async function saveEvaluationReview", script)
         self.assertIn("data-evaluation-run", script)
         self.assertIn("data-review-save", script)

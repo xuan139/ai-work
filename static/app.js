@@ -37,6 +37,7 @@ const messages = {
       eyebrow: "企業 AI 治理", title: "AI 評測中心",
       copy: "以核准題庫和真實普通員工權限執行完整知識問答，檢查答案、引用、拒答與跨部門資料隔離。",
       newCase: "新增測試題", runApproved: "執行已核准題庫", running: "評測執行中…",
+      bootstrap: "建立基準資料", bootstrapping: "正在建立基準資料…", bootstrapComplete: "已建立 {users} 個測試身分與 {cases} 題核准題庫",
       metricsLabel: "評測摘要", cases: "測試題", passRate: "自動通過率", factScore: "事實正確率",
       citationScore: "引用支持率", leaks: "權限洩漏", editorEyebrow: "業務核准題庫",
       createTitle: "建立測試題", editTitle: "編輯測試題", caseType: "題型", employee: "測試員工",
@@ -1053,6 +1054,7 @@ const messages = {
       eyebrow: "Enterprise AI Governance", title: "AI Evaluation Center",
       copy: "Run the full knowledge-answering path with approved cases and real employee permissions to test answers, citations, refusals, and department isolation.",
       newCase: "New test case", runApproved: "Run approved suite", running: "Evaluation running…",
+      bootstrap: "Create baseline", bootstrapping: "Creating baseline…", bootstrapComplete: "Created {users} test identities and {cases} approved cases",
       metricsLabel: "Evaluation summary", cases: "Test cases", passRate: "Automatic pass rate", factScore: "Fact accuracy",
       citationScore: "Citation support", leaks: "Permission leaks", editorEyebrow: "Business-approved suite",
       createTitle: "Create test case", editTitle: "Edit test case", caseType: "Case type", employee: "Test employee",
@@ -2155,6 +2157,7 @@ const els = {
   evaluationFactScore: document.querySelector("#evaluationFactScore"),
   evaluationCitationScore: document.querySelector("#evaluationCitationScore"),
   evaluationLeaks: document.querySelector("#evaluationLeaks"),
+  bootstrapEvaluation: document.querySelector("#bootstrapEvaluation"),
   newEvaluationCase: document.querySelector("#newEvaluationCase"),
   runEvaluationSuite: document.querySelector("#runEvaluationSuite"),
   evaluationCaseEditor: document.querySelector("#evaluationCaseEditor"),
@@ -3763,6 +3766,22 @@ async function saveEvaluationReview(runId) {
   if (index >= 0) state.evaluationRuns[index] = reviewed;
   renderEvaluationCenter();
   showToast(t("evaluation.reviewSaved"), t("nav.evaluation"));
+}
+
+async function bootstrapEvaluationBaseline() {
+  els.bootstrapEvaluation.disabled = true;
+  els.bootstrapEvaluation.textContent = t("evaluation.bootstrapping");
+  try {
+    const result = await api("/api/admin/rag-evaluations/bootstrap", {
+      method: "POST",
+      body: "{}",
+    });
+    els.evaluationRunNotice.textContent = t("evaluation.bootstrapComplete", result);
+    await loadEvaluationCenter();
+  } finally {
+    els.bootstrapEvaluation.disabled = false;
+    els.bootstrapEvaluation.textContent = t("evaluation.bootstrap");
+  }
 }
 
 function renderWikiDirectory() {
@@ -6271,6 +6290,9 @@ els.knowledgeAnswer.addEventListener("click", (event) => {
   }
 });
 els.newEvaluationCase.addEventListener("click", () => openEvaluationCaseEditor());
+els.bootstrapEvaluation.addEventListener("click", () => {
+  bootstrapEvaluationBaseline().catch((error) => showToast(error.message, t("errors.requestFailed")));
+});
 els.cancelEvaluationCase.addEventListener("click", closeEvaluationCaseEditor);
 els.refreshEvaluation.addEventListener("click", () => {
   loadEvaluationCenter().catch((error) => showToast(error.message, t("errors.requestFailed")));
