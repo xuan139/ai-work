@@ -129,6 +129,8 @@ from app.llm_cache import lookup_llm_cache, normalize_llm_prompt, store_llm_cach
 from app.llm_runtime import LlmRuntimeError, company_api_key_for_model, run_llm
 from app.langchain_demo import run_odoo_langchain_demo
 from app.drive_mcp import DRIVE_MCP_TOOLS, handle_drive_mcp_request
+from app.notion_mcp import NOTION_MCP_TOOLS, handle_notion_mcp_request
+from app.notion_demo import execute_tool as execute_notion_tool, run_notion_demo
 from app.excel_mcp import EXCEL_MCP_TOOLS, handle_excel_mcp_request
 from app.file_security import UploadScanResult, UploadSecurityError, inspect_uploaded_file, validated_upload_filename
 from app.gmail_mcp import GMAIL_MCP_TOOLS, handle_gmail_mcp_request
@@ -662,6 +664,56 @@ async def excel_mcp(request: Request, payload: dict) -> Response:
     return JSONResponse(result)
 
 
+@app.post("/mcp/notion")
+async def notion_mcp(request: Request, payload: dict) -> Response:
+    expected = os.getenv("NOTION_LOCAL_MCP_KEY", "").strip()
+    if not expected:
+        raise HTTPException(status_code=503, detail="Notion MCP 尚未設定內部存取金鑰")
+    if not hmac.compare_digest(request.headers.get("authorization", ""), f"Bearer {expected}"):
+        raise HTTPException(status_code=401, detail="Notion MCP authorization failed")
+    result = await asyncio.to_thread(handle_notion_mcp_request, payload, os.getenv("NOTION_API_KEY", "").strip())
+    return Response(status_code=204) if result is None else JSONResponse(result)
+
+
+@app.get("/notion-demo")
+async def notion_demo_page() -> FileResponse:
+    return FileResponse(STATIC_DIR / "notion-demo.html", headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/api/notion-demo/status")
+async def notion_demo_status(admin: dict = Depends(require_admin)) -> dict:
+    return {"configured": bool(os.getenv("NOTION_API_KEY", "").strip()),
+            "model": current_llm_model()["name"], "tools": [tool["name"] for tool in NOTION_MCP_TOOLS],
+            "read_only": True, "connection_verified": False}
+
+
+@app.post("/api/notion-demo/tools/call")
+async def notion_demo_tool(payload: dict, admin: dict = Depends(require_admin)) -> dict:
+    arguments = payload.get("arguments", {})
+    if not isinstance(arguments, dict):
+        raise HTTPException(status_code=400, detail="arguments 必須是 JSON object")
+    limiter_key = f"notion:{admin['id']}"
+    if not LLM_LIMITER.allowed(limiter_key):
+        raise HTTPException(status_code=429, detail="請稍後再試")
+    LLM_LIMITER.record(limiter_key)
+    return await execute_notion_tool(str(payload.get("name") or ""), arguments, admin)
+
+
+@app.post("/api/notion-demo/ask")
+async def notion_demo_ask(payload: dict, admin: dict = Depends(require_admin)) -> dict:
+    prompt = payload.get("prompt", "")
+    if not isinstance(prompt, str) or not 1 <= len(prompt.strip()) <= 1000:
+        raise HTTPException(status_code=400, detail="問題需介於 1 至 1,000 個字元")
+    guard_prompt(prompt, admin, "notion_demo")
+    limiter_key = f"user:{admin['id']}"
+    if not LLM_LIMITER.allowed(limiter_key):
+        raise HTTPException(status_code=429, detail="模型呼叫過於頻繁，請稍後再試")
+    LLM_LIMITER.record(limiter_key)
+    model_id = current_llm_model()["id"]
+    async with LLM_RUN_LOCKS.setdefault((admin["id"], model_id), asyncio.Lock()):
+        return await run_notion_demo(prompt=prompt.strip(), model_id=model_id, user=admin, run_model=run_model_with_audit)
+
+
 @app.get("/")
 async def index() -> FileResponse:
     return FileResponse(
@@ -855,6 +907,7 @@ def serialize_mcp_server(server: dict) -> dict:
         "gmail": "/mcp/gmail",
         "google-drive": "/mcp/google-drive",
         "nas-excel": "/mcp/excel",
+        "notion-readonly": "/mcp/notion",
     }
     result["public_endpoint"] = public_endpoints.get(result.get("slug"))
     return result
@@ -921,8 +974,17 @@ async def admin_mcp_servers(admin: dict = Depends(require_admin)) -> dict:
 
 @app.get("/api/mcp/available")
 async def available_mcp_tools(user: dict = Depends(current_user)) -> dict:
-    servers = available_mcp_servers(list_mcp_servers())
+    servers = available_mcp_servers(mcp_servers_for_user(user))
     return {"servers": [public_mcp_server(server) for server in servers]}
+
+
+def mcp_servers_for_user(user: dict) -> list[dict]:
+    servers = list_mcp_servers()
+    if user.get("role") == "admin":
+        return servers
+    # The shared Notion integration is not a per-employee Notion authorization.
+    return [server for server in servers if server.get("slug") != "notion-readonly"
+            and urlparse(server.get("endpoint") or "").path.rstrip("/") != "/mcp/notion"]
 
 
 @app.get("/api/langchain-demo/status")
@@ -2694,7 +2756,7 @@ async def run_model_with_mcp(
             audit_context={"channel": "mcp_planner", "operation_type": "mcp_llm"},
         )
     try:
-        servers = available_mcp_servers(list_mcp_servers(), selected_server_id)
+        servers = available_mcp_servers(mcp_servers_for_user(user), selected_server_id)
     except McpPlanningError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if not servers:

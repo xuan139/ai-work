@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Notion MCP Demo · AI Work</title>
+  <link rel="icon" href="/static/icons/icon-192.png">
+  <link rel="stylesheet" href="/static/notion-demo.css?v=1">
+  <script src="/static/notion-demo.js?v=1" defer></script>
+</head>
+<body>
+  <header><a class="brand" href="/"><img src="/static/icons/icon-192.png" alt="AI Work" width="36" height="36">AI Work</a>
+    <nav><a href="/" data-copy="back">返回工作區</a><button id="language" type="button">EN</button></nav></header>
+  <main>
+    <div class="heading"><div><p class="eyebrow">ENTERPRISE KNOWLEDGE</p><h1>Notion MCP Demo</h1></div><span class="badge" data-copy="readonly">管理員 · 唯讀</span></div>
+    <div class="status-strip"><div><span data-copy="model">目前 LLM</span><strong id="model">--</strong></div><div><span>Notion</span><strong id="connection" role="status">檢查中…</strong></div><button id="refresh" type="button" data-copy="refresh">重新檢查</button></div>
+    <section id="setup" class="notice" hidden aria-labelledby="setupTitle"><h2 id="setupTitle" data-copy="setupTitle">需要連接 Notion</h2>
+      <ol><li data-copy="setup1">建立 Notion Internal Integration，只勾選 Read content。</li><li data-copy="setup2">將示範頁面透過 Connections 授權給此 Integration。</li><li data-copy="setup3">在伺服器 .env 設定 NOTION_API_KEY，重新啟動 AI Work。</li></ol>
+      <a href="https://www.notion.so/profile/integrations" target="_blank" rel="noopener noreferrer" data-copy="integration">Notion 整合設定</a>
+    </section>
+    <p id="error" role="alert" hidden></p><p id="busy" role="status" aria-live="polite" hidden></p>
+    <div class="workspace">
+      <section class="pages" aria-labelledby="pagesTitle"><h2 id="pagesTitle" data-copy="pages">已授權頁面</h2>
+        <form id="searchForm"><label for="query" data-copy="searchLabel">頁面標題</label><div class="input-row"><input id="query" maxlength="200" placeholder="例如：採購 SOP"><button id="search" type="submit" data-copy="search">搜尋</button></div></form>
+        <button id="recent" type="button" class="secondary" data-copy="recent">最近更新的頁面</button>
+        <ul id="pageList"></ul><p id="empty" class="muted" data-copy="waiting">尚未查詢</p><button id="more" type="button" hidden data-copy="more">載入更多</button>
+      </section>
+      <section class="qa" aria-labelledby="qaTitle"><h2 id="qaTitle" data-copy="qa">Notion 問答</h2>
+        <div id="selected" hidden><span id="selectedTitle"></span><button id="clear" type="button" data-copy="clear">清除選取</button></div>
+        <form id="askForm"><label for="prompt" data-copy="prompt">您的問題</label><textarea id="prompt" rows="3" maxlength="750" required placeholder="找出採購 SOP，摘要請購與驗收步驟。"></textarea>
+          <div class="actions"><button id="ask" type="submit" data-copy="ask">查詢 Notion</button><button id="sample" type="button" class="secondary" data-copy="sample">填入摘要範例</button></div>
+        </form>
+        <section id="answerSection" hidden><h3 data-copy="answer">模型回答</h3><p id="answer"></p><p id="partial" class="notice" hidden data-copy="partial">本次僅使用部分內容，不能視為完整工作區或完整文件的結論。</p>
+          <h3 data-copy="sources">來源頁面</h3><ul id="sources"></ul></section>
+        <section class="trace"><h3 data-copy="trace">MCP 執行軌跡</h3><ol id="trace"></ol><p id="traceEmpty" class="muted" data-copy="waiting">尚未查詢</p></section>
+      </section>
+    </div>
+  </main>
+</body>
+</html>

@@ -2660,6 +2660,7 @@ async function showApp() {
   els.mcpNav.hidden = !isAdmin;
   els.n8nNav.hidden = !isAdmin;
   els.evaluationNav.hidden = !isAdmin;
+  document.querySelector("#notionDemoNav").hidden = !isAdmin;
   els.addCustomModelButton.hidden = !isAdmin;
   setManagementMenuExpanded(false);
   resetLlmAuditFilters();
@@ -3001,7 +3002,7 @@ function renderMcpServers() {
   }
 
   const categories = [
-    { key: "nas", slugs: ["nas-demo", "factory-mes", "nas-filesystem", "notion"] },
+    { key: "nas", slugs: ["nas-demo", "factory-mes", "nas-filesystem", "notion", "notion-readonly"] },
     {
       key: "office",
       slugs: [

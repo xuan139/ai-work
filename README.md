@@ -46,6 +46,8 @@ Open `http://127.0.0.1:8000`.
 
 The standalone [LangChain Odoo demo](/langchain-demo) is available from the AI Work sidebar after login. It uses LangChain LCEL to plan a read-only `search_read` call through the configured Odoo MCP, then passes the returned data to the globally selected LLM for a sourced answer. The page shows each step and keeps per-user conversation memory in SQLite; Clear memory deletes only the current user's demo conversation. Odoo MCP must be enabled and connected in MCP Management. Model and MCP calls retain their existing audit trail.
 
+The admin-only [Notion MCP demo](/notion-demo) can search shared page titles, read pages, and ask the current LLM with source links and tool traces. It uses a read-only Notion API integration, not the official remote OAuth MCP. See [setup and sample pages](docs/NOTION_MCP_DEMO.md). Without `NOTION_API_KEY`, it shows setup requirements and does not fabricate results.
+
 Default login:
 
 - username: `admin`

@@ -13,6 +13,13 @@ DB_PATH = DATA_DIR / "app.db"
 
 MCP_CATALOG_TEMPLATES = (
     {
+        "slug": "notion-readonly", "name": "Notion Read-only Demo", "transport": "streamable_http",
+        "endpoint": "http://127.0.0.1:8000/mcp/notion", "auth_type": "bearer", "auth_env_var": "NOTION_LOCAL_MCP_KEY",
+        "description": "管理員專用 Notion 唯讀 Demo：搜尋已授權頁面標題、讀取頁面與子區塊。需設定 NOTION_API_KEY。",
+        "description_en": "Admin-only Notion demo: search shared page titles and read pages or child blocks. Requires NOTION_API_KEY.",
+        "source_url": "https://developers.notion.com/reference/post-search", "is_enabled": False,
+    },
+    {
         "slug": "factory-mes", "name": "FactorySemantics MES 唯讀", "transport": "streamable_http",
         "endpoint": "http://127.0.0.1:8310/mcp", "auth_type": "none", "auth_env_var": None,
         "description": "本機模擬產線的唯讀 MES：逾期工單、今日停機、工單生產與品質紀錄。資料由 FactorySemantics 提供。",
