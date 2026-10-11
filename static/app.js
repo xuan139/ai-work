@@ -872,6 +872,21 @@ const messages = {
       promptLabel: "使用者 Prompt",
       promptPlaceholder: "請輸入要交給模型處理的內容",
       promptSearchHint: "先輸入關鍵字，再查詢",
+      queryModeLabel: "回答模式",
+      knowledgeMode: "NAS 知識庫",
+      knowledgeModeHint: "預設搜尋所有可存取的 NAS 資料，回答必須顯示來源。",
+      assetMode: "當前檔案",
+      assetModeHint: "只查詢所選 NAS 檔案，回答會顯示來源頁碼或切片。",
+      directMode: "一般模型對話",
+      directModeHint: "直接詢問模型，不搜尋 NAS 知識庫；可使用系統 Prompt 與 MCP。",
+      selectAsset: "選擇 NAS 檔案",
+      selectAssetPlaceholder: "請選擇已完成 RAG 建庫的檔案",
+      noRagAssets: "目前沒有可查詢的 NAS 檔案",
+      assetRequired: "請先選擇要查詢的 NAS 檔案",
+      sourcesRequired: "本回答使用 NAS 知識庫，來源如下。",
+      sourceReference: "來源",
+      sourceUnavailable: "未找到可引用的 NAS 來源，系統未產生無來源的知識庫答案。",
+      directNoSources: "本回答未使用 NAS 資料，因此沒有來源。",
       systemPromptLabel: "系統 Prompt（選填）",
       systemPromptPlaceholder: "例如：你是企業知識助理，請以繁體中文條列回答。",
       systemPromptHint: "設定角色、語氣與輸出格式",
@@ -1889,6 +1904,21 @@ const messages = {
       promptLabel: "Prompt",
       promptPlaceholder: "Enter content to send to the selected model",
       promptSearchHint: "Enter keywords, then search",
+      queryModeLabel: "Answer Mode",
+      knowledgeMode: "NAS Knowledge Base",
+      knowledgeModeHint: "Searches all accessible NAS content by default and requires sources in every answer.",
+      assetMode: "Current File",
+      assetModeHint: "Searches only the selected NAS file and shows the source page or chunk.",
+      directMode: "General Model Chat",
+      directModeHint: "Chats directly with the model without searching NAS content; system prompts and MCP are available.",
+      selectAsset: "Select NAS File",
+      selectAssetPlaceholder: "Select a file with a completed RAG index",
+      noRagAssets: "No queryable NAS files are available",
+      assetRequired: "Select a NAS file to query first",
+      sourcesRequired: "This answer uses the NAS knowledge base. Sources are listed below.",
+      sourceReference: "Source",
+      sourceUnavailable: "No citable NAS source was found, so the system did not produce an unsourced knowledge-base answer.",
+      directNoSources: "This answer did not use NAS data, so it has no NAS sources.",
       systemPromptLabel: "System Prompt (Optional)",
       systemPromptPlaceholder: "Example: You are an enterprise knowledge assistant. Answer with concise bullet points.",
       systemPromptHint: "Set the role, tone, and output format",
@@ -2078,6 +2108,8 @@ const state = {
   llmSuggestions: [],
   activeLlmSuggestion: -1,
   llmSuggestionRequestId: 0,
+  aiworkQueryMode: "knowledge",
+  aiworkSelectedAssetId: "",
   nasAssets: [],
   networkAssets: [],
   networkPollTimer: null,
@@ -2243,13 +2275,19 @@ const els = {
   modelUsePanel: document.querySelector("#modelUsePanel"),
   modelUseTitle: document.querySelector("#modelUseTitle"),
   modelUseMode: document.querySelector("#modelUseMode"),
+  aiworkQueryModeButtons: [...document.querySelectorAll("[data-aiwork-query-mode]")],
+  aiworkQueryModeHint: document.querySelector("#aiworkQueryModeHint"),
+  aiworkAssetPicker: document.querySelector("#aiworkAssetPicker"),
+  aiworkAssetSelect: document.querySelector("#aiworkAssetSelect"),
   llmPromptInput: document.querySelector("#llmPromptInput"),
   llmSystemPromptInput: document.querySelector("#llmSystemPromptInput"),
+  aiworkSystemPromptField: document.querySelector("#aiworkSystemPromptField"),
   llmPromptSuggestions: document.querySelector("#llmPromptSuggestions"),
   runModelButton: document.querySelector("#runModelButton"),
   forceRunModelButton: document.querySelector("#forceRunModelButton"),
   useMcpToggle: document.querySelector("#useMcpToggle"),
   aiworkMcpServerSelect: document.querySelector("#aiworkMcpServerSelect"),
+  aiworkMcpControls: document.querySelector("#aiworkMcpControls"),
   mesQuestionExamples: document.querySelector("#mesQuestionExamples"),
   mesCurrentModel: document.querySelector("#mesCurrentModel"),
   mesConnectionStatus: document.querySelector("#mesConnectionStatus"),
@@ -2455,6 +2493,7 @@ function applyLanguage(lang) {
   renderPricingPanel();
   renderKeyStatus();
   renderModelUsePanel();
+  renderAiworkQueryControls();
   renderAiworkMcpControls();
   renderMesDemo();
   renderLlmSuggestions();
@@ -2666,7 +2705,7 @@ async function refreshViewData(name) {
   if (name === "network") return loadNetworkAssets();
   if (name === "models") return loadLocalModels();
   if (name === "meetings") return loadMeetings();
-  if (name === "aiwork") return Promise.all([loadLlmCatalog(), loadLlmCalls(), loadAvailableMcpServers()]);
+  if (name === "aiwork") return Promise.all([loadLlmCatalog(), loadLlmCalls(), loadAvailableMcpServers(), loadNasAssets({ background: true })]);
   if (name === "mes") return Promise.all([loadLlmCatalog(), loadAvailableMcpServers()]).then(renderMesDemo);
   if (name === "mcp") return loadMcpServers();
   if (name === "n8n") return loadN8nStatus();
@@ -2882,10 +2921,11 @@ async function runMesDemo() {
 function renderAiworkMcpControls() {
   if (!els.useMcpToggle) return;
   const servers = state.availableMcpServers;
+  const directMode = state.aiworkQueryMode === "direct";
   const toolCount = servers.reduce((sum, server) => sum + Number(server.tool_count || 0), 0);
   els.useMcpToggle.checked = state.useMcp;
-  els.useMcpToggle.disabled = !servers.length;
-  els.aiworkMcpServerSelect.disabled = !state.useMcp || !servers.length;
+  els.useMcpToggle.disabled = !directMode || !servers.length;
+  els.aiworkMcpServerSelect.disabled = !directMode || !state.useMcp || !servers.length;
   els.aiworkMcpServerSelect.innerHTML = `
     <option value="auto">${escapeHtml(t("aiwork.mcpAuto"))}</option>
     ${servers.map((server) => `
@@ -2898,7 +2938,47 @@ function renderAiworkMcpControls() {
     : t("aiwork.mcpUnavailable");
   els.aiworkMcpStatus.classList.toggle("unavailable", !servers.length);
   const selected = servers.find((server) => String(server.id) === state.selectedMcpServerId);
-  els.mesQuestionExamples.hidden = !state.useMcp || selected?.slug !== "factory-mes";
+  els.mesQuestionExamples.hidden = !directMode || !state.useMcp || selected?.slug !== "factory-mes";
+}
+
+function aiworkQueryableAssets() {
+  return state.nasAssets.filter(
+    (asset) => asset.status === "completed"
+      && Number(asset.chunk_count || 0) > 0
+      && ["audio", "video", "pdf", "docx", "image"].includes(asset.category),
+  );
+}
+
+function aiworkAssetLabel(asset) {
+  const title = asset.title || asset.original_filename || `#${asset.id}`;
+  const filename = asset.original_filename && asset.original_filename !== title ? ` · ${asset.original_filename}` : "";
+  return `${title}${filename}`;
+}
+
+function renderAiworkQueryControls() {
+  if (!els.aiworkQueryModeHint) return;
+  const mode = state.aiworkQueryMode;
+  const assets = aiworkQueryableAssets();
+  const selectedExists = assets.some((asset) => String(asset.id) === String(state.aiworkSelectedAssetId));
+  if (!selectedExists) state.aiworkSelectedAssetId = assets[0] ? String(assets[0].id) : "";
+
+  els.aiworkQueryModeButtons.forEach((button) => {
+    const active = button.dataset.aiworkQueryMode === mode;
+    button.classList.toggle("active", active);
+    button.setAttribute("aria-pressed", String(active));
+  });
+  els.aiworkQueryModeHint.textContent = t(`aiwork.${mode}ModeHint`);
+  els.aiworkAssetPicker.hidden = mode !== "asset";
+  els.aiworkAssetSelect.innerHTML = assets.length
+    ? `<option value="">${escapeHtml(t("aiwork.selectAssetPlaceholder"))}</option>${assets.map((asset) => `<option value="${Number(asset.id)}">${escapeHtml(aiworkAssetLabel(asset))}</option>`).join("")}`
+    : `<option value="">${escapeHtml(t("aiwork.noRagAssets"))}</option>`;
+  els.aiworkAssetSelect.value = state.aiworkSelectedAssetId;
+  els.aiworkAssetSelect.disabled = !assets.length;
+  els.aiworkSystemPromptField.hidden = mode !== "direct";
+  els.aiworkMcpControls.hidden = mode !== "direct";
+  els.forceRunModelButton.hidden = mode === "asset";
+  if (mode === "asset" && !state.aiworkSelectedAssetId) els.runModelButton.disabled = true;
+  renderAiworkMcpControls();
 }
 
 function renderMcpServers() {
@@ -3492,6 +3572,7 @@ async function loadNasAssets({ background = false } = {}) {
   state.nasAssets = await api(`/api/nas-assets${params.toString() ? `?${params}` : ""}`, { busy: !background });
   renderDashboardAssets();
   renderNasAssetList();
+  renderAiworkQueryControls();
   if (state.selectedAssetId) {
     const stillExists = state.nasAssets.some((asset) => asset.id === state.selectedAssetId);
     if (stillExists) await selectNasAsset(state.selectedAssetId);
@@ -5251,15 +5332,17 @@ function renderCacheHitLabel(cache) {
 
 function renderAnswerSources(contexts, retrieval) {
   if (!contexts.length) return "";
-  const retrievalLabel = retrieval.method === "hybrid" ? t("upload.retrievalHybrid") : t("upload.retrievalKeyword");
+  const retrievalLabel = String(retrieval.method || "").startsWith("hybrid") ? t("upload.retrievalHybrid") : t("upload.retrievalKeyword");
   return `
     <div class="answer-source-panel">
       <strong>${escapeHtml(t("upload.answerSources"))} · ${escapeHtml(retrievalLabel)}${retrieval.embedding_model ? ` · ${escapeHtml(retrieval.embedding_model)}` : ""}</strong>
       <div class="answer-source-list">
         ${contexts
           .map(
-            (chunk) => `
+            (chunk, index) => `
               <article class="answer-source-card">
+                ${chunk.asset_title ? `<strong class="answer-source-title">[${escapeHtml(t("aiwork.sourceReference"))} ${index + 1}] ${escapeHtml(chunk.asset_title)}${chunk.version_no ? ` · V${Number(chunk.version_no)}` : ""}</strong>` : ""}
+                ${chunk.original_filename && chunk.original_filename !== chunk.asset_title ? `<small class="answer-source-filename">${escapeHtml(chunk.original_filename)}</small>` : ""}
                 <div class="chunk-source-line">
                   <b>#${escapeHtml(chunk.chunk_index)}</b>
                   ${chunk.page_number ? `<span>${escapeHtml(t("upload.page"))} ${escapeHtml(chunk.page_number)}</span>` : ""}
@@ -5268,7 +5351,7 @@ function renderAnswerSources(contexts, retrieval) {
                   ${chunk.semantic_score !== null && chunk.semantic_score !== undefined ? `<span>${escapeHtml(t("upload.semanticScore"))} ${escapeHtml(chunk.semantic_score)}</span>` : ""}
                   ${chunk.keyword_score !== undefined ? `<span>${escapeHtml(t("upload.keywordScore"))} ${escapeHtml(chunk.keyword_score)}</span>` : ""}
                 </div>
-                <p>${escapeHtml(chunk.content.slice(0, 220))}</p>
+                <p>${escapeHtml(String(chunk.content || "").slice(0, 220))}</p>
                 ${chunk.image_url ? `<img src="${escapeHtml(chunk.image_url)}" alt="${escapeHtml(t("upload.pagePreview"))}" loading="lazy" />` : ""}
               </article>
             `
@@ -5521,6 +5604,7 @@ function renderModelUsePanel() {
     els.runModelButton.disabled = true;
     els.forceRunModelButton.disabled = true;
     els.modelResponseBox.hidden = true;
+    renderAiworkQueryControls();
     return;
   }
 
@@ -5541,6 +5625,7 @@ function renderModelUsePanel() {
   els.modelUseMode.classList.toggle("ready", isCurrent && (hasKey || canUseFreeQuota));
   els.runModelButton.disabled = !isCurrent || (!hasKey && !canUseFreeQuota);
   els.forceRunModelButton.disabled = !isCurrent || (!hasKey && !canUseFreeQuota);
+  renderAiworkQueryControls();
 }
 
 function renderLlmCallHistory() {
@@ -5803,6 +5888,15 @@ async function runSelectedModel(forceRefresh = false) {
     return;
   }
 
+  const queryMode = state.aiworkQueryMode;
+  const selectedAsset = aiworkQueryableAssets().find(
+    (asset) => String(asset.id) === String(state.aiworkSelectedAssetId),
+  );
+  if (queryMode === "asset" && !selectedAsset) {
+    showToast(t("aiwork.assetRequired"), t("aiwork.responseTitle"));
+    return;
+  }
+
   const hasApiKey = modelHasApiAccess(model);
   const canUseFreeQuota = Boolean(model.free_tier.available && !model.free_tier.requires_api_key_for_real_call);
   if (!hasApiKey && !canUseFreeQuota) {
@@ -5815,31 +5909,67 @@ async function runSelectedModel(forceRefresh = false) {
   els.runModelButton.disabled = true;
   els.forceRunModelButton.disabled = true;
   try {
-    const result = await api("/api/llm/run", {
-      method: "POST",
-      body: JSON.stringify({
-        model_id: model.id,
-        prompt,
-        system_prompt: els.llmSystemPromptInput.value.trim(),
-        api_key: state.apiKeys[providerKeyId(model.provider)] || "",
-        force_refresh: forceRefresh,
-        use_mcp: state.useMcp,
-        mcp_server_id: state.selectedMcpServerId,
-      }),
-    });
-    els.modelResponseBox.hidden = false;
-    els.modelResponseBox.classList.remove("error");
-    els.modelResponseBox.innerHTML = `
-      <strong>${t("aiwork.responseTitle")} · ${escapeHtml(result.model)}${renderCacheHitLabel(result.cache)}</strong>
+    const apiKey = state.apiKeys[providerKeyId(model.provider)] || "";
+    let result;
+    if (queryMode === "knowledge") {
+      result = await api("/api/knowledge/ask", {
+        method: "POST",
+        body: JSON.stringify({
+          question: prompt,
+          scope: "all_accessible",
+          top_k: 8,
+          api_key: apiKey,
+          force: forceRefresh,
+        }),
+      });
+    } else if (queryMode === "asset") {
+      result = await api(`/api/nas-assets/${selectedAsset.id}/ask`, {
+        method: "POST",
+        body: JSON.stringify({ question: prompt, api_key: apiKey }),
+      });
+    } else {
+      result = await api("/api/llm/run", {
+        method: "POST",
+        body: JSON.stringify({
+          model_id: model.id,
+          prompt,
+          system_prompt: els.llmSystemPromptInput.value.trim(),
+          api_key: apiKey,
+          force_refresh: forceRefresh,
+          use_mcp: state.useMcp,
+          mcp_server_id: state.selectedMcpServerId,
+        }),
+      });
+    }
+    const contexts = queryMode === "asset"
+      ? (result.contexts || []).map((context) => ({
+          ...context,
+          asset_title: result.asset_title || selectedAsset.title,
+          original_filename: selectedAsset.original_filename,
+          version_no: selectedAsset.version_no,
+        }))
+      : (result.contexts || []);
+    const sourceContent = queryMode === "direct"
+      ? `<div class="aiwork-source-notice no-source">${escapeHtml(t("aiwork.directNoSources"))}</div>`
+      : contexts.length
+        ? `<div class="aiwork-source-notice">${escapeHtml(t("aiwork.sourcesRequired"))}</div>${renderAnswerSources(contexts, result.retrieval || {})}`
+        : `<div class="aiwork-source-notice no-source">${escapeHtml(t("aiwork.sourceUnavailable"))}</div>`;
+    const usageContent = result.usage ? `
       <div class="llm-usage-grid inline">
         ${usageChip(t("aiwork.usageInput"), result.usage?.input_tokens)}
         ${usageChip(t("aiwork.usageOutput"), result.usage?.output_tokens)}
         ${usageChip(t("aiwork.usageTotal"), result.usage?.total_tokens)}
         ${usageChip(t("aiwork.remainingTokens"), result.usage?.remaining_tokens)}
         ${usageChip(t("aiwork.remainingBalance"), result.usage?.remaining_balance)}
-      </div>
+      </div>` : "";
+    els.modelResponseBox.hidden = false;
+    els.modelResponseBox.classList.remove("error");
+    els.modelResponseBox.innerHTML = `
+      <strong>${t("aiwork.responseTitle")} · ${escapeHtml(result.model_name || result.model || model.name)}${renderCacheHitLabel(result.cache)}</strong>
+      ${usageContent}
       <pre>${escapeHtml(result.answer)}</pre>
-      ${renderMcpExecutionTrace(result.mcp)}
+      ${sourceContent}
+      ${queryMode === "direct" ? renderMcpExecutionTrace(result.mcp) : ""}
     `;
     await loadLlmCalls();
   } catch (error) {
@@ -6616,6 +6746,18 @@ els.cancelKeyButton.addEventListener("click", closeKeyModal);
 els.saveKeyButton.addEventListener("click", saveApiKeyForSession);
 els.setCurrentLlmButton.addEventListener("click", () => saveCurrentLlmModel().catch((error) => showToast(error.message, t("errors.requestFailed"))));
 els.setCurrentAsrButton.addEventListener("click", () => saveCurrentAsrModel().catch((error) => showToast(error.message, t("errors.requestFailed"))));
+els.aiworkQueryModeButtons.forEach((button) => {
+  button.addEventListener("click", () => {
+    state.aiworkQueryMode = button.dataset.aiworkQueryMode;
+    els.modelResponseBox.hidden = true;
+    renderModelUsePanel();
+  });
+});
+els.aiworkAssetSelect.addEventListener("change", () => {
+  state.aiworkSelectedAssetId = els.aiworkAssetSelect.value;
+  els.modelResponseBox.hidden = true;
+  renderModelUsePanel();
+});
 els.runModelButton.addEventListener("click", () => runSelectedModel().catch((error) => showToast(error.message, t("errors.requestFailed"))));
 els.forceRunModelButton.addEventListener("click", () => runSelectedModel(true).catch((error) => showToast(error.message, t("errors.requestFailed"))));
 els.useMcpToggle.addEventListener("change", () => {

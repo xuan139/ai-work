@@ -11,7 +11,7 @@
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" type="image/png" sizes="192x192" href="/static/icons/icon-192.png" />
     <link rel="apple-touch-icon" href="/static/icons/icon-192.png" />
-    <link rel="stylesheet" href="/static/styles.css?v=evaluation-v2" />
+    <link rel="stylesheet" href="/static/styles.css?v=aiwork-query-modes-v1" />
   </head>
   <body>
     <div id="globalBusyIndicator" class="global-busy-indicator" role="status" aria-live="polite" hidden>
@@ -720,6 +720,21 @@
                 </div>
                 <span id="modelUseMode" class="use-mode-badge"></span>
               </div>
+              <div class="aiwork-query-mode-panel" aria-labelledby="aiworkQueryModeLabel">
+                <div class="aiwork-query-mode-heading">
+                  <strong id="aiworkQueryModeLabel" data-i18n="aiwork.queryModeLabel">回答模式</strong>
+                  <span id="aiworkQueryModeHint"></span>
+                </div>
+                <div class="aiwork-query-modes" role="group" aria-label="回答模式" data-i18n-attr="aria-label:aiwork.queryModeLabel">
+                  <button type="button" data-aiwork-query-mode="knowledge" data-i18n="aiwork.knowledgeMode">NAS 知識庫</button>
+                  <button type="button" data-aiwork-query-mode="asset" data-i18n="aiwork.assetMode">當前檔案</button>
+                  <button type="button" data-aiwork-query-mode="direct" data-i18n="aiwork.directMode">一般模型對話</button>
+                </div>
+                <label id="aiworkAssetPicker" class="aiwork-asset-picker" hidden>
+                  <span data-i18n="aiwork.selectAsset">選擇 NAS 檔案</span>
+                  <select id="aiworkAssetSelect"></select>
+                </label>
+              </div>
               <div class="prompt-field">
                 <div class="prompt-field-heading">
                   <label for="llmPromptInput" data-i18n="aiwork.promptLabel">使用者 Prompt</label>
@@ -730,14 +745,14 @@
                   <div id="llmPromptSuggestions" class="prompt-suggestions" role="listbox" aria-label="相似歷史問題" data-i18n-attr="aria-label:aiwork.suggestionsLabel" hidden></div>
                 </div>
               </div>
-              <div class="prompt-field system-prompt-field">
+              <div id="aiworkSystemPromptField" class="prompt-field system-prompt-field">
                 <div class="prompt-field-heading">
                   <label for="llmSystemPromptInput" data-i18n="aiwork.systemPromptLabel">系統 Prompt（選填）</label>
                   <small data-i18n="aiwork.systemPromptHint">設定角色、語氣與輸出格式</small>
                 </div>
                 <textarea id="llmSystemPromptInput" rows="2" maxlength="4000" placeholder="例如：你是企業知識助理，請以繁體中文條列回答。" data-i18n-attr="placeholder:aiwork.systemPromptPlaceholder;aria-label:aiwork.systemPromptLabel"></textarea>
               </div>
-              <div class="mcp-run-controls">
+              <div id="aiworkMcpControls" class="mcp-run-controls">
                 <label class="mcp-run-toggle">
                   <input id="useMcpToggle" type="checkbox" />
                   <span>
@@ -1344,6 +1359,6 @@
       </section>
     </div>
 
-    <script src="/static/app.js?v=evaluation-v2"></script>
+    <script src="/static/app.js?v=aiwork-query-modes-v1"></script>
   </body>
 </html>

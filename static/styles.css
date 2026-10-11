@@ -3520,6 +3520,105 @@ button:disabled {
   gap: 14px;
 }
 
+.aiwork-query-mode-panel {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  background: #f4faff;
+  border: 1px solid #bfdbfe;
+  border-radius: 7px;
+}
+
+.aiwork-query-mode-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.aiwork-query-mode-heading strong {
+  color: var(--ink);
+  font-size: 14px;
+}
+
+.aiwork-query-mode-heading span {
+  color: var(--muted);
+  font-size: 12px;
+  text-align: right;
+}
+
+.aiwork-query-modes {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 5px;
+  background: #e5f4fd;
+  border: 1px solid #c3e4f7;
+  border-radius: 7px;
+}
+
+.aiwork-query-modes button {
+  min-height: 42px;
+  padding: 8px 12px;
+  color: #45647e;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  font-weight: 700;
+}
+
+.aiwork-query-modes button:hover {
+  color: #12689e;
+  background: #f8fcff;
+}
+
+.aiwork-query-modes button.active {
+  color: #075985;
+  background: white;
+  border-color: #93cfee;
+  box-shadow: 0 2px 8px rgba(14, 116, 174, 0.08);
+}
+
+.aiwork-asset-picker {
+  display: grid;
+  grid-template-columns: minmax(120px, 180px) minmax(0, 1fr);
+  gap: 12px;
+  align-items: center;
+}
+
+.aiwork-asset-picker span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.aiwork-source-notice {
+  margin-top: 14px;
+  padding: 10px 12px;
+  color: #075985;
+  background: #eff8ff;
+  border-left: 3px solid #38a8e6;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.aiwork-source-notice.no-source {
+  color: #8a5a0a;
+  background: #fff9eb;
+  border-left-color: #e5a72d;
+}
+
+.answer-source-title {
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.answer-source-filename {
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
 .use-panel-header {
   display: flex;
   justify-content: space-between;
@@ -5847,6 +5946,24 @@ details.mcp-server-group[open] > .mcp-group-heading::before { content: "−"; }
 }
 
 @media (max-width: 700px) {
+  .aiwork-query-mode-heading,
+  .aiwork-asset-picker {
+    align-items: stretch;
+    grid-template-columns: 1fr;
+  }
+
+  .aiwork-query-mode-heading {
+    display: grid;
+  }
+
+  .aiwork-query-mode-heading span {
+    text-align: left;
+  }
+
+  .aiwork-query-modes {
+    grid-template-columns: 1fr;
+  }
+
   .workspace,
   .sidebar,
   .login-view {
