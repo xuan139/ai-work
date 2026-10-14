@@ -1,10 +1,68 @@
 # AI Work NAS
 
-FastAPI demo for authenticated NAS-style meeting audio intake, browser recording, file upload, file discovery, transcription status, searchable meeting history, document RAG, and LLM call auditing.
+**AI Work NAS is a self-hosted enterprise AI portal** for collecting company files,
+searching internal knowledge, processing meeting media, and querying connected
+business systems through controlled, read-only MCP tools. It combines FastAPI,
+a browser interface, NAS-hosted storage, and configurable local or cloud models.
+It also includes manufacturing and healthcare teaching demos.
 
-> **Proprietary software:** Copyright (c) 2026 xuan139. All rights reserved.
-> Copying, modification, distribution, sublicensing, hosting, or commercial use
-> is prohibited without prior written permission. See [LICENSE](LICENSE).
+> **Individually owned proprietary software:** Copyright (c) 2026 xuan139.
+> All rights reserved. Not open source and not free for personal use.
+> Prior written authorization is required for use, copying, modification,
+> redistribution, hosting or commercial deployment, subject to the exceptions
+> in [LICENSE](LICENSE). Third-party materials retain their own licenses.
+
+License explanations: [English](docs/LICENSE_EXPLANATIONS.md#english) |
+[简体中文](docs/LICENSE_EXPLANATIONS.md#simplified-chinese) |
+[繁體中文](docs/LICENSE_EXPLANATIONS.md#traditional-chinese) |
+[한국어](docs/LICENSE_EXPLANATIONS.md#korean) |
+[日本語](docs/LICENSE_EXPLANATIONS.md#japanese).
+
+## Feature Overview
+
+| Area | Available capabilities |
+| --- | --- |
+| Enterprise AI workspace | Prompt-based Q&A, centrally configured LLM selection, local/cloud providers, NAS knowledge and selected-file query modes, and source-aware answers. |
+| NAS document intake | Audio, video, images, PDF, DOCX and text intake; original files, metadata, processing results and indexes on the configured NAS host. |
+| Meetings and media | Browser recording, ASR transcription, long-media segmentation, background processing, reprocessing, transcript downloads and Chinese-script conversion. |
+| Document understanding | PDF text extraction and page rendering, optional OCR for scanned pages/images, chunk metadata and source-page previews. |
+| RAG and answer reuse | Permission-filtered cross-file retrieval, keyword/vector hybrid search when embeddings are configured, document versions and version-aware answer caching. |
+| Enterprise Wiki | Automatically generated and incrementally updated knowledge pages with source references and inherited source-access controls. |
+| Models | Local model management, download progress and runtime readiness checks; optional OCR, ASR, embedding and video-analysis components. Availability depends on installation and configuration. |
+| Enterprise connectors | MCP registration, discovery and controlled tool execution; configured Odoo, Gmail, Google Drive, Notion, Excel/CSV/TSV SQL and NAS storage integrations. Catalog entries are not automatically connected services. |
+| Workflows | Optional n8n workflows and LINE notifications for configured processing events. Credentials, destinations and workflow setup are required. |
+| LangChain demo | Read-only Odoo queries with visible tool steps, sourced answers and per-user conversation memory. |
+| Manufacturing demo | MES read-only tools for teaching scenarios involving work orders, production, downtime and quality records. |
+| Healthcare demo | Query-first HIS/FHIR page with demo patient/MRN selection, question presets, interviews, admission histories, dietary notes and linked Orthanc images/reports. |
+| Imaging demo | Read-only Orthanc MCP, patient/study lookup, authenticated X-ray previews and sourced summaries of authored reports. Text-only LLMs do not interpret image pixels. |
+| Governance | Account/role management, access controls, model-call and MCP audit trails, filterable/paginated audit views, and controls for uploads, prompts and tools. |
+| Evaluation | Business test cases, employee-identity evaluation, deterministic scoring and human review of final answers and evidence. |
+| Ubuntu deployment | Native installation with a Python virtual environment and systemd; Docker is not required. Optional services are configured separately. |
+
+### Data And Deployment Boundaries
+
+- Original uploads, derived records, indexes and audit records are persisted on
+  the configured server. **Cloud models and external connectors can transmit
+  selected prompts, content or results outside the NAS.** Configure permissions,
+  credentials and approved providers accordingly.
+- Optional services/models require installation or authorization; a catalog
+  entry does not mean the service is connected.
+- Security controls and tests are not a security certification or a guarantee
+  against every attack. Review the [hardening checklist](docs/SECURITY_HARDENING.md)
+  before a customer pilot.
+- HIS/FHIR, MES and radiology teaching fixtures are not operational patient or
+  production records. The healthcare demo is not a validated HIS/FHIR server,
+  diagnostic viewer or medical device. Public X-ray images are reused, not the
+  fictional patients' actual images. Interview/dietary notes are not medical orders.
+
+### Demo And Setup Guides
+
+- [Hospital HIS/FHIR and patient question presets](docs/HOSPITAL_MCP_DEMO.md)
+- [Orthanc radiology MCP and deployment](docs/ORTHANC_RADIOLOGY_DEMO.md)
+- [Manufacturing MES demo](docs/FACTORY_MES_DEMO.md)
+- [Read-only Notion demo](docs/NOTION_MCP_DEMO.md)
+- [Ubuntu installation](docs/UBUNTU-SELF-HOSTED.md)
+- [Product scope](docs/PRODUCT-LINE.md)
 
 Administrators can manage Portal accounts from the Account Management view: create users, assign roles, enable or disable access, reset passwords, and safely remove unused standard accounts. Access or password changes revoke existing sessions.
 
@@ -48,10 +106,13 @@ The standalone [LangChain Odoo demo](/langchain-demo) is available from the AI W
 
 The admin-only [Notion MCP demo](/notion-demo) can search shared page titles, read pages, and ask the current LLM with source links and tool traces. It uses a read-only Notion API integration, not the official remote OAuth MCP. See [setup and sample pages](docs/NOTION_MCP_DEMO.md). Without `NOTION_API_KEY`, it shows setup requirements and does not fabricate results.
 
-Default login:
+Development-only fallback login (when no administrator password is configured):
 
 - username: `admin`
 - password: `admin123`
+
+Do not use this fallback on a public server. The native installer generates an
+initial password; deployed credentials are not documented in this repository.
 
 ## Long Audio Uploads And Chinese Script
 
@@ -132,7 +193,15 @@ For a production pilot, run `sudo /opt/ai-work/deploy/self-hosted/security-check
 
 ## License
 
-This project is proprietary and is not open-source software. No permission is
-granted to copy, modify, distribute, host, sublicense, or commercially use any
-part of this repository without prior written authorization. See
-[LICENSE](LICENSE) for the complete terms.
+Original project materials owned by xuan139 are covered by the
+[AI Work Individually Owned Proprietary License](LICENSE). No automatic license
+is granted for personal, educational, evaluation or commercial use. Any permitted
+use must be defined in a separate written authorization, except for rights
+preserved by applicable law, platform terms, prior valid grants or third-party
+licenses.
+
+See the [five-language explanation](docs/LICENSE_EXPLANATIONS.md). English is
+the controlling license text; explanations are not separate licenses.
+Dependencies, external services, model weights, third-party images and user
+content are not relicensed by this notice. Review their terms before distributing
+a package or operating a customer service.

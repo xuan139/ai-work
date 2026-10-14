@@ -1,5 +1,15 @@
 # Project Issues
 
+## 2026-10-15 — English feature overview and five-language proprietary notice
+
+- **Trigger:** User requested an English README feature introduction and strict individually owned license explanations in English, Simplified Chinese, Traditional Chinese, Korean and Japanese.
+- **Root cause:** The introduction did not summarize the current feature scope; the previous proprietary notice lacked all five requested explanations and a clear distinction between individual ownership and free personal use.
+- **Change:** Expand README with implemented feature areas, optional-service requirements and data/demo boundaries. Retain the existing owner identifier `xuan139`; update LICENSE to version 2.0 requiring written authorization, while preserving mandatory legal rights, applicable platform rights, valid prior grants and third-party terms. Add one linked multilingual explanation document; its translations do not create separate licenses.
+- **Validation:** `git diff --check` passed. A Node document check verified UTF-8 content without replacement characters, all five language headings and 21 relative file/anchor links. No executable code changed; application tests were not rerun for this documentation-only change.
+- **Unverified:** No lawyer review, certified translation, ownership investigation or complete third-party license inventory has been performed. Public repository visibility does not technically prevent copying. This documentation change does not publish or restart the server.
+- **Release authorization:** User explicitly authorized this documentation commit and push on 2026-10-15. Fetched `origin/main` and confirmed it matches local HEAD before preparing the scoped commit; unrelated Hospital edits remain excluded.
+- **Rollback:** Restore only README and LICENSE from their prior revision, remove `docs/LICENSE_EXPLANATIONS.md` and this entry. Preserve the separate Hospital UI changes and unrelated files.
+
 ## 2026-10-15 — Hospital patient images and teaching care notes
 
 - **Trigger:** User requested images/reports in the HIS page, followed by a fictional patient interview, admission history and dietary restrictions demo.

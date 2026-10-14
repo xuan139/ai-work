@@ -1,62 +1,96 @@
-AI WORK PROPRIETARY LICENSE
+AI WORK INDIVIDUALLY OWNED PROPRIETARY LICENSE
+Version 2.0 - 2026-10-15
 
 Copyright (c) 2026 xuan139. All Rights Reserved.
 
-This software, including its source code, object code, documentation, user
-interface, data structures, and all related materials (collectively, the
-"Software"), is proprietary and protected by applicable copyright and other
-intellectual property laws.
+1. OWNER AND SCOPE
 
-No license or permission is granted by making the Software available in this
-repository. Unless the copyright owner gives prior written authorization, no
-person or organization may, in whole or in part:
+The copyright owner identified by the GitHub account "xuan139" reserves all
+rights in the original AI Work NAS code, documentation, user-interface assets
+and other original project materials that the owner owns or is entitled to
+license (the "Software"). "Individually owned" describes the owner; it does not
+grant a free personal-use license. This is proprietary software, not an
+open-source license. Third-party materials are excluded as described below.
 
-1. copy, reproduce, download, mirror, or republish the Software;
-2. modify, adapt, translate, or create derivative works from the Software;
-3. distribute, transmit, disclose, sublicense, sell, rent, lease, host, or
-   otherwise make the Software available to any third party;
-4. use the Software for commercial, production, competitive, benchmarking, or
-   service-provider purposes;
-5. reverse engineer, decompile, disassemble, or attempt to derive any source
-   code, model configuration, workflow, or implementation detail; or
-6. remove or alter this notice or any copyright, trademark, or proprietary
-   marking.
+2. NO AUTOMATIC GRANT
 
-Access to or viewing of this repository does not transfer ownership and does
-not imply permission to use the Software. Any authorized use is limited to the
-scope and duration expressly stated in a separate written agreement signed by
-the copyright owner.
+Public availability, repository access, a demonstration, possession of a copy,
+or payment to a third party does not itself grant permission to use the Software.
+Except for the rights preserved in Section 5, prior written authorization from
+the copyright owner is required even for personal, noncommercial, educational,
+research, testing, evaluation or internal business use.
 
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO WARRANTIES OF MERCHANTABILITY, FITNESS
-FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT. TO THE MAXIMUM EXTENT PERMITTED
-BY LAW, THE COPYRIGHT OWNER SHALL NOT BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
-LIABILITY ARISING FROM THE SOFTWARE OR ITS USE.
+3. RESTRICTED ACTS
 
-For permission requests, contact the repository owner through GitHub.
+Except as expressly authorized in writing or preserved by Section 5, no person
+or organization may, in whole or in part:
 
-繁體中文說明
+a. use, execute, install, deploy or operate the Software;
+b. copy, reproduce, download, mirror, publish or redistribute the Software;
+c. modify, adapt, translate, incorporate into another product or create
+   derivative works from the Software;
+d. sell, rent, lease, sublicense, host, provide as a service, white-label,
+   rebrand or otherwise make the Software available to another party;
+e. use the Software for commercial, production, competitive, benchmarking,
+   outsourcing or service-provider purposes;
+f. reverse engineer, decompile, disassemble or otherwise derive implementation
+   details beyond what is lawfully accessible or permitted;
+g. use the Software as training or fine-tuning material for machine-learning
+   models, or redistribute datasets derived from the Software; or
+h. remove, conceal or alter copyright, attribution, trademark, license or other
+   proprietary notices, or misrepresent ownership or endorsement.
 
-本軟體之原始碼、目的碼、文件、使用者介面、資料結構及所有相關材料，
-均為著作權人之專有財產，並受著作權法及其他智慧財產權法律保護。
+4. SEPARATE WRITTEN AUTHORIZATION
 
-本儲存庫公開可見不代表授予任何授權。未事先取得著作權人書面許可，
-任何個人或組織均不得全部或部分進行下列行為：
+Any authorized use is limited to the users, purpose, systems, scope and duration
+specified in a separate written authorization from the copyright owner. No
+transfer, sublicensing, redistribution or additional deployment is permitted
+unless expressly covered. No ownership, trademark or patent rights are granted
+by this notice. Evaluation or demo access does not authorize production use.
 
-1. 複製、重製、下載、鏡像或重新發布本軟體；
-2. 修改、改作、翻譯或建立衍生作品；
-3. 散布、傳輸、揭露、再授權、出售、出租、託管或提供予任何第三方；
-4. 將本軟體用於商業、生產、競爭、效能比較或對外服務用途；
-5. 反向工程、反編譯、反組譯，或嘗試取得原始碼、模型設定、流程或實作細節；
-6. 移除或變更本聲明及任何著作權、商標或專有權利標示。
+5. RESERVED LEGAL, PLATFORM AND THIRD-PARTY RIGHTS
 
-存取或檢視本儲存庫不會移轉任何所有權，也不代表取得使用許可。任何
-經授權之使用，僅限於著作權人另行簽署之書面協議所明定的範圍與期間。
+These terms do not restrict rights that cannot lawfully be restricted, rights
+expressly granted under applicable hosting-platform terms, or rights under a
+valid prior license or separate written agreement. In particular, public GitHub
+repository viewing and GitHub-platform forking rights under applicable GitHub
+terms are not overridden by this notice. Such platform rights are not a general
+license to deploy, redistribute or commercially exploit the Software elsewhere.
 
-本軟體依「現狀」提供，不附任何明示或默示擔保。在法律允許的最大範圍
-內，著作權人不對因本軟體或其使用所產生的任何請求、損害或其他責任負責。
+Third-party libraries, services, binaries, plugins, models, model weights,
+datasets, fonts, logos and images remain subject to their respective licenses
+and owners' rights. This notice does not replace, narrow or relicense them, nor
+does it satisfy any source-disclosure, notice or redistribution obligations they
+may impose. The owner does not claim ownership of users' uploaded files,
+patient records, company records or other third-party content merely because
+the Software processes it. A deployer or distributor must evaluate all applicable
+licenses and agreements for the actual components and use involved.
 
-如需取得授權，請透過 GitHub 聯絡本儲存庫所有者。
+6. NO WARRANTY OR CLINICAL ASSURANCE
 
-If the English and Traditional Chinese texts conflict, the English text
-controls.
+THE SOFTWARE IS PROVIDED "AS IS" AND "AS AVAILABLE", WITHOUT WARRANTY OF ANY
+KIND, EXPRESS OR IMPLIED, INCLUDING MERCHANTABILITY, FITNESS FOR A PARTICULAR
+PURPOSE, ACCURACY, SECURITY, AVAILABILITY OR NON-INFRINGEMENT. Teaching fixtures,
+generated answers and demonstration reports are not professional advice or
+validated clinical findings. No regulatory approval or certification is implied.
+
+7. LIMITATION OF LIABILITY
+
+TO THE MAXIMUM EXTENT PERMITTED BY APPLICABLE LAW, THE COPYRIGHT OWNER SHALL NOT
+BE LIABLE FOR CLAIMS, DAMAGES OR OTHER LIABILITY ARISING FROM OR RELATED TO THE
+SOFTWARE OR ITS USE. THIS DOES NOT EXCLUDE LIABILITY THAT CANNOT LAWFULLY BE
+EXCLUDED. A SEPARATE WRITTEN AGREEMENT MAY DEFINE DIFFERENT APPLICABLE TERMS.
+
+8. LANGUAGE AND EXPLANATIONS
+
+The English text in this LICENSE is the controlling text of this project
+notice. English, Simplified Chinese, Traditional Chinese, Korean and Japanese
+explanations in docs/LICENSE_EXPLANATIONS.md are provided for understanding;
+they are not independent licenses and do not grant additional rights. This
+language provision does not override mandatory applicable law.
+
+9. PERMISSION REQUESTS
+
+Contact the copyright owner through https://github.com/xuan139 before any use
+requiring permission. No response or silence constitutes permission. Nothing
+here retroactively revokes rights validly granted under a previous license.
