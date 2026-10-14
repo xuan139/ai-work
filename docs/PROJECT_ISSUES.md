@@ -1,5 +1,17 @@
 # Project Issues
 
+## 2026-10-14 — Orthanc radiology workflow (deployed)
+
+- **Trigger:** User requested patient → studies → X-ray → report → cited LLM summary over MCP, then explicitly directed installation to Ubuntu only.
+- **Root cause:** The HIS fixture had no PACS adapter, images, report retrieval or image-viewing workflow.
+- **Implementation:** Add a disabled-by-default Orthanc MCP catalog with six strict read tools, fixed teaching identifiers checked against actual Orthanc tags, session-protected PNG retrieval and auditing, a dedicated sidebar page, and summary evidence retrieved through the MCP HTTP transport. Use the configured LLM with existing audit logging; prohibit summaries of pending reports and flag missing report citations. Authored teaching reports are distinct from the reused public CC0 image and never presented as clinician reports.
+- **Server preparation:** Added a native Ubuntu x86_64 Orthanc 1.13.0 installer and isolated systemd unit. Separate storage, random server-side credentials, DICOM/Explorer/WebDAV disabled, loopback binding checked before import, fixed DICOM UIDs for idempotent seeding, and no automatic Git commit.
+- **Verification:** All 232 Python tests passed, including seven new radiology tests for read-only scope, mismatched/missing Orthanc identities, pending reports, MCP evidence, missing citations, login/bearer protection, auditing and no-store image responses. Python compilation, JavaScript syntax and shell syntax passed. After permission retry, Chrome fixture tests passed at 1440px/390px: workflow, citations, pending-report lock, stale-answer clearing and no horizontal overflow. Desktop screenshot inspected; these browser tests use fixture data, not live Orthanc imagery.
+- **Deployment:** User-authorized SSH retry succeeded. Remote core hashes matched HEAD, 368 GB free and no queued/running jobs. Backed up core files, environment and SQLite to `/home/ubuntu/backups/radiology-20261014-233940`; deployed only scoped feature files. Seven dedicated tests passed on Ubuntu. Installed native Orthanc 1.13.0, verified only `127.0.0.1:8043`, imported all three checks, restarted AI Work and enabled six MCP tools. The hospital question dropdown files were left unchanged. No Mac Orthanc installation.
+- **Live verification:** Public HTTPS page/assets/health returned 200. Anonymous image and MCP requests returned 401. All six tools passed through the authenticated HTTPS portal and real MCP transport. Orthanc returned a 2,905,451-byte PNG with no-store headers. Pending-report summary returned 409. Current Qwen3 4B produced a cited teaching summary with `[S1]` and `[R1]`, model call ID 457, with no missing-citation warning.
+- **Not verified:** In-app browser automation still timed out, so authenticated live-page visual inspection is not claimed. No clinical validation, original acquisition DICOM compatibility, patient-level authorization or comprehensive answer-quality validation. User authorized the previously uncommitted feature for a separate commit/push on 2026-10-15.
+- **Rollback:** Before deployment, restore only these radiology changes and remove their new files. After eventual deployment, disable the catalog/service, restore backed-up core/static code and remove only the newly added Orthanc environment keys; retain newer database activity and audit records. See `docs/ORTHANC_RADIOLOGY_DEMO.md`.
+
 ## 2026-10-14 — Hospital question examples were not selectable
 
 - **Trigger:** User requested a dropdown for the five previously described hospital questions.

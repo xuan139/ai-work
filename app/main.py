@@ -131,6 +131,8 @@ from app.langchain_demo import run_odoo_langchain_demo
 from app.drive_mcp import DRIVE_MCP_TOOLS, handle_drive_mcp_request
 from app.notion_mcp import NOTION_MCP_TOOLS, handle_notion_mcp_request
 from app.hospital_mcp import HOSPITAL_MCP_TOOLS, handle_hospital_mcp_request
+from app.radiology_mcp import handle_radiology_mcp
+from app.radiology_demo import execute as execute_radiology, image_for_user as radiology_image, summarize as summarize_radiology
 from app.notion_demo import execute_tool as execute_notion_tool, run_notion_demo
 from app.excel_mcp import EXCEL_MCP_TOOLS, handle_excel_mcp_request
 from app.file_security import UploadScanResult, UploadSecurityError, inspect_uploaded_file, validated_upload_filename
@@ -707,6 +709,55 @@ async def hospital_demo_tool(payload: dict, user: dict = Depends(current_user)) 
     return {"tool": name, "arguments": arguments, "result": result}
 
 
+@app.get("/radiology-demo")
+async def radiology_demo_page() -> FileResponse:
+    return FileResponse(STATIC_DIR / "radiology-demo.html", headers={"Cache-Control": "no-cache"})
+
+
+@app.post("/mcp/radiology-demo")
+async def radiology_mcp_endpoint(request: Request, payload: dict) -> Response:
+    expected = os.getenv("RADIOLOGY_MCP_KEY", "").strip()
+    if not expected:
+        raise HTTPException(503, "Radiology MCP key is not configured")
+    if not hmac.compare_digest(request.headers.get("authorization", ""), "Bearer " + expected):
+        raise HTTPException(401, "Radiology MCP authorization failed")
+    result = await asyncio.to_thread(handle_radiology_mcp, payload)
+    return Response(status_code=204) if result is None else JSONResponse(result, headers={"Cache-Control": "no-store"})
+
+
+def radiology_rate_limit(user):
+    key = f"radiology:{user['id']}"
+    if not LLM_LIMITER.allowed(key):
+        raise HTTPException(429, "請稍後再試")
+    LLM_LIMITER.record(key)
+
+
+@app.post("/api/radiology-demo/tools/call")
+async def radiology_demo_tool(payload: dict, user: dict = Depends(current_user)) -> dict:
+    radiology_rate_limit(user)
+    return await execute_radiology(payload.get("name"), payload.get("arguments", {}), user)
+
+
+@app.get("/api/radiology-demo/studies/{study_id}/image")
+async def radiology_demo_image(study_id: str, user: dict = Depends(current_user)) -> Response:
+    radiology_rate_limit(user)
+    image = await radiology_image(study_id, user)
+    return Response(image, media_type="image/png", headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"})
+
+
+@app.post("/api/radiology-demo/summary")
+async def radiology_demo_summary(payload: dict, user: dict = Depends(current_user)) -> dict:
+    prompt = payload.get("prompt", "請摘要這份教學報告並附上來源。")
+    study_id = payload.get("study_id")
+    if not isinstance(study_id, str) or not isinstance(prompt, str) or not 1 <= len(prompt.strip()) <= 1000:
+        raise HTTPException(400, "請指定檢查與 1–1,000 字的問題")
+    guard_prompt(prompt, user, "radiology_demo")
+    radiology_rate_limit(user)
+    model_id = current_llm_model()["id"]
+    async with LLM_RUN_LOCKS.setdefault((user["id"], model_id), asyncio.Lock()):
+        return await summarize_radiology(study_id, prompt, user, model_id, run_model_with_audit)
+
+
 @app.post("/mcp/notion")
 async def notion_mcp(request: Request, payload: dict) -> Response:
     expected = os.getenv("NOTION_LOCAL_MCP_KEY", "").strip()
@@ -952,6 +1003,7 @@ def serialize_mcp_server(server: dict) -> dict:
         "nas-excel": "/mcp/excel",
         "notion-readonly": "/mcp/notion",
         "hospital-demo": "/mcp/hospital-demo",
+        "orthanc-radiology": "/mcp/radiology-demo",
     }
     result["public_endpoint"] = public_endpoints.get(result.get("slug"))
     return result

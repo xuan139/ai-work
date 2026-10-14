@@ -26,6 +26,7 @@ const messages = {
       mes: "MES 產線演示",
       langchainDemo: "LangChain Odoo Demo",
       hospitalDemo: "醫療 HIS／FHIR Demo",
+      radiologyDemo: "放射影像／Orthanc Demo",
       wiki: "企業 Wiki",
       settings: "設定與管理",
       mcp: "MCP 管理",
@@ -1061,6 +1062,7 @@ const messages = {
       wiki: "Enterprise Wiki",
       langchainDemo: "LangChain Odoo Demo",
       hospitalDemo: "Hospital HIS / FHIR Demo",
+      radiologyDemo: "Radiology / Orthanc Demo",
       settings: "Settings & Management",
       mcp: "MCP Management",
       n8n: "n8n Automation",
@@ -3007,7 +3009,7 @@ function renderMcpServers() {
 
   const categories = [
     { key: "nas", slugs: ["nas-demo", "factory-mes", "nas-filesystem", "notion", "notion-readonly"] },
-    { key: "healthcare", slugs: ["hospital-demo"] },
+    { key: "healthcare", slugs: ["hospital-demo", "orthanc-radiology"] },
     {
       key: "office",
       slugs: [

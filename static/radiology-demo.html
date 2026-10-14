@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Orthanc Radiology Demo · AI Work</title>
+  <link rel="icon" href="/static/icons/icon-192.png">
+  <link rel="stylesheet" href="/static/notion-demo.css?v=1">
+  <link rel="stylesheet" href="/static/radiology-demo.css?v=1">
+  <script src="/static/radiology-demo.js?v=1" defer></script>
+</head>
+<body>
+<header><a class="brand" href="/"><img src="/static/icons/icon-192.png" width="36" height="36" alt="AI Work">AI Work</a>
+  <nav><a href="/hospital-demo">HIS / FHIR</a><a href="/">返回工作區</a></nav></header>
+<main>
+  <p class="eyebrow">ORTHANC · READ-ONLY MCP</p><h1>放射影像與報告</h1>
+  <p class="notice">虛構病患與教學報告。各檢查重用公開 CC0 X 光素材，不代表病患的實際影像；本頁不是診斷用檢視器，LLM 不判讀影像。</p>
+  <ol class="steps"><li>病患</li><li>檢查清單</li><li>影像與報告</li><li>摘要與來源</li></ol>
+  <p id="busy" role="status" aria-live="polite" hidden></p><p id="error" role="alert" hidden></p>
+  <div class="radiology-workspace">
+    <aside><h2>病患與檢查</h2><label for="patient">教學病患</label><select id="patient" disabled><option value="">載入中…</option></select>
+      <button id="refresh" type="button">重新載入</button><div id="studies" aria-live="polite"></div></aside>
+    <div class="detail">
+      <h2 id="studyTitle">請選擇檢查</h2><p id="metadata" class="muted"></p>
+      <div id="studyContent" hidden>
+        <div class="image-report">
+          <section aria-label="X 光教學影像"><div class="image-frame"><img id="xray" alt="公開 CC0 胸部 X 光教學素材，並非虛構病患的實際影像"></div>
+            <div class="image-controls"><label>縮放 <input id="zoom" type="range" min="100" max="250" step="10" value="100"></label>
+              <label>顯示對比 <input id="contrast" type="range" min="50" max="200" value="100"></label></div>
+            <p class="muted">Secondary Capture 預覽 · 非原始 DX 影像／非診斷用途</p><p id="credit" class="muted"></p></section>
+          <section id="report"><h2>教學報告</h2><p id="reportMeta" class="muted"></p><p id="reportText"></p></section>
+        </div>
+        <section class="summary-section"><h2>LLM 報告摘要</h2>
+          <form id="summaryForm"><label for="example">範例問題</label><select id="example">
+            <option value="請摘要這份教學報告，區分檢查資訊與報告內容，並附上來源。">摘要報告與檢查資訊</option>
+            <option value="這份報告有哪些內容？有哪些資訊尚未提供？請附上來源，不推測病情。">整理已知與未提供資訊</option>
+            <option value="請以條列說明影像來源、檢查編號、報告狀態與日期，並附上來源。">整理來源與報告狀態</option>
+          </select><label for="prompt">您的問題</label><textarea id="prompt" maxlength="1000" rows="2" required>請摘要這份教學報告，區分檢查資訊與報告內容，並附上來源。</textarea>
+          <button id="ask" type="submit" disabled>產生摘要</button></form>
+          <p id="summaryStatus" class="muted"></p><p id="answer"></p><ul id="sources"></ul>
+        </section>
+      </div>
+      <details id="traceSection" hidden><summary>MCP 工具呼叫與來源資料</summary><pre id="trace"></pre></details>
+    </div>
+  </div>
+</main>
+</body>
+</html>

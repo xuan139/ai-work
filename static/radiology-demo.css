@@ -1,0 +1,20 @@
+.steps { display: flex; flex-wrap: wrap; gap: 12px 36px; padding: 12px 0 20px 24px; border-bottom: 1px solid #dce9f0; color: #176b9c; }
+.radiology-workspace { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: 28px; margin-top: 28px; }
+aside { padding-right: 24px; border-right: 1px solid #dce9f0; }
+select { width: 100%; min-width: 0; min-height: 44px; padding: 8px; font: inherit; border: 1px solid #bbd9e9; border-radius: 6px; color: #183b52; background: #fcfeff; margin-bottom: 16px; }
+select:focus-visible { outline: 2px solid #87cff5; }
+#studies { margin-top: 20px; }
+#studies button { display: block; width: 100%; text-align: left; margin-bottom: 10px; overflow-wrap: anywhere; }
+#studies button[aria-pressed="true"] { background: #def2ff; border-color: #168dcc; }
+#metadata, #reportMeta { overflow-wrap: anywhere; }
+.image-report { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 24px; }
+.image-frame { height: 440px; background: #101719; overflow: auto; border-radius: 4px; }
+#xray { display: block; width: 100%; height: auto; }
+.image-controls { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 12px; }
+.image-controls input { padding: 0; width: 100%; }
+#reportText { white-space: pre-wrap; }
+.summary-section { margin-top: 24px; padding-top: 24px; border-top: 1px solid #dce9f0; }
+#ask { margin-top: 12px; }
+#traceSection { margin-top: 24px; }
+@media (max-width: 1000px) { .image-report { grid-template-columns: 1fr; } }
+@media (max-width: 700px) { .radiology-workspace { grid-template-columns: 1fr; } aside { padding-right: 0; padding-bottom: 20px; border-right: 0; border-bottom: 1px solid #dce9f0; } .image-frame { height: 380px; } }

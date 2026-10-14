@@ -13,6 +13,14 @@ DB_PATH = DATA_DIR / "app.db"
 
 MCP_CATALOG_TEMPLATES = (
     {
+        "slug": "orthanc-radiology", "name": "Orthanc Radiology Demo", "transport": "streamable_http",
+        "endpoint": "http://127.0.0.1:8000/mcp/radiology-demo", "auth_type": "bearer",
+        "auth_env_var": "RADIOLOGY_MCP_KEY", "is_enabled": False,
+        "description": "Orthanc 唯讀影像教學：虛構病患、檢查、公開 X 光素材與教學報告；非臨床判讀。",
+        "description_en": "Read-only Orthanc teaching studies, public radiographs and authored demo reports; not for clinical interpretation.",
+        "source_url": "https://orthanc.uclouvain.be/book/",
+    },
+    {
         "slug": "hospital-demo", "name": "Hospital HIS / FHIR Demo", "transport": "streamable_http",
         "endpoint": "http://127.0.0.1:8000/mcp/hospital-demo", "auth_type": "bearer",
         "auth_env_var": "HOSPITAL_DEMO_MCP_KEY", "is_enabled": False,
