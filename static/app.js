@@ -312,6 +312,7 @@ const messages = {
       empty: "尚未登錄 MCP Server",
       categories: {
         nas: { title: "NAS 與知識資料", copy: "存取 NAS 檔案、企業文件與內部知識庫。" },
+        healthcare: { title: "醫療與診所", copy: "HIS／FHIR 虛構資料唯讀教學，不供臨床決策。" },
         office: { title: "辦公與通訊", copy: "電子郵件、Google Workspace、行事曆與團隊訊息。" },
         spreadsheet: { title: "試算表與 Excel", copy: "分析 NAS Excel、CSV、TSV、Google Sheets 與 Microsoft 365 活頁簿。" },
         finance: { title: "財務會計與 ERP", copy: "會計、付款、發票、財務報表與企業資源管理。" },
@@ -1344,6 +1345,7 @@ const messages = {
       empty: "No MCP servers are registered",
       categories: {
         nas: { title: "NAS and Knowledge", copy: "Access NAS files, company documents, and internal knowledge bases." },
+        healthcare: { title: "Healthcare and Clinics", copy: "Read-only synthetic HIS/FHIR teaching data, not for clinical decisions." },
         office: { title: "Office and Communication", copy: "Email, Google Workspace, calendars, and team messaging." },
         spreadsheet: { title: "Spreadsheets and Excel", copy: "Analyze NAS Excel, CSV, TSV, Google Sheets, and Microsoft 365 workbooks." },
         finance: { title: "Accounting and ERP", copy: "Accounting, payments, invoices, financial reports, and enterprise resource planning." },
@@ -3003,6 +3005,7 @@ function renderMcpServers() {
 
   const categories = [
     { key: "nas", slugs: ["nas-demo", "factory-mes", "nas-filesystem", "notion", "notion-readonly"] },
+    { key: "healthcare", slugs: ["hospital-demo"] },
     {
       key: "office",
       slugs: [

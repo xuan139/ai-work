@@ -130,6 +130,7 @@ from app.llm_runtime import LlmRuntimeError, company_api_key_for_model, run_llm
 from app.langchain_demo import run_odoo_langchain_demo
 from app.drive_mcp import DRIVE_MCP_TOOLS, handle_drive_mcp_request
 from app.notion_mcp import NOTION_MCP_TOOLS, handle_notion_mcp_request
+from app.hospital_mcp import handle_hospital_mcp_request
 from app.notion_demo import execute_tool as execute_notion_tool, run_notion_demo
 from app.excel_mcp import EXCEL_MCP_TOOLS, handle_excel_mcp_request
 from app.file_security import UploadScanResult, UploadSecurityError, inspect_uploaded_file, validated_upload_filename
@@ -664,6 +665,17 @@ async def excel_mcp(request: Request, payload: dict) -> Response:
     return JSONResponse(result)
 
 
+@app.post("/mcp/hospital-demo")
+async def hospital_demo_mcp(request: Request, payload: dict) -> Response:
+    expected = os.getenv("HOSPITAL_DEMO_MCP_KEY", "").strip()
+    if not expected:
+        raise HTTPException(status_code=503, detail="Hospital demo MCP key is not configured")
+    if not hmac.compare_digest(request.headers.get("authorization", ""), f"Bearer {expected}"):
+        raise HTTPException(status_code=401, detail="Hospital demo MCP authorization failed")
+    result = handle_hospital_mcp_request(payload)
+    return Response(status_code=204) if result is None else JSONResponse(result, headers={"Cache-Control": "no-store"})
+
+
 @app.post("/mcp/notion")
 async def notion_mcp(request: Request, payload: dict) -> Response:
     expected = os.getenv("NOTION_LOCAL_MCP_KEY", "").strip()
@@ -908,6 +920,7 @@ def serialize_mcp_server(server: dict) -> dict:
         "google-drive": "/mcp/google-drive",
         "nas-excel": "/mcp/excel",
         "notion-readonly": "/mcp/notion",
+        "hospital-demo": "/mcp/hospital-demo",
     }
     result["public_endpoint"] = public_endpoints.get(result.get("slug"))
     return result

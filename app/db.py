@@ -13,6 +13,14 @@ DB_PATH = DATA_DIR / "app.db"
 
 MCP_CATALOG_TEMPLATES = (
     {
+        "slug": "hospital-demo", "name": "Hospital HIS / FHIR Demo", "transport": "streamable_http",
+        "endpoint": "http://127.0.0.1:8000/mcp/hospital-demo", "auth_type": "bearer",
+        "auth_env_var": "HOSPITAL_DEMO_MCP_KEY", "is_enabled": False,
+        "description": "醫院 HIS／FHIR 唯讀教學：虛構病患、就診、觀察值、用藥與預約。固定快照，不供臨床決策。",
+        "description_en": "Synthetic read-only HIS/FHIR demo: patients, encounters, observations, medication orders and appointments. Fixed snapshot; not for clinical decisions.",
+        "source_url": "https://hl7.org/fhir/R4/",
+    },
+    {
         "slug": "notion-readonly", "name": "Notion Read-only Demo", "transport": "streamable_http",
         "endpoint": "http://127.0.0.1:8000/mcp/notion", "auth_type": "bearer", "auth_env_var": "NOTION_LOCAL_MCP_KEY",
         "description": "管理員專用 Notion 唯讀 Demo：搜尋已授權頁面標題、讀取頁面與子區塊。需設定 NOTION_API_KEY。",
