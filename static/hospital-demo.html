@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Hospital HIS / FHIR Demo · AI Work</title>
+  <link rel="icon" href="/static/icons/icon-192.png">
+  <link rel="stylesheet" href="/static/notion-demo.css?v=1">
+  <link rel="stylesheet" href="/static/hospital-demo.css?v=1">
+  <script src="/static/hospital-demo.js?v=1" defer></script>
+</head>
+<body>
+  <header><a class="brand" href="/"><img src="/static/icons/icon-192.png" alt="AI Work" width="36" height="36">AI Work</a>
+    <nav><a href="/" data-copy="back">返回工作區</a><button id="language" type="button">EN</button></nav></header>
+  <main>
+    <div class="heading"><div><p class="eyebrow">HEALTHCARE · READ-ONLY MCP</p><h1>Hospital HIS / FHIR Demo</h1></div><span class="badge" data-copy="readonly">5 個唯讀工具</span></div>
+    <p class="muted" data-copy="notice">虛構教學資料 · 固定快照 2026-10-14 · 不供臨床決策</p>
+    <div class="status-strip"><div><span data-copy="connectionLabel">連線狀態</span><strong id="connection" role="status">檢查中…</strong></div>
+      <div><span data-copy="dataLabel">資料範圍</span><strong data-copy="dataValue">3 位病患 · 18 筆關聯資料</strong></div>
+      <button id="refresh" type="button" data-copy="refresh">重新檢查</button></div>
+    <p id="error" role="alert" hidden></p><p id="busy" role="status" aria-live="polite" hidden></p>
+    <p id="setup" class="notice" hidden data-copy="setup">尚未連線，請由管理員在 MCP 管理啟用並同步 Hospital HIS / FHIR Demo。</p>
+    <section class="tool-section" aria-labelledby="toolsTitle"><h2 id="toolsTitle" data-copy="tools">唯讀工具</h2><div id="tools" class="tool-grid"></div></section>
+    <section class="question-section" aria-labelledby="qaTitle"><h2 id="qaTitle" data-copy="qa">醫療資料問答</h2>
+      <form id="askForm"><label for="prompt" data-copy="question">您的問題</label><textarea id="prompt" rows="2" maxlength="1000" required></textarea>
+        <div class="actions"><button id="ask" type="submit" data-copy="ask">查詢示範資料</button><button id="sample" type="button" data-copy="sample">填入病患概覽範例</button></div></form>
+    </section>
+    <section id="answerSection" hidden><h2 data-copy="answer">模型回答</h2><p id="answer"></p></section>
+    <section class="results" aria-labelledby="resultTitle"><h2 id="resultTitle" data-copy="results">查詢結果與來源</h2>
+      <p id="empty" class="muted" data-copy="waiting">尚未查詢</p><div id="records"></div>
+      <details id="traceSection" hidden><summary data-copy="trace">MCP 工具參數與原始結果</summary><pre id="trace"></pre></details>
+    </section>
+  </main>
+</body>
+</html>

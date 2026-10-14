@@ -7,6 +7,7 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 from app import db, main
+from app.auth import current_user
 from app.hospital_mcp import RESOURCES, HOSPITAL_MCP_TOOLS, call_hospital_tool, handle_hospital_mcp_request
 
 
@@ -94,6 +95,36 @@ class HospitalTests(unittest.TestCase):
             self.assertEqual(len(rows), 1)
             self.assertFalse(rows[0]["is_enabled"])
             self.assertEqual(rows[0]["auth_env_var"], "HOSPITAL_DEMO_MCP_KEY")
+
+    def test_demo_page_auth_tool_scope_and_audit(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(db, "DB_PATH", Path(directory) / "app.db"):
+            db.init_db()
+            db.seed_admin("unused-test-hash")
+            admin = db.get_user_by_username("admin")
+            server = next(s for s in db.list_mcp_servers() if s["slug"] == "hospital-demo")
+            client = TestClient(main.app)
+            try:
+                self.assertEqual(client.get("/hospital-demo").status_code, 200)
+                payload = {"name": "his_search_patients", "arguments": {}}
+                self.assertEqual(client.post("/api/hospital-demo/tools/call", json=payload).status_code, 401)
+                main.app.dependency_overrides[current_user] = lambda: admin
+                self.assertEqual(client.post("/api/hospital-demo/tools/call", json=payload).status_code, 503)
+                with patch.object(main, "available_mcp_servers", return_value=[server]), patch.object(main, "call_streamable_http_tool") as call:
+                    call.return_value = {"structuredContent": call_hospital_tool("his_search_patients", {})}
+                    response = client.post("/api/hospital-demo/tools/call", json=payload)
+                    self.assertEqual(response.json()["result"]["structuredContent"]["total"], 3)
+                    call.assert_called_once_with(server, "his_search_patients", {})
+                    for name in ["delete_patient", [], None]:
+                        self.assertEqual(client.post("/api/hospital-demo/tools/call", json={"name": name}).status_code, 400)
+                    call.side_effect = ValueError("Rejected invalid patient")
+                    self.assertEqual(client.post("/api/hospital-demo/tools/call", json=payload).status_code, 502)
+                with db.connect() as conn:
+                    rows = conn.execute("SELECT status, user_id FROM mcp_audit_logs ORDER BY id").fetchall()
+                self.assertEqual([r["status"] for r in rows], ["completed", "failed"])
+                self.assertTrue(all(r["user_id"] == admin["id"] for r in rows))
+            finally:
+                main.app.dependency_overrides.clear()
+                client.close()
 
 
 if __name__ == "__main__":

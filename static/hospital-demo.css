@@ -1,0 +1,13 @@
+.tool-section, .question-section, .results, #answerSection { padding-top: 24px; margin-top: 24px; border-top: 1px solid #dce9f0; }
+.tool-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.tool-grid button { text-align: left; padding: 16px; min-height: 138px; display: flex; flex-direction: column; gap: 8px; }
+.tool-grid strong { color: #183b52; font-size: 16px; }
+.tool-grid small { overflow-wrap: anywhere; font-size: 11px; }
+.tool-grid span { color: #607a8d; font-size: 12px; margin-top: auto; }
+#records { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 14px; }
+th, td { padding: 12px; text-align: left; border-bottom: 1px solid #dce9f0; vertical-align: top; overflow-wrap: anywhere; }
+th { background: #edf8ff; }
+#traceSection { margin-top: 20px; }
+@media (max-width: 1000px) { .tool-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .tool-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .tool-grid button { padding: 12px; } table { min-width: 560px; } }

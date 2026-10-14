@@ -1,5 +1,15 @@
 # Project Issues
 
+## 2026-10-14 — Hospital demo was not visible in navigation
+
+- **Trigger:** The five Hospital HIS / FHIR tools were available through MCP management but lacked a prominent standalone sidebar entry.
+- **Root cause:** The original release exposed the transport and catalog only, leaving discovery to the general MCP selector.
+- **Fix:** Place a Traditional Chinese/English hospital link immediately below AI Work. Add a responsive standalone page with five one-click read-only samples, source IDs, raw tool traces and natural-language questions through the current LLM. A session-authenticated allowlisted proxy uses the existing enabled MCP configuration and records successful/failed execution without exposing the Bearer key.
+- **Verification:** 21 focused Hospital/MCP tests passed, including unauthenticated access, disabled connector, invalid tool names and audit outcomes. JavaScript syntax and diff checks passed. Playwright with API fixtures verified five tool buttons, question submission, language switching, login-required state, and desktop/mobile layout (1440px/390px) without viewport overflow or JavaScript errors.
+- **Not yet verified:** Browser fixture checks do not establish live LLM answer quality or clinical interoperability. This page remains synthetic and read-only.
+- **Deployment:** Published to `/hospital-demo` on 2026-10-14 after verifying remote core hashes. Backup: `/home/ubuntu/backups/hospital-ui-20261014-084316`. All nine Hospital tests passed on Ubuntu; the authenticated handler executed all five tools through the real local MCP transport and recorded audits. Public HTTPS page returned 200 and anonymous tool access returned 401. The initial archive failed the exact file-list check before extraction; original code was restored and a clean archive passed on retry. Credentials and existing customer data were not changed.
+- **Rollback:** Restore the changed main.py, index.html and app.js; remove the three hospital-demo static files. Keep the existing hospital MCP, configuration and audit records.
+
 ## 2026-10-12 — Notion catalog entry had no usable demo
 
 - **Trigger:** A new Notion user requested a working MCP demo and a from-zero setup guide.

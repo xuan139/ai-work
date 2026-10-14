@@ -130,7 +130,7 @@ from app.llm_runtime import LlmRuntimeError, company_api_key_for_model, run_llm
 from app.langchain_demo import run_odoo_langchain_demo
 from app.drive_mcp import DRIVE_MCP_TOOLS, handle_drive_mcp_request
 from app.notion_mcp import NOTION_MCP_TOOLS, handle_notion_mcp_request
-from app.hospital_mcp import handle_hospital_mcp_request
+from app.hospital_mcp import HOSPITAL_MCP_TOOLS, handle_hospital_mcp_request
 from app.notion_demo import execute_tool as execute_notion_tool, run_notion_demo
 from app.excel_mcp import EXCEL_MCP_TOOLS, handle_excel_mcp_request
 from app.file_security import UploadScanResult, UploadSecurityError, inspect_uploaded_file, validated_upload_filename
@@ -674,6 +674,37 @@ async def hospital_demo_mcp(request: Request, payload: dict) -> Response:
         raise HTTPException(status_code=401, detail="Hospital demo MCP authorization failed")
     result = handle_hospital_mcp_request(payload)
     return Response(status_code=204) if result is None else JSONResponse(result, headers={"Cache-Control": "no-store"})
+
+
+@app.get("/hospital-demo")
+async def hospital_demo_page() -> FileResponse:
+    return FileResponse(STATIC_DIR / "hospital-demo.html", headers={"Cache-Control": "no-cache"})
+
+
+@app.post("/api/hospital-demo/tools/call")
+async def hospital_demo_tool(payload: dict, user: dict = Depends(current_user)) -> dict:
+    name = payload.get("name")
+    arguments = payload.get("arguments", {})
+    if not isinstance(name, str) or name not in {tool["name"] for tool in HOSPITAL_MCP_TOOLS} or not isinstance(arguments, dict):
+        raise HTTPException(status_code=400, detail="Invalid hospital demo tool or arguments")
+    server = next((s for s in available_mcp_servers(mcp_servers_for_user(user)) if s["slug"] == "hospital-demo"), None)
+    if not server:
+        raise HTTPException(status_code=503, detail="Hospital MCP is not enabled and connected")
+    limiter_key = f"hospital:{user['id']}"
+    if not LLM_LIMITER.allowed(limiter_key):
+        raise HTTPException(status_code=429, detail="Too many requests")
+    LLM_LIMITER.record(limiter_key)
+    audit_input = json.dumps(arguments, ensure_ascii=False)
+    try:
+        result = await asyncio.to_thread(call_streamable_http_tool, server, name, arguments)
+    except (McpConnectionError, ValueError) as exc:
+        create_mcp_audit_log(server_id=server["id"], user_id=user["id"], action="tools/call",
+                             status="failed", tool_name=name, input_json=audit_input, error_message=str(exc))
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    create_mcp_audit_log(server_id=server["id"], user_id=user["id"], action="tools/call",
+                         status="completed", tool_name=name, input_json=audit_input,
+                         output_json=json.dumps(result, ensure_ascii=False))
+    return {"tool": name, "arguments": arguments, "result": result}
 
 
 @app.post("/mcp/notion")
