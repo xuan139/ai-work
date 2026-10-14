@@ -12,6 +12,24 @@ from app.hospital_mcp import RESOURCES, HOSPITAL_MCP_TOOLS, call_hospital_tool, 
 
 
 class HospitalTests(unittest.TestCase):
+    def test_teaching_profiles_are_scoped_and_immutable(self):
+        for n in range(1, 4):
+            patient = f"demo-p{n:03}"
+            result = call_hospital_tool("his_patient_overview", {"patient_id": patient})
+            profile = result["teaching_profile"]
+            self.assertTrue(profile["demo"])
+            self.assertEqual(profile["patient_id"], patient)
+            self.assertEqual(profile["source_id"], "teaching-profile/" + patient)
+            self.assertGreaterEqual(len(profile["interview"]), 4)
+            self.assertTrue(profile["diet"])
+            self.assertEqual(len(result["records"]), 6)
+            profile["interview"][0]["text"] = "modified"
+            self.assertNotEqual(call_hospital_tool("his_patient_overview", {"patient_id": patient})["teaching_profile"]["interview"][0]["text"], "modified")
+        missing = call_hospital_tool("his_patient_overview", {"patient_id": "demo-p003"})["teaching_profile"]
+        self.assertEqual(missing["admissions"], [])
+        self.assertIn("空白不代表從未住院", missing["admission_history_note"])
+        self.assertNotIn("teaching_profile", call_hospital_tool("his_search_patients", {}))
+
     def test_discovery(self):
         self.assertEqual(len(HOSPITAL_MCP_TOOLS), 5)
         self.assertTrue(all(t["annotations"]["readOnlyHint"] for t in HOSPITAL_MCP_TOOLS))

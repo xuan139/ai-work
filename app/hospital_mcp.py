@@ -4,6 +4,7 @@ import copy
 import json
 import re
 from datetime import date
+from app.hospital_demo_profiles import PROFILES
 
 SNAPSHOT = "2026-10-14T09:00:00+08:00"
 RESOURCE_TYPES = ["Patient", "Encounter", "Observation", "MedicationRequest", "Appointment"]
@@ -65,7 +66,7 @@ PAGE = {"offset": {"type": "integer", "minimum": 0, "maximum": 1000},
 HOSPITAL_MCP_TOOLS = [
     _tool("his_search_patients", "Find HIS patients by demo name, ID or medical record number.",
           {"query": {"type": "string", "maxLength": 100}, **PAGE}),
-    _tool("his_patient_overview", "Read one patient's encounters, observations, medication orders and appointments; preserve source IDs.",
+    _tool("his_patient_overview", "Read one patient's encounters, observations, medication orders, appointments and authored teaching interview, admission history and dietary notes; preserve source IDs. Dietary notes are not medical advice.",
           {"patient_id": PATIENT}, ["patient_id"]),
     _tool("his_list_appointments", "List demo appointments, optionally filtered by exact date and patient.",
           {"patient_id": PATIENT, "date": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"}, **PAGE}),
@@ -117,6 +118,8 @@ def call_hospital_tool(name, arguments):
         rows = [r for r in rows if r["resourceType"] == arguments["resource_type"]]
     result = {"demo": True, "notice": NOTICE, "snapshot_at": SNAPSHOT,
               "source": "AI Work HIS/FHIR Demo", "fhir_version": "4.0.1", "conformance": "demo subset; not a validated FHIR server"}
+    if name == "his_patient_overview":
+        result["teaching_profile"] = PROFILES[patient]
     if name == "fhir_read_resource":
         row = next((r for r in rows if r["id"] == arguments["resource_id"]), None)
         if row is None:

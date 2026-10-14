@@ -12,5 +12,25 @@ th { background: #edf8ff; }
 #sample { width: 100%; min-width: 0; min-height: 44px; margin-bottom: 16px; padding: 10px 12px; font: inherit; color: #183b52; background: #fcfeff; border: 1px solid #bbd9e9; border-radius: 6px; }
 #sample:focus-visible { outline: 2px solid #87cff5; outline-offset: 2px; }
 #sample:disabled { opacity: .5; cursor: not-allowed; }
+.hospital-imaging { border-top: 1px solid #dce9f0; padding-top: 24px; margin-top: 24px; }
+.imaging-filters { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 16px; align-items: end; }
+.imaging-filters select { width: 100%; min-width: 0; min-height: 44px; padding: 10px; font: inherit; color: #183b52; border: 1px solid #bbd9e9; border-radius: 6px; background: white; }
+.imaging-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; margin-bottom: 20px; }
+.imaging-grid > * { min-width: 0; margin: 0; }
+.imaging-preview { height: 360px; background: #152526; display: flex; align-items: center; justify-content: center; }
+#patientXray { width: 100%; height: 100%; object-fit: contain; }
+#imagingMeta, #imagingReportMeta, #imagingCredit { overflow-wrap: anywhere; font-size: 13px; }
+#imagingReport { white-space: pre-wrap; overflow-wrap: anywhere; }
+#imagingTraceSection { margin-top: 16px; }
+.profile-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 24px; }
+.profile-grid section { min-width: 0; border-top: 1px solid #dce9f0; }
+.profile-grid p, .profile-grid dd { font-size: 14px; overflow-wrap: anywhere; }
+.profile-grid p { white-space: pre-line; }
+.profile-grid dt { font-weight: 600; font-size: 14px; }
+.profile-grid dd { margin: 4px 0 16px; }
+#patientProfile { margin-top: 24px; }
+#profileMeta { font-size: 13px; overflow-wrap: anywhere; }
+@media (max-width: 900px) { .profile-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 600px) { .imaging-filters, .imaging-grid { grid-template-columns: minmax(0, 1fr); } .imaging-preview { height: 300px; } }
 @media (max-width: 1000px) { .tool-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 600px) { .tool-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .tool-grid button { padding: 12px; } table { min-width: 560px; } }

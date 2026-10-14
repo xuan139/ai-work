@@ -5,8 +5,8 @@
   <title>Hospital HIS / FHIR Demo · AI Work</title>
   <link rel="icon" href="/static/icons/icon-192.png">
   <link rel="stylesheet" href="/static/notion-demo.css?v=1">
-  <link rel="stylesheet" href="/static/hospital-demo.css?v=2">
-  <script src="/static/hospital-demo.js?v=2" defer></script>
+  <link rel="stylesheet" href="/static/hospital-demo.css?v=3">
+  <script src="/static/hospital-demo.js?v=3" defer></script>
 </head>
 <body>
   <header><a class="brand" href="/"><img src="/static/icons/icon-192.png" alt="AI Work" width="36" height="36">AI Work</a>
@@ -19,6 +19,35 @@
       <button id="refresh" type="button" data-copy="refresh">重新檢查</button></div>
     <p id="error" role="alert" hidden></p><p id="busy" role="status" aria-live="polite" hidden></p>
     <p id="setup" class="notice" hidden data-copy="setup">尚未連線，請由管理員在 MCP 管理啟用並同步 Hospital HIS / FHIR Demo。</p>
+    <section class="hospital-imaging" aria-labelledby="imagingTitle">
+      <h2 id="imagingTitle" data-copy="imagingTitle">病患影像與報告</h2>
+      <p class="muted" data-copy="imagingNotice">虛構病患與教學報告；各檢查重用公開 CC0 X 光影像，不代表病患的實際影像，不供臨床診斷。</p>
+      <div class="imaging-filters">
+        <div><label for="imagePatient" data-copy="imagePatient">影像病患</label><select id="imagePatient" disabled></select></div>
+        <div><label for="imageStudy" data-copy="imageStudy">檢查</label><select id="imageStudy" disabled></select></div>
+        <button id="imageRefresh" type="button" data-copy="refresh">重新檢查</button>
+      </div>
+      <section id="patientProfile" hidden aria-labelledby="profileTitle">
+        <h3 id="profileTitle" data-copy="profileTitle">病患訪談與照護資料 Demo</h3>
+        <p id="profileMeta" class="muted"></p><p data-copy="profileNotice">作者編寫的虛構教學紀錄，非正式病歷或醫囑；未提供資料不代表沒有相關病史或禁忌。</p>
+        <div class="profile-grid">
+          <section><h4 data-copy="profileInterview">訪談紀錄</h4><dl id="profileInterview"></dl></section>
+          <section><h4 data-copy="profileAdmissions">住院歷史</h4><div id="profileAdmissions"></div></section>
+          <section><h4 data-copy="profileDiet">飲食禁忌與注意事項</h4><div id="profileDiet"></div></section>
+        </div>
+      </section>
+      <p id="imagingMessage" role="status" aria-live="polite"></p>
+      <div id="imagingContent" hidden>
+        <p id="imagingMeta" class="muted"></p>
+        <div class="imaging-grid">
+          <figure><div class="imaging-preview"><img id="patientXray" alt="" hidden></div>
+            <figcaption id="imagingCredit" class="muted"></figcaption></figure>
+          <div><h3 data-copy="imageReport">教學影像報告</h3><p id="imagingReportMeta" class="muted"></p><p id="imagingReport"></p></div>
+        </div>
+        <a id="imagingLink" data-copy="imageOpen">開啟完整影像與報告摘要</a>
+      </div>
+      <details id="imagingTraceSection" hidden><summary data-copy="trace">MCP 工具參數與原始結果</summary><pre id="imagingTrace"></pre></details>
+    </section>
     <section class="tool-section" aria-labelledby="toolsTitle"><h2 id="toolsTitle" data-copy="tools">唯讀工具</h2><div id="tools" class="tool-grid"></div></section>
     <section class="question-section" aria-labelledby="qaTitle"><h2 id="qaTitle" data-copy="qa">醫療資料問答</h2>
       <form id="askForm"><label for="sample" data-copy="sample">範例問題</label><select id="sample"></select>

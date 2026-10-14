@@ -1,5 +1,16 @@
 # Project Issues
 
+## 2026-10-15 — Hospital patient images and teaching care notes
+
+- **Trigger:** User requested images/reports in the HIS page, followed by a fictional patient interview, admission history and dietary restrictions demo.
+- **Root cause:** The hospital page only exposed tool/query results; Orthanc had a separate page, and the original 18 FHIR-shaped resources had no interview or care-note fixture.
+- **Fix:** Add a patient/study panel below connection status, using the existing authenticated HIS and radiology MCP proxies. Show an image/report pair, source IDs, report version, attribution and a full-view link. Add three authored profiles to `his_patient_overview` as `teaching_profile`, explicitly separate from the unchanged 18 FHIR-shaped resources. Include interview dialogue, admission dates/status and dietary notes distinguishing preference, self-report, unconfirmed reactions and missing medical orders. No additional tool, clinical recommendation, audio recording or automatic LLM call.
+- **Stability:** Clear image, report and profile before patient changes. Reject mismatched image patients/preview paths. Preserve teaching notes when Orthanc is unavailable. Show pending reports and missing histories without inventing findings. Data is fixed fiction visible to existing demo users, not production patient authorization.
+- **Verification:** All 233 Python tests passed; profile tests cover patient scope, source identity, deep-copy immutability and unchanged resource counts. Browser fixture tests pass for images/reports, profile switching, pending/empty/error/disconnected states, no automatic LLM calls, source links and 1440px/390px layouts. Screenshots inspected; test images are UI fixtures, not live radiographs.
+- **Deployment (2026-10-15):** User authorized deployment and Git commits/push. Matched remote core files with the previously deployed Orthanc revision and confirmed no active processing jobs. Backed up code and SQLite at `/home/ubuntu/backups/hospital-panel-20261015-035726`; updated only Hospital code/static files and dedicated tests, restarted AI Work and re-synced five Hospital MCP tools. Ten dedicated tests passed on Ubuntu. Public HTTPS HTML/JS/CSS exactly matched release files; anonymous Hospital proxy returned 401. Authenticated real MCP responses for all three patients included five interview turns, respective admission counts 2/1/0 and dietary note counts 3/3/2. All three linked Orthanc studies returned PNG images; report states were final/final/pending. No LLM calls made during verification.
+- **Unverified:** Authenticated live-browser visual inspection and real-model wording for the new notes remain unverified; browser layout/interaction checks use fixtures. Source narratives remain Traditional Chinese when English UI labels are selected.
+- **Rollback:** Restore only this follow-up's hospital HTML/CSS/JS, `hospital_mcp.py`, profile fixture and tests. No database migration, new credentials or new services. Retain the separately deployed Orthanc feature and earlier uncommitted changes.
+
 ## 2026-10-14 — Orthanc radiology workflow (deployed)
 
 - **Trigger:** User requested patient → studies → X-ray → report → cited LLM summary over MCP, then explicitly directed installation to Ubuntu only.
