@@ -5,8 +5,8 @@
   <title>Hospital HIS / FHIR Demo · AI Work</title>
   <link rel="icon" href="/static/icons/icon-192.png">
   <link rel="stylesheet" href="/static/notion-demo.css?v=1">
-  <link rel="stylesheet" href="/static/hospital-demo.css?v=1">
-  <script src="/static/hospital-demo.js?v=1" defer></script>
+  <link rel="stylesheet" href="/static/hospital-demo.css?v=2">
+  <script src="/static/hospital-demo.js?v=2" defer></script>
 </head>
 <body>
   <header><a class="brand" href="/"><img src="/static/icons/icon-192.png" alt="AI Work" width="36" height="36">AI Work</a>
@@ -21,8 +21,9 @@
     <p id="setup" class="notice" hidden data-copy="setup">尚未連線，請由管理員在 MCP 管理啟用並同步 Hospital HIS / FHIR Demo。</p>
     <section class="tool-section" aria-labelledby="toolsTitle"><h2 id="toolsTitle" data-copy="tools">唯讀工具</h2><div id="tools" class="tool-grid"></div></section>
     <section class="question-section" aria-labelledby="qaTitle"><h2 id="qaTitle" data-copy="qa">醫療資料問答</h2>
-      <form id="askForm"><label for="prompt" data-copy="question">您的問題</label><textarea id="prompt" rows="2" maxlength="1000" required></textarea>
-        <div class="actions"><button id="ask" type="submit" data-copy="ask">查詢示範資料</button><button id="sample" type="button" data-copy="sample">填入病患概覽範例</button></div></form>
+      <form id="askForm"><label for="sample" data-copy="sample">範例問題</label><select id="sample"></select>
+        <label for="prompt" data-copy="question">您的問題</label><textarea id="prompt" rows="2" maxlength="1000" required></textarea>
+        <div class="actions"><button id="ask" type="submit" data-copy="ask">查詢示範資料</button></div></form>
     </section>
     <section id="answerSection" hidden><h2 data-copy="answer">模型回答</h2><p id="answer"></p></section>
     <section class="results" aria-labelledby="resultTitle"><h2 id="resultTitle" data-copy="results">查詢結果與來源</h2>

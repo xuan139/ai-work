@@ -1,5 +1,15 @@
 # Project Issues
 
+## 2026-10-14 — Hospital question examples were not selectable
+
+- **Trigger:** User requested a dropdown for the five previously described hospital questions.
+- **Root cause:** The question form only had a button filling one patient-overview example.
+- **Fix:** Replace that button with a labelled native select containing five bilingual presets. Selection fills an editable prompt without submitting; manual edits reset the selection, language switching preserves the draft, and the select is disabled during requests. Bump the page's CSS/JS asset versions.
+- **Verification:** JavaScript syntax check and Playwright fixture tests passed for all five presets in both languages, no request on selection, exact prompt/server submission, editable drafts, loading controls and 1440px/390px layout. Screenshots inspected. Test: `node tests/hospital_demo_ui.cjs` with Playwright available in Node's module path and Chrome installed.
+- **Deployment (2026-10-14):** Published only the three hospital-demo static files after matching remote files against the previous Git revision. Backup: `/home/ubuntu/backups/hospital-presets-20261014-090422`. No service restart, credentials or database changes. Verified public HTTPS responses exactly match the release and tested all five dropdown options, English selection, mobile width and unauthenticated query lock in Chrome.
+- **Not yet verified:** No live LLM requests made; this update remains uncommitted and has not been pushed. Deployment authorization did not include a new commit.
+- **Rollback:** Restore hospital-demo.html, hospital-demo.css and hospital-demo.js to the prior revision. No backend, credentials or database changes.
+
 ## 2026-10-14 — Hospital demo was not visible in navigation
 
 - **Trigger:** The five Hospital HIS / FHIR tools were available through MCP management but lacked a prominent standalone sidebar entry.
