@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>電子製造排程 Demo · AI Work</title>
+  <link rel="icon" href="/static/icons/icon-192.png">
+  <link rel="stylesheet" href="/static/manufacturing-schedule-demo.css?v=1">
+  <script src="/static/manufacturing-schedule-demo.js?v=1" defer></script>
+</head>
+<body>
+  <header>
+    <a class="brand" href="/"><img src="/static/icons/icon-192.png" alt="AI Work" width="36" height="36">AI Work</a>
+    <nav><a href="/" data-copy="back">返回工作區</a><button id="language" type="button">EN</button></nav>
+  </header>
+  <main>
+    <div class="heading">
+      <div><p class="eyebrow">ELECTRONICS MANUFACTURING · SCHEDULING</p><h1 data-copy="title">電子製造排程 Demo</h1></div>
+      <span class="badge" data-copy="badge">虛構資料 · 唯讀模擬</span>
+    </div>
+    <p class="intro" data-copy="intro">使用 5 筆銷售訂單、3 個工作中心、庫存與停機快照，展示有限產能排程、交期風險與可追溯的 LLM 說明。</p>
+    <p class="notice" data-copy="notice">固定快照 2026-10-19。延期機率是規則式 Demo 風險分數，不是已訓練模型的預測；本頁不會寫入 Odoo、MES 或 PLC。</p>
+
+    <section class="scenario-panel" aria-labelledby="scenarioTitle">
+      <div class="section-heading"><div><p class="eyebrow" data-copy="scenarioEyebrow">WHAT-IF 模擬</p><h2 id="scenarioTitle" data-copy="scenarioTitle">選擇情境並重新排程</h2></div>
+        <button id="runSchedule" class="primary" type="button" data-copy="run">產生有限產能排程</button></div>
+      <div class="scenario-controls">
+        <label class="toggle"><input id="rushOrder" type="checkbox"><span><strong data-copy="rush">加入急單 SO-1006</strong><small data-copy="rushHelp">70 件 Edge Gateway，要求 10/20 14:00 交付</small></span></label>
+        <label><span data-copy="downtime">SMT-01 模擬停機</span><select id="downtimeHours"><option value="0" data-copy="none">不增加</option><option value="2" data-copy="twoHours">2 小時</option><option value="4" data-copy="fourHours">4 小時</option></select></label>
+        <label><span data-copy="materialDelay">MCU-C 到料延後</span><select id="materialDelay"><option value="0" data-copy="none">不增加</option><option value="2" data-copy="twoDays">2 個工作日</option><option value="3" data-copy="threeDays">3 個工作日</option></select></label>
+      </div>
+      <p id="scenarioState" class="muted" data-copy="baseline">目前顯示基準情境。</p>
+    </section>
+
+    <section class="question-panel" aria-labelledby="questionTitle">
+      <div class="section-heading"><div><p class="eyebrow" data-copy="qaEyebrow">LOCAL LLM · TRACEABLE</p><h2 id="questionTitle" data-copy="qaTitle">AI 排程問答</h2></div><span id="modelName" class="muted"></span></div>
+      <form id="askForm">
+        <label for="sampleQuestion" data-copy="sample">範例問題</label>
+        <select id="sampleQuestion"></select>
+        <label for="prompt" data-copy="prompt">您的問題</label>
+        <div class="prompt-row"><input id="prompt" maxlength="1000" required data-copy-placeholder="promptPlaceholder"><button id="ask" class="primary" type="submit" data-copy="ask">詢問目前排程</button></div>
+      </form>
+      <p id="busy" role="status" aria-live="polite" hidden></p><p id="error" role="alert" hidden></p>
+      <div id="answerPanel" class="answer-panel" hidden><h3 data-copy="answer">模型回答</h3><p id="answer"></p></div>
+    </section>
+
+    <section id="metrics" class="metrics" aria-label="排程摘要"></section>
+
+    <section class="data-section" aria-labelledby="ordersTitle"><div class="section-heading"><div><p class="eyebrow">ODOO · SALE.ORDER</p><h2 id="ordersTitle" data-copy="orders">訂單與預測交期</h2></div></div>
+      <div class="table-scroll"><table><thead><tr><th data-copy="order">訂單</th><th data-copy="product">產品</th><th data-copy="quantity">數量</th><th data-copy="priority">優先級</th><th data-copy="due">要求交期</th><th data-copy="predicted">預測完成</th><th data-copy="risk">延期風險</th><th data-copy="reason">主要原因</th></tr></thead><tbody id="ordersBody"></tbody></table></div>
+    </section>
+
+    <section class="data-section" aria-labelledby="ganttTitle"><div class="section-heading"><div><p class="eyebrow">FINITE CAPACITY</p><h2 id="ganttTitle" data-copy="gantt">工作中心甘特圖</h2></div><span class="muted" data-copy="ganttHelp">包含工序順序、班次、換線與停機避讓</span></div>
+      <div class="gantt-scroll"><div id="gantt"></div></div>
+      <div class="legend"><span class="family-a">A</span><span class="family-b">B</span><span class="family-c">C</span><small data-copy="legend">色彩代表產品家族；條形內顯示訂單。</small></div>
+    </section>
+
+    <div class="split-grid">
+      <section class="data-section" aria-labelledby="centersTitle"><p class="eyebrow">MES · CAPACITY</p><h2 id="centersTitle" data-copy="centers">工作中心與停機</h2><div id="centers"></div></section>
+      <section class="data-section" aria-labelledby="inventoryTitle"><p class="eyebrow">ODOO · STOCK.QUANT</p><h2 id="inventoryTitle" data-copy="inventory">庫存與缺料</h2><div id="inventory"></div></section>
+    </div>
+
+    <section class="data-section" aria-labelledby="sourcesTitle"><p class="eyebrow">PROVENANCE</p><h2 id="sourcesTitle" data-copy="sources">資料來源與工具軌跡</h2>
+      <div id="sources" class="source-grid"></div>
+      <details><summary data-copy="trace">查看完整工具呼叫軌跡</summary><pre id="trace"></pre></details>
+    </section>
+  </main>
+</body>
+</html>

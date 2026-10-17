@@ -128,6 +128,7 @@ from app.llm_catalog import PRICING_UPDATED_AT, get_model, model_summary, provid
 from app.llm_cache import lookup_llm_cache, normalize_llm_prompt, store_llm_cache, suggest_llm_prompts
 from app.llm_runtime import LlmRuntimeError, company_api_key_for_model, run_llm
 from app.langchain_demo import run_odoo_langchain_demo
+from app.manufacturing_schedule_demo import answer_question as answer_manufacturing_question, run_schedule as run_manufacturing_schedule
 from app.drive_mcp import DRIVE_MCP_TOOLS, handle_drive_mcp_request
 from app.notion_mcp import NOTION_MCP_TOOLS, handle_notion_mcp_request
 from app.hospital_mcp import HOSPITAL_MCP_TOOLS, handle_hospital_mcp_request
@@ -756,6 +757,46 @@ async def radiology_demo_summary(payload: dict, user: dict = Depends(current_use
     model_id = current_llm_model()["id"]
     async with LLM_RUN_LOCKS.setdefault((user["id"], model_id), asyncio.Lock()):
         return await summarize_radiology(study_id, prompt, user, model_id, run_model_with_audit)
+
+
+@app.get("/manufacturing-schedule-demo")
+async def manufacturing_schedule_demo_page(user: dict = Depends(current_user)) -> FileResponse:
+    return FileResponse(STATIC_DIR / "manufacturing-schedule-demo.html", headers={"Cache-Control": "no-cache"})
+
+
+@app.post("/api/manufacturing-schedule-demo/schedule")
+async def manufacturing_schedule_demo_run(payload: dict, user: dict = Depends(current_user)) -> dict:
+    scenario = payload.get("scenario", {})
+    if not isinstance(scenario, dict):
+        raise HTTPException(status_code=400, detail="scenario 必須是 JSON object")
+    try:
+        return run_manufacturing_schedule(scenario)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/manufacturing-schedule-demo/ask")
+async def manufacturing_schedule_demo_ask(payload: dict, user: dict = Depends(current_user)) -> dict:
+    prompt = payload.get("prompt", "")
+    scenario = payload.get("scenario", {})
+    if not isinstance(prompt, str) or not 1 <= len(prompt.strip()) <= 1000:
+        raise HTTPException(status_code=400, detail="問題需介於 1 至 1,000 個字元")
+    if not isinstance(scenario, dict):
+        raise HTTPException(status_code=400, detail="scenario 必須是 JSON object")
+    guard_prompt(prompt, user, "manufacturing_schedule_demo")
+    limiter_key = f"manufacturing-demo:{user['id']}"
+    if not LLM_LIMITER.allowed(limiter_key):
+        raise HTTPException(status_code=429, detail="模型呼叫過於頻繁，請稍後再試")
+    LLM_LIMITER.record(limiter_key)
+    model_id = current_llm_model()["id"]
+    async with LLM_RUN_LOCKS.setdefault((user["id"], model_id), asyncio.Lock()):
+        try:
+            return await answer_manufacturing_question(
+                prompt=prompt.strip(), scenario=scenario, model_id=model_id, user=user,
+                run_model=run_model_with_audit,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.post("/mcp/notion")
