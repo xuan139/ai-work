@@ -8,6 +8,7 @@ from unittest.mock import patch
 
 from app import db
 from app.manufacturing_mes_demo import electronics_schedule_snapshot
+from app.manufacturing_support_demo import maintenance_snapshot, quality_snapshot
 from app.manufacturing_schedule_mcp import ManufacturingMcpError, run_mcp_schedule
 from app.mcp_runtime import McpConnectionError
 
@@ -27,6 +28,8 @@ class ManufacturingScheduleMcpTests(unittest.TestCase):
         servers = {row["slug"]: row for row in db.list_mcp_servers()}
         self.odoo = {**servers["odoo"], "name": "Goldsys Odoo", "slug": "odoo"}
         self.mes = {**servers["factory-mes"], "name": "FactorySemantics MES 唯讀", "slug": "factory-mes"}
+        self.qms = {**servers["manufacturing-qms"], "name": "Electronics QMS Demo 唯讀", "slug": "manufacturing-qms"}
+        self.cmms = {**servers["manufacturing-cmms"], "name": "Electronics CMMS Demo 唯讀", "slug": "manufacturing-cmms"}
         self.now = datetime(2026, 10, 19, 8, 0)
         self.calls = []
 
@@ -38,6 +41,10 @@ class ManufacturingScheduleMcpTests(unittest.TestCase):
         self.calls.append((tool, arguments))
         if tool == "mes_electronics_schedule_snapshot":
             return mcp_result(electronics_schedule_snapshot(self.now))
+        if tool == "qms_quality_snapshot":
+            return mcp_result(quality_snapshot(self.now))
+        if tool == "cmms_maintenance_snapshot":
+            return mcp_result(maintenance_snapshot(self.now))
         model = arguments.get("model")
         if model == "sale.order":
             return mcp_result([
@@ -63,6 +70,7 @@ class ManufacturingScheduleMcpTests(unittest.TestCase):
     def test_reads_all_sources_via_mcp_and_schedules_locally(self):
         result = asyncio.run(run_mcp_schedule(
             {}, user=self.user, odoo_server=self.odoo, mes_server=self.mes,
+            qms_server=self.qms, cmms_server=self.cmms,
             call_tool=self.fake_call, now=self.now,
         ))
         self.assertEqual(result["data_mode"], "live_mcp")
@@ -70,9 +78,14 @@ class ManufacturingScheduleMcpTests(unittest.TestCase):
         self.assertEqual({row["source_kind"] for row in result["orders"]}, {"odoo_mcp", "mes_mcp_demo"})
         self.assertEqual([center["id"] for center in result["work_centers"]], ["SMT-01", "ASSY-01", "TEST-01"])
         self.assertEqual(result["mes_snapshot"]["dataset_type"], "synthetic_electronics_schedule")
+        self.assertEqual(result["qms_snapshot"]["dataset_type"], "synthetic_electronics_quality")
+        self.assertEqual(result["cmms_snapshot"]["dataset_type"], "synthetic_electronics_maintenance")
+        self.assertTrue(all("quality_rework_minutes" in row for row in result["orders"]))
+        self.assertTrue(any(item.get("source") == "cmms_mcp" for item in result["downtimes"]))
         self.assertIn("短缺 2", {item["status"] for item in result["inventory"]})
-        self.assertEqual([step["tool"] for step in result["trace"][:4]], [
+        self.assertEqual([step["tool"] for step in result["trace"][:6]], [
             "search_read", "search_read", "search_read", "mes_electronics_schedule_snapshot",
+            "qms_quality_snapshot", "cmms_maintenance_snapshot",
         ])
         self.assertEqual(result["trace"][-1]["kind"], "local")
         self.assertTrue(any("MES MCP 補入 3 筆" in warning for warning in result["integration_warnings"]))
@@ -82,7 +95,7 @@ class ManufacturingScheduleMcpTests(unittest.TestCase):
             audit = connection.execute(
                 "SELECT status, tool_name FROM mcp_audit_logs ORDER BY id"
             ).fetchall()
-        self.assertEqual(len(audit), 4)
+        self.assertEqual(len(audit), 6)
         self.assertTrue(all(row["status"] == "completed" for row in audit))
         self.assertNotIn("create_records", {row["tool_name"] for row in audit})
 
@@ -93,6 +106,7 @@ class ManufacturingScheduleMcpTests(unittest.TestCase):
         with self.assertRaisesRegex(ManufacturingMcpError, "查詢失敗"):
             asyncio.run(run_mcp_schedule(
                 {}, user=self.user, odoo_server=self.odoo, mes_server=self.mes,
+                qms_server=self.qms, cmms_server=self.cmms,
                 call_tool=fail, now=self.now,
             ))
         with db.connect() as connection:
@@ -104,7 +118,8 @@ class ManufacturingScheduleMcpTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             asyncio.run(run_mcp_schedule(
                 {"smt_downtime_hours": 99}, user=self.user, odoo_server=self.odoo,
-                mes_server=self.mes, call_tool=self.fake_call, now=self.now,
+                mes_server=self.mes, qms_server=self.qms, cmms_server=self.cmms,
+                call_tool=self.fake_call, now=self.now,
             ))
         self.assertEqual(self.calls, [])
 

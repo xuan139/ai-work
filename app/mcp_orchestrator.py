@@ -34,6 +34,16 @@ MES_READ_ONLY_TOOLS = {
     "mes_electronics_schedule_snapshot",
 }
 
+QMS_READ_ONLY_TOOLS = {
+    "qms_quality_snapshot",
+    "qms_order_quality",
+}
+
+CMMS_READ_ONLY_TOOLS = {
+    "cmms_maintenance_snapshot",
+    "cmms_asset_maintenance",
+}
+
 
 def available_mcp_servers(
     servers: list[dict[str, Any]],
@@ -100,6 +110,21 @@ def build_known_business_plan(
                 tool_name = "mes_work_order_production_quality"
                 arguments = {"code": match.group(0)}
         if tool_name and any(tool.get("name") == tool_name for tool in server.get("tools") or []):
+            return {
+                "action": "tool", "server_id": int(server["id"]),
+                "tool_name": tool_name, "arguments": arguments,
+            }
+
+    if len(servers) == 1 and servers[0].get("slug") in {"manufacturing-qms", "manufacturing-cmms"}:
+        server = servers[0]
+        if server["slug"] == "manufacturing-qms":
+            tool_name = "qms_quality_snapshot"
+            arguments = {}
+        else:
+            match = re.search(r"(?:SMT|ASSY|TEST)-\d+", user_prompt, re.IGNORECASE)
+            tool_name = "cmms_asset_maintenance" if match else "cmms_maintenance_snapshot"
+            arguments = {"center_id": match.group(0).upper()} if match else {}
+        if any(tool.get("name") == tool_name for tool in server.get("tools") or []):
             return {
                 "action": "tool", "server_id": int(server["id"]),
                 "tool_name": tool_name, "arguments": arguments,
@@ -278,6 +303,10 @@ def _is_read_only_tool(tool: object, server: dict[str, Any]) -> bool:
         return str(tool["name"]) in ODOO_READ_ONLY_TOOLS
     if server.get("slug") == "factory-mes":
         return endpoint == "http://127.0.0.1:8310/mcp" and str(tool["name"]) in MES_READ_ONLY_TOOLS
+    if server.get("slug") == "manufacturing-qms":
+        return endpoint == "http://127.0.0.1:8320/mcp" and str(tool["name"]) in QMS_READ_ONLY_TOOLS
+    if server.get("slug") == "manufacturing-cmms":
+        return endpoint == "http://127.0.0.1:8321/mcp" and str(tool["name"]) in CMMS_READ_ONLY_TOOLS
     annotations = tool.get("annotations")
     return bool(
         isinstance(annotations, dict)

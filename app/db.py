@@ -43,6 +43,20 @@ MCP_CATALOG_TEMPLATES = (
         "source_url": "https://github.com/factorysemantics/factorysemantics-mes", "is_enabled": False,
     },
     {
+        "slug": "manufacturing-qms", "name": "Electronics QMS Demo 唯讀", "transport": "streamable_http",
+        "endpoint": "http://127.0.0.1:8320/mcp", "auth_type": "none", "auth_env_var": None,
+        "description": "電子製造 QMS 唯讀教學：產品家族良率、不良率、預期返工工時與未結品質事件。固定模擬資料。",
+        "description_en": "Read-only electronics QMS teaching data: family yield, defect rates, expected rework time, and open quality events.",
+        "source_url": None, "is_enabled": False,
+    },
+    {
+        "slug": "manufacturing-cmms", "name": "Electronics CMMS Demo 唯讀", "transport": "streamable_http",
+        "endpoint": "http://127.0.0.1:8321/mcp", "auth_type": "none", "auth_env_var": None,
+        "description": "電子製造 CMMS 唯讀教學：設備健康、未結維護工單、MTBF／MTTR 與保養窗口。固定模擬資料。",
+        "description_en": "Read-only electronics CMMS teaching data: asset health, open maintenance orders, MTBF/MTTR, and maintenance windows.",
+        "source_url": None, "is_enabled": False,
+    },
+    {
         "slug": "nas-demo", "name": "NAS Demo MCP", "transport": "streamable_http",
         "endpoint": "http://127.0.0.1:8000/mcp/nas", "auth_type": "none", "auth_env_var": None,
         "description": "AI Work 內建唯讀 NAS 示範工具，可查詢系統狀態、共享資料夾、示範檔案與近期活動。",

@@ -109,6 +109,32 @@ class McpAgentTests(unittest.TestCase):
         order_plan = build_known_business_plan("WO-ACME-4711 的生產與品質紀錄", [planned])
         self.assertEqual(order_plan["arguments"], {"code": "WO-ACME-4711"})
 
+    def test_manufacturing_qms_and_cmms_are_separate_read_only_catalogs(self) -> None:
+        raw_tools = json.dumps([
+            {"name": "qms_quality_snapshot"},
+            {"name": "qms_order_quality"},
+            {"name": "cmms_maintenance_snapshot"},
+            {"name": "cmms_asset_maintenance"},
+            {"name": "close_maintenance_order", "annotations": {"readOnlyHint": True}},
+        ])
+        qms = {
+            **self.server, "slug": "manufacturing-qms", "name": "QMS",
+            "endpoint": "http://127.0.0.1:8320/mcp", "tools_json": raw_tools,
+        }
+        cmms = {
+            **self.server, "id": int(self.server["id"]) + 1, "slug": "manufacturing-cmms", "name": "CMMS",
+            "endpoint": "http://127.0.0.1:8321/mcp", "tools_json": raw_tools,
+        }
+        qms_tools = available_mcp_servers([qms])[0]["tools"]
+        cmms_tools = available_mcp_servers([cmms])[0]["tools"]
+        self.assertEqual([tool["name"] for tool in qms_tools], ["qms_quality_snapshot", "qms_order_quality"])
+        self.assertEqual([tool["name"] for tool in cmms_tools], ["cmms_maintenance_snapshot", "cmms_asset_maintenance"])
+        self.assertEqual(build_known_business_plan("目前品質風險？", [{**qms, "tools": qms_tools}])["tool_name"], "qms_quality_snapshot")
+        cmms_plan = build_known_business_plan("SMT-01 的維護紀錄", [{**cmms, "tools": cmms_tools}])
+        self.assertEqual(cmms_plan["tool_name"], "cmms_asset_maintenance")
+        self.assertEqual(cmms_plan["arguments"], {"center_id": "SMT-01"})
+        self.assertEqual(available_mcp_servers([{**qms, "endpoint": "https://other.example/mcp"}]), [])
+
     def test_odoo_contact_request_routes_directly_to_res_partner(self) -> None:
         odoo = {
             **self.server,

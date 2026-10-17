@@ -154,6 +154,8 @@ def _build_snapshot(
     line_rows: list[dict[str, Any]],
     quant_rows: list[dict[str, Any]],
     mes_snapshot: dict[str, Any],
+    qms_snapshot: dict[str, Any],
+    cmms_snapshot: dict[str, Any],
     traces: list[dict[str, Any]],
     *,
     snapshot_at: datetime,
@@ -291,6 +293,32 @@ def _build_snapshot(
         existing_order_ids.add(order_id)
     supplemental_count = len(orders) - odoo_order_count
 
+    quality_profiles = qms_snapshot.get("profiles")
+    if not isinstance(quality_profiles, list):
+        raise ManufacturingMcpError("QMS MCP 沒有提供產品家族品質資料")
+    profiles_by_family = {
+        str(item.get("family")): item for item in quality_profiles
+        if isinstance(item, dict) and item.get("family") in {"A", "B", "C"}
+    }
+    if set(profiles_by_family) != {"A", "B", "C"}:
+        raise ManufacturingMcpError("QMS MCP 產品家族品質資料不完整")
+    for order in orders:
+        profile = profiles_by_family[order["family"]]
+        try:
+            rework_per_100 = float(profile["expected_rework_minutes_per_100"])
+            first_pass_yield = float(profile["first_pass_yield_pct"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ManufacturingMcpError("QMS MCP 品質指標格式不正確") from exc
+        if not 0 <= rework_per_100 <= 1440 or not 0 <= first_pass_yield <= 100:
+            raise ManufacturingMcpError("QMS MCP 品質指標超出允許範圍")
+        order["quality_rework_minutes"] = math.ceil(float(order["quantity"]) / 100 * rework_per_100)
+        order["quality"] = {
+            "first_pass_yield_pct": first_pass_yield,
+            "defect_rate_pct": float(profile.get("defect_rate_pct") or 0),
+            "top_defect": str(profile.get("top_defect") or "未提供"),
+            "quality_level": str(profile.get("quality_level") or "unknown"),
+        }
+
     work_centers = mes_snapshot.get("work_centers")
     if not isinstance(work_centers, list) or not work_centers:
         raise ManufacturingMcpError("MES MCP 沒有提供電子製造工作中心")
@@ -330,7 +358,43 @@ def _build_snapshot(
             "source": "mes_mcp",
         })
 
-    warnings = [str(mes_snapshot.get("notice") or "MES 工作中心為教學模擬資料。")]
+    cmms_assets = cmms_snapshot.get("assets")
+    if not isinstance(cmms_assets, list):
+        raise ManufacturingMcpError("CMMS MCP 沒有提供設備健康資料")
+    mapped_assets = []
+    for item in cmms_assets:
+        if not isinstance(item, dict) or str(item.get("center_id")) not in center_ids:
+            continue
+        mapped_assets.append({
+            "center_id": str(item["center_id"]),
+            "asset_id": str(item.get("asset_id") or ""),
+            "health": str(item.get("health") or "unknown"),
+            "open_work_order": item.get("open_work_order"),
+            "mtbf_hours": item.get("mtbf_hours"),
+            "mttr_minutes": item.get("mttr_minutes"),
+            "reason": str(item.get("reason") or ""),
+        })
+    for item in cmms_snapshot.get("maintenance_windows") or []:
+        if not isinstance(item, dict) or str(item.get("center_id")) not in center_ids:
+            continue
+        start = _as_datetime(item.get("start"))
+        end = _as_datetime(item.get("end"))
+        if start is None or end is None or end <= start:
+            continue
+        mapped_downtimes.append({
+            "center_id": str(item["center_id"]),
+            "start": start.isoformat(timespec="minutes"),
+            "end": end.isoformat(timespec="minutes"),
+            "reason": str(item.get("reason") or "CMMS MCP 維護窗口"),
+            "source": "cmms_mcp",
+            "work_order": item.get("work_order"),
+        })
+
+    warnings = [
+        str(mes_snapshot.get("notice") or "MES 工作中心為教學模擬資料。"),
+        str(qms_snapshot.get("notice") or "QMS 品質資料為教學模擬資料。"),
+        str(cmms_snapshot.get("notice") or "CMMS 維護資料為教學模擬資料。"),
+    ]
     plant = str(mes_snapshot.get("plant") or "unknown")
     if len(orders) < 5:
         warnings.append(f"MCP 目前只提供 {len(orders)} 筆可排程訂單，未用程序內假資料補足。")
@@ -352,7 +416,23 @@ def _build_snapshot(
             "plant_timezone": mes_snapshot.get("plant_timezone"),
             "notice": mes_snapshot.get("notice"),
             "work_centers": work_centers,
-            "downtimes": mapped_downtimes,
+            "downtimes": [item for item in mapped_downtimes if item.get("source") == "mes_mcp"],
+        },
+        "qms_snapshot": {
+            "source": qms_snapshot.get("source"),
+            "dataset_type": qms_snapshot.get("dataset_type"),
+            "read_only": qms_snapshot.get("read_only"),
+            "notice": qms_snapshot.get("notice"),
+            "profiles": list(profiles_by_family.values()),
+            "open_events": qms_snapshot.get("open_events") or [],
+        },
+        "cmms_snapshot": {
+            "source": cmms_snapshot.get("source"),
+            "dataset_type": cmms_snapshot.get("dataset_type"),
+            "read_only": cmms_snapshot.get("read_only"),
+            "notice": cmms_snapshot.get("notice"),
+            "assets": mapped_assets,
+            "maintenance_windows": [item for item in mapped_downtimes if item.get("source") == "cmms_mcp"],
         },
         "mapped_downtimes": mapped_downtimes,
         "warnings": warnings,
@@ -362,7 +442,11 @@ def _build_snapshot(
             {"id": "odoo-stock-mcp", "name": f"{odoo_name} / search_read",
              "detail": f"stock.quant · {len(inventory)} 項訂單相關產品"},
             {"id": "factory-mes-mcp", "name": f"{mes_name} / mes_electronics_schedule_snapshot",
-             "detail": f"plant={plant} · {len(work_centers)} 個模擬工作中心 · {len(mapped_downtimes)} 筆停機 · {supplemental_count} 筆補充教學訂單"},
+             "detail": f"plant={plant} · {len(work_centers)} 個模擬工作中心 · {sum(1 for item in mapped_downtimes if item.get('source') == 'mes_mcp')} 筆停機 · {supplemental_count} 筆補充教學訂單"},
+            {"id": "qms-demo-mcp", "name": "Electronics QMS Demo / qms_quality_snapshot",
+             "detail": f"{len(profiles_by_family)} 個產品家族 · {len(qms_snapshot.get('open_events') or [])} 筆未結品質事件"},
+            {"id": "cmms-demo-mcp", "name": "Electronics CMMS Demo / cmms_maintenance_snapshot",
+             "detail": f"{len(mapped_assets)} 台設備 · {sum(1 for item in mapped_downtimes if item.get('source') == 'cmms_mcp')} 個維護窗口"},
         ],
         "trace": traces,
     }
@@ -374,6 +458,8 @@ async def run_mcp_schedule(
     user: dict[str, Any],
     odoo_server: dict[str, Any],
     mes_server: dict[str, Any],
+    qms_server: dict[str, Any],
+    cmms_server: dict[str, Any],
     call_tool: Callable[[dict[str, Any], str, dict[str, Any]], dict[str, Any]] = call_streamable_http_tool,
     now: datetime | None = None,
 ) -> dict[str, Any]:
@@ -396,8 +482,12 @@ async def run_mcp_schedule(
     }
     line_task = _call_mcp(odoo_server, "search_read", line_query, user=user, call_tool=call_tool)
     mes_task = _call_mcp(mes_server, "mes_electronics_schedule_snapshot", {}, user=user, call_tool=call_tool)
-    (line_rows, line_trace), (mes_snapshot, mes_trace) = await asyncio.gather(line_task, mes_task)
-    if not isinstance(line_rows, list) or not isinstance(mes_snapshot, dict):
+    qms_task = _call_mcp(qms_server, "qms_quality_snapshot", {}, user=user, call_tool=call_tool)
+    cmms_task = _call_mcp(cmms_server, "cmms_maintenance_snapshot", {}, user=user, call_tool=call_tool)
+    (line_rows, line_trace), (mes_snapshot, mes_trace), (qms_snapshot, qms_trace), \
+        (cmms_snapshot, cmms_trace) = await asyncio.gather(line_task, mes_task, qms_task, cmms_task)
+    if not all((isinstance(line_rows, list), isinstance(mes_snapshot, dict),
+                isinstance(qms_snapshot, dict), isinstance(cmms_snapshot, dict))):
         raise ManufacturingMcpError("MCP 排程來源回傳格式不正確")
     product_ids = sorted({
         product_id for row in line_rows if isinstance(row, dict)
@@ -424,7 +514,9 @@ async def run_mcp_schedule(
         line_rows,
         quant_rows,
         mes_snapshot,
-        [order_trace, line_trace, stock_trace, mes_trace],
+        qms_snapshot,
+        cmms_snapshot,
+        [order_trace, line_trace, stock_trace, mes_trace, qms_trace, cmms_trace],
         snapshot_at=(now or datetime.now()).replace(second=0, microsecond=0),
         odoo_name=str(odoo_server["name"]),
         mes_name=str(mes_server["name"]),

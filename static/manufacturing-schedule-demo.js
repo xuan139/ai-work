@@ -2,8 +2,8 @@ const $ = (id) => document.getElementById(id);
 const copy = {
   "zh-Hant": {
     back: "返回工作區", title: "電子製造排程 Demo", badge: "LIVE MCP · 唯讀",
-    intro: "透過唯讀 MCP 取得 Odoo 訂單、庫存及 MES 教學產線快照，再由本地有限產能排程引擎計算交期風險。",
-    notice: "資料由 MCP 即時讀取；MES 產線為明確標示的教學模擬。本頁不會寫入 Odoo、MES 或 PLC。", warnings: "資料邊界與假設",
+    intro: "透過唯讀 MCP 取得 Odoo 訂單與庫存、MES 產能、QMS 品質及 CMMS 維護資料，再由本地有限產能排程引擎計算交期風險。",
+    notice: "資料由 MCP 即時讀取；MES、QMS 與 CMMS 為明確標示的教學模擬。本頁不會寫入企業系統或 PLC。", warnings: "資料邊界與假設",
     scenarioEyebrow: "WHAT-IF 模擬", scenarioTitle: "選擇情境並重新排程", run: "產生有限產能排程",
     rush: "加入模擬急單", rushHelp: "沿用最新 MCP 訂單的產品條件，建立 WHAT-IF 急單", downtime: "SMT-01 模擬停機",
     materialDelay: "短缺物料到料延後", none: "不增加", twoHours: "2 小時", fourHours: "4 小時", twoDays: "2 個工作日", threeDays: "3 個工作日",
@@ -13,19 +13,21 @@ const copy = {
     orders: "訂單與預測交期", order: "訂單", customer: "客戶", product: "產品", quantity: "數量", priority: "優先級", sourceType: "來源",
     due: "要求交期", predicted: "預測完成", risk: "延期風險", reason: "主要原因", gantt: "工作中心甘特圖",
     ganttHelp: "包含工序順序、班次、換線與停機避讓", legend: "色彩代表產品家族；條形內顯示訂單。",
-    centers: "工作中心與停機", inventory: "庫存與缺料", sources: "資料來源與工具軌跡", trace: "查看完整工具呼叫軌跡",
+    centers: "工作中心與停機", inventory: "庫存與缺料", quality: "品質與預期返工", maintenance: "設備健康與維護",
+    sources: "資料來源與工具軌跡", trace: "查看完整工具呼叫軌跡",
     generating: "正在計算有限產能排程…", thinking: "模型正在根據目前排程產生說明…", failed: "操作失敗",
     metrics: ["訂單", "預計延期", "準時", "換線", "最晚完成"], riskLabels: { low: "低", medium: "中", high: "高" },
     priorityLabels: { normal: "一般", high: "高", urgent: "急單" }, shift: "班次", capacity: "產能", setup: "換線",
     downtimeLabel: "停機", noDowntime: "無停機", hours: "件／小時", minutes: "分鐘", onHand: "現有", available: "可用", required: "需求",
     orderSources: { odoo_mcp: "Odoo MCP", mes_mcp_demo: "MES 教學", what_if: "WHAT-IF" },
     samples: ["選擇範例問題", "目前哪些訂單可能延期？", "訂單 S00003 為什麼無法準時交付？",
-      "如果 SMT-01 停機兩小時，會影響哪些訂單？", "如何調整排程可以減少換線？"],
+      "如果 SMT-01 停機兩小時，會影響哪些訂單？", "如何調整排程可以減少換線？",
+      "哪個產品家族的品質風險最高？", "目前哪些設備維護會影響交期？"],
   },
   en: {
     back: "Back to workspace", title: "Electronics Scheduling Demo", badge: "LIVE MCP · READ-ONLY",
-    intro: "Read Odoo orders, stock and a teaching MES line through read-only MCP, then calculate delivery risk with the local finite-capacity scheduler.",
-    notice: "Data is fetched through MCP. The MES line is explicitly synthetic teaching data. This page never writes to Odoo, MES or PLCs.", warnings: "Data boundaries and assumptions",
+    intro: "Read Odoo orders and stock, MES capacity, QMS quality, and CMMS maintenance through read-only MCP, then calculate delivery risk locally.",
+    notice: "Data is fetched through MCP. MES, QMS, and CMMS are explicitly synthetic teaching data. This page never writes to enterprise systems or PLCs.", warnings: "Data boundaries and assumptions",
     scenarioEyebrow: "WHAT-IF SIMULATION", scenarioTitle: "Select a scenario and reschedule", run: "Generate finite-capacity schedule",
     rush: "Add a simulated rush order", rushHelp: "Copy the latest MCP order conditions into a WHAT-IF order", downtime: "SMT-01 simulated downtime",
     materialDelay: "Delay shortage replenishment", none: "No addition", twoHours: "2 hours", fourHours: "4 hours", twoDays: "2 workdays", threeDays: "3 workdays",
@@ -35,14 +37,16 @@ const copy = {
     orders: "Orders and predicted delivery", order: "Order", customer: "Customer", product: "Product", quantity: "Qty", priority: "Priority", sourceType: "Source",
     due: "Requested due", predicted: "Predicted finish", risk: "Delay risk", reason: "Primary reason", gantt: "Work-center Gantt",
     ganttHelp: "Includes routing, shifts, changeovers and downtime avoidance", legend: "Colors identify product families; bars show order IDs.",
-    centers: "Work centers and downtime", inventory: "Inventory and shortages", sources: "Sources and tool trace", trace: "View full tool-call trace",
+    centers: "Work centers and downtime", inventory: "Inventory and shortages", quality: "Quality and expected rework", maintenance: "Asset health and maintenance",
+    sources: "Sources and tool trace", trace: "View full tool-call trace",
     generating: "Calculating the finite-capacity schedule…", thinking: "The model is explaining the current schedule…", failed: "Operation failed",
     metrics: ["Orders", "Late", "On time", "Changeovers", "Latest finish"], riskLabels: { low: "Low", medium: "Medium", high: "High" },
     priorityLabels: { normal: "Normal", high: "High", urgent: "Rush" }, shift: "Shift", capacity: "Capacity", setup: "Changeover",
     downtimeLabel: "Downtime", noDowntime: "No downtime", hours: "units/hour", minutes: "minutes", onHand: "On hand", available: "Available", required: "Required",
     orderSources: { odoo_mcp: "Odoo MCP", mes_mcp_demo: "MES teaching", what_if: "WHAT-IF" },
     samples: ["Choose a sample question", "Which orders may be late?", "Why can order S00003 not finish on time?",
-      "Which orders are affected if SMT-01 stops for two hours?", "How can the schedule reduce changeovers?"],
+      "Which orders are affected if SMT-01 stops for two hours?", "How can the schedule reduce changeovers?",
+      "Which product family has the highest quality risk?", "Which maintenance windows affect delivery?"],
   },
 };
 const state = { language: localStorage.getItem("ai-work-lang") === "en" ? "en" : "zh-Hant", schedule: null, trace: [] };
@@ -153,6 +157,31 @@ function renderInventory(data) {
   }
   $("inventory").replaceChildren(list);
 }
+function renderQuality(data) {
+  const snapshot = data.qms_snapshot || {};
+  $("qmsStatus").textContent = snapshot.notice || "";
+  const list = document.createElement("div"); list.className = "plain-list";
+  for (const item of snapshot.profiles || []) {
+    const row = document.createElement("div"); row.className = "plain-row";
+    row.append(text("strong", `Family ${item.family} · FPY ${item.first_pass_yield_pct}%`),
+      text("span", `${item.top_defect} · ${item.expected_rework_minutes_per_100} min / 100 units`, item.quality_level === "alert" ? "shortage" : ""));
+    list.append(row);
+  }
+  $("quality").replaceChildren(list);
+}
+function renderMaintenance(data) {
+  const snapshot = data.cmms_snapshot || {};
+  $("cmmsStatus").textContent = snapshot.notice || "";
+  const list = document.createElement("div"); list.className = "plain-list";
+  for (const item of snapshot.assets || []) {
+    const row = document.createElement("div"); row.className = "plain-row";
+    const workOrder = item.open_work_order ? ` · ${item.open_work_order}` : "";
+    row.append(text("strong", `${item.center_id} · ${item.health}`),
+      text("span", `${item.reason}${workOrder}`, item.health === "watch" ? "shortage" : ""));
+    list.append(row);
+  }
+  $("maintenance").replaceChildren(list);
+}
 function renderSources(data, trace = data.trace) {
   $("sources").replaceChildren(...data.sources.map((source) => {
     const node = document.createElement("div"); node.className = "source"; node.append(text("strong", source.name), text("span", source.detail)); return node;
@@ -168,7 +197,8 @@ function scheduledScenarioText(data) {
 }
 function renderSchedule(data, trace = data.trace) {
   state.schedule = data; state.trace = trace;
-  renderMetrics(data); renderOrders(data); renderGantt(data); renderCenters(data); renderInventory(data); renderSources(data, trace);
+  renderMetrics(data); renderOrders(data); renderGantt(data); renderCenters(data); renderInventory(data);
+  renderQuality(data); renderMaintenance(data); renderSources(data, trace);
   $("snapshotNotice").textContent = `${t("notice")} Snapshot: ${fmt(data.snapshot_at)}.`;
   const warnings = data.integration_warnings || [];
   $("warningList").replaceChildren(...warnings.map((warning) => text("li", warning)));

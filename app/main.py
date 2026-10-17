@@ -765,20 +765,28 @@ async def manufacturing_schedule_demo_page(user: dict = Depends(current_user)) -
     return FileResponse(STATIC_DIR / "manufacturing-schedule-demo.html", headers={"Cache-Control": "no-cache"})
 
 
-def manufacturing_schedule_mcp_servers(user: dict) -> tuple[dict, dict]:
+def manufacturing_schedule_mcp_servers(user: dict) -> tuple[dict, dict, dict, dict]:
     servers = available_mcp_servers(mcp_servers_for_user(user))
     odoo = next((server for server in servers if server["slug"] == "odoo"
                  and any(tool["name"] == "search_read" for tool in server["tools"])), None)
     mes = next((server for server in servers if server["slug"] == "factory-mes"
                 and any(tool["name"] == "mes_electronics_schedule_snapshot" for tool in server["tools"])), None)
+    qms = next((server for server in servers if server["slug"] == "manufacturing-qms"
+                and any(tool["name"] == "qms_quality_snapshot" for tool in server["tools"])), None)
+    cmms = next((server for server in servers if server["slug"] == "manufacturing-cmms"
+                 and any(tool["name"] == "cmms_maintenance_snapshot" for tool in server["tools"])), None)
     missing = []
     if not odoo:
         missing.append("Goldsys Odoo / search_read")
     if not mes:
         missing.append("FactorySemantics MES / mes_electronics_schedule_snapshot")
+    if not qms:
+        missing.append("Electronics QMS Demo / qms_quality_snapshot")
+    if not cmms:
+        missing.append("Electronics CMMS Demo / cmms_maintenance_snapshot")
     if missing:
         raise HTTPException(status_code=503, detail=f"排程所需 MCP 尚未連線：{', '.join(missing)}")
-    return odoo, mes
+    return odoo, mes, qms, cmms
 
 
 @app.post("/api/manufacturing-schedule-demo/schedule")
@@ -787,8 +795,11 @@ async def manufacturing_schedule_demo_run(payload: dict, user: dict = Depends(cu
     if not isinstance(scenario, dict):
         raise HTTPException(status_code=400, detail="scenario 必須是 JSON object")
     try:
-        odoo, mes = manufacturing_schedule_mcp_servers(user)
-        return await run_mcp_schedule(scenario, user=user, odoo_server=odoo, mes_server=mes)
+        odoo, mes, qms, cmms = manufacturing_schedule_mcp_servers(user)
+        return await run_mcp_schedule(
+            scenario, user=user, odoo_server=odoo, mes_server=mes,
+            qms_server=qms, cmms_server=cmms,
+        )
     except ManufacturingMcpError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     except ValueError as exc:
@@ -811,8 +822,11 @@ async def manufacturing_schedule_demo_ask(payload: dict, user: dict = Depends(cu
     model_id = current_llm_model()["id"]
     async with LLM_RUN_LOCKS.setdefault((user["id"], model_id), asyncio.Lock()):
         try:
-            odoo, mes = manufacturing_schedule_mcp_servers(user)
-            schedule = await run_mcp_schedule(scenario, user=user, odoo_server=odoo, mes_server=mes)
+            odoo, mes, qms, cmms = manufacturing_schedule_mcp_servers(user)
+            schedule = await run_mcp_schedule(
+                scenario, user=user, odoo_server=odoo, mes_server=mes,
+                qms_server=qms, cmms_server=cmms,
+            )
             return await answer_manufacturing_question(
                 prompt=prompt.strip(), scenario=scenario, model_id=model_id, user=user,
                 run_model=run_model_with_audit, schedule=schedule,
