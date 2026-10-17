@@ -46,6 +46,8 @@ h3 { margin: 0 0 8px; font-size: 17px; }
 #error { padding: 12px; color: #983d2e; background: #fff1ee; border-left: 3px solid #c3583d; }
 .answer-panel { margin-top: 18px; padding-top: 18px; border-top: 1px solid #cbe5f2; }
 #answer { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.answer-panel.answer-error { border-color: #e1a28f; background: #fff5f2; }
+.answer-panel.answer-error #answer { color: #8d3528; }
 .metrics { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin-top: 28px; border-block: 1px solid #dce9f0; }
 .metric { padding: 18px; border-right: 1px solid #dce9f0; }
 .metric:last-child { border-right: 0; }

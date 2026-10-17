@@ -55,7 +55,12 @@ const server = http.createServer(async (req, res) => {
     const page = await browser.newPage({viewport:{width:1440,height:1100}}); const errors=[]; const scheduleCalls=[]; const askCalls=[];
     page.on('pageerror', error => errors.push(error.message));
     await page.route('**/api/manufacturing-schedule-demo/schedule', async route => { scheduleCalls.push(route.request().postDataJSON()); await route.fulfill({json:fixture(scheduleCalls.at(-1).scenario.rush_order ? 6 : 5)}); });
-    await page.route('**/api/manufacturing-schedule-demo/ask', async route => { askCalls.push(route.request().postDataJSON()); const data=fixture(6); await route.fulfill({json:{answer:'SO-1003 因 MCU-C 缺料而延期。',model:'Qwen3 4B',schedule:data,sources:data.sources,steps:[...data.trace,{tool:'llm.explain_schedule'}]}}); });
+    await page.route('**/api/manufacturing-schedule-demo/ask', async route => {
+      const request = route.request().postDataJSON(); askCalls.push(request);
+      if (request.prompt === 'FAIL') { await route.fulfill({status:502,json:{detail:'Prompt has too many tokens'}}); return; }
+      const data=fixture(6); await new Promise(resolve => setTimeout(resolve, 50));
+      await route.fulfill({json:{answer:'SO-1003 因 MCU-C 缺料而延期。',model:'Qwen3 4B',schedule:data,sources:data.sources,steps:[...data.trace,{tool:'llm.explain_schedule'}]}});
+    });
     await page.goto(`http://127.0.0.1:${server.address().port}/manufacturing-schedule-demo`);
     await page.waitForFunction(() => document.querySelectorAll('#ordersBody tr').length === 5);
     assert.equal(scheduleCalls.length,1); assert.equal(await page.locator('.gantt-row').count(),3); assert.equal(await page.locator('.gantt-bar').count(),15); assert.equal(await page.locator('.source').count(),9);
@@ -72,7 +77,12 @@ const server = http.createServer(async (req, res) => {
     await page.locator('#sampleQuestion').selectOption('2'); assert.equal(await page.locator('#downtimeHours').inputValue(),'2'); assert.equal(askCalls.length,0);
     await page.locator('#sampleQuestion').selectOption('1');
     await page.locator('#ask').click(); await page.waitForFunction(() => !document.getElementById('answerPanel').hidden);
+    assert.match(await page.locator('#answer').textContent(),/正在|explaining/i);
+    await page.waitForFunction(() => document.getElementById('answer').textContent.includes('MCU-C'));
     assert.equal(askCalls.length,1); assert.match(await page.locator('#answer').textContent(),/MCU-C/); assert.match(await page.locator('#trace').textContent(),/llm.explain_schedule/);
+    await page.locator('#prompt').fill('FAIL'); await page.locator('#ask').click();
+    await page.waitForFunction(() => document.getElementById('answer').textContent.includes('too many tokens'));
+    assert.equal(await page.locator('#answerPanel').isVisible(),true); assert.equal(await page.locator('#error').isVisible(),true);
     await mkdir(path.join(root,'tmp'),{recursive:true});
     for (const width of [1440,390]) { await page.setViewportSize({width,height:1100}); assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),true); await page.screenshot({path:path.join(root,`tmp/manufacturing-schedule-${width}.png`),fullPage:true}); }
     assert.deepEqual(errors,[]); console.log('PASS: baseline, three what-if controls, Gantt, LLM samples, sources/trace, desktop/mobile layout.');

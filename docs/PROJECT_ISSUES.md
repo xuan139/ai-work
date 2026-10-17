@@ -1,5 +1,15 @@
 # Project Issues
 
+## 2026-10-18 - Manufacturing LLM answer exceeded the local 4,096-token context
+
+- **Trigger:** The browser successfully generated the expanded WMS/PLM/SPC schedule, but asking `ECO-2026-014 會影響哪些訂單？` with a rush order, four-hour SMT downtime and three-day material delay produced no visible answer.
+- **Root cause:** The backend sent complete support-system snapshots to the local Qwen3 4B model. The expanded what-if prompt reached 4,166 tokens and was rejected against the model's 4,096-token input limit. The UI only exposed the request error in a small generic line and did not open the answer panel while waiting or after failure.
+- **Fix:** Build a compact decision-evidence payload that retains order IDs, product families, requested and predicted dates, risk reasons, inventory, WMS lots/genealogy, PLM revisions/ECO affected orders, QMS rework, SPC capability and CMMS windows while dropping notices and unused metadata. Shorten the system prompt. Open the answer panel immediately with a loading message and render API failures inside the same panel.
+- **Validation:** Nine focused Python tests passed; all 251 Python tests passed; the Playwright fixture passed at desktop and mobile widths and now verifies loading, successful answers, and persistent in-panel API failures. Production was tested with the exact reported scenario: rush order, four-hour SMT downtime, three-day material delay, and `ECO-2026-014 會影響哪些訂單？`. Qwen3 4B returned the affected order `MES-DEMO-1003` with nine sources and eleven tool steps. Input fell from the rejected 4,166 tokens to 3,065 tokens, with 244 output tokens and no error. All four deployed file hashes match local, and public v5 JavaScript and CSS hashes match the release files.
+- **Deployment:** Backed up the prior files at `/home/ubuntu/ai-work/backups/manufacturing-llm-20261018-042742`, deployed the evidence serializer and v5 answer UI, then restarted only `ai-work.service`. The separate manufacturing MCP services remained active and no processing jobs were queued or running.
+- **Unverified:** Answer quality remains limited by the configured 4B teaching model and synthetic support-system evidence.
+- **Rollback:** Restore the previous evidence serializer, system prompt and answer-panel submit handler. Re-enable only if the configured model has a sufficiently larger verified context window.
+
 ## 2026-10-18 — Manufacturing scheduling lacked warehouse traceability, engineering-change and process-capability evidence
 
 - **Trigger:** User requested the next three manufacturing systems in priority order: WMS plus genealogy, PLM/ECO, and SPC.

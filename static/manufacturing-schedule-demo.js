@@ -71,7 +71,7 @@ async function request(path, payload) {
 function setBusy(message = "") {
   const busy = Boolean(message);
   $("busy").hidden = !busy; $("busy").textContent = message;
-  $("error").hidden = true;
+  if (busy) $("error").hidden = true;
   for (const element of document.querySelectorAll("button, input, select")) element.disabled = busy;
 }
 async function work(message, action) {
@@ -292,12 +292,28 @@ $("sampleQuestion").addEventListener("change", () => {
   $("prompt").focus();
 });
 $("prompt").addEventListener("input", () => { $("sampleQuestion").value = ""; });
-$("askForm").addEventListener("submit", (event) => {
+$("askForm").addEventListener("submit", async (event) => {
   event.preventDefault(); const prompt = $("prompt").value.trim(); if (!prompt) return;
-  work(t("thinking"), async () => {
+  $("answerPanel").hidden = false;
+  $("answerPanel").classList.remove("answer-error");
+  $("answer").textContent = t("thinking");
+  $("modelName").textContent = "";
+  $("answerPanel").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  setBusy(t("thinking"));
+  try {
     const result = await request("/api/manufacturing-schedule-demo/ask", { prompt, scenario: scenario() });
-    renderSchedule(result.schedule, result.steps); $("answer").textContent = result.answer; $("modelName").textContent = result.model || ""; $("answerPanel").hidden = false;
-  });
+    renderSchedule(result.schedule, result.steps);
+    $("answer").textContent = result.answer;
+    $("modelName").textContent = result.model || "";
+  } catch (error) {
+    $("answerPanel").classList.add("answer-error");
+    $("answer").textContent = `${t("failed")}：${error.message}`;
+    $("error").textContent = `${t("failed")}：${error.message}`;
+    $("error").hidden = false;
+  } finally {
+    setBusy();
+    $("answerPanel").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
 });
 $("language").addEventListener("click", () => { state.language = state.language === "en" ? "zh-Hant" : "en"; localStorage.setItem("ai-work-lang", state.language); renderLanguage(); });
 renderLanguage(); generate();

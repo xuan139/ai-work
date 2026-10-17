@@ -9,7 +9,7 @@ from fastapi.testclient import TestClient
 
 from app import db, main
 from app.auth import current_user
-from app.manufacturing_schedule_demo import BASE_ORDERS, WORK_CENTERS, answer_question, normalize_scenario, run_schedule
+from app.manufacturing_schedule_demo import BASE_ORDERS, WORK_CENTERS, answer_question, compact_evidence, normalize_scenario, run_schedule
 
 
 class ManufacturingScheduleDemoTests(unittest.TestCase):
@@ -92,6 +92,9 @@ class ManufacturingScheduleDemoTests(unittest.TestCase):
         self.assertIn("SO-1003", captured["prompt"])
         self.assertIn("not a trained", captured["system_prompt"])
         self.assertLess(len(captured["prompt"]), 7000)
+        evidence = compact_evidence(result["schedule"])
+        self.assertLess(len(evidence), 6000)
+        self.assertIn('"sources"', evidence)
 
     def test_question_uses_current_model_path_and_returns_trace(self):
         with tempfile.TemporaryDirectory() as directory, patch.object(db, "DB_PATH", Path(directory) / "app.db"):
