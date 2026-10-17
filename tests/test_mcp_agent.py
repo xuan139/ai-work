@@ -81,7 +81,7 @@ class McpAgentTests(unittest.TestCase):
         tools = available_mcp_servers([odoo])[0]["tools"]
         self.assertEqual([tool["name"] for tool in tools], ["search_read", "whoami"])
 
-    def test_factory_mes_exposes_only_three_business_queries(self) -> None:
+    def test_factory_mes_exposes_only_four_business_queries(self) -> None:
         mes = {
             **self.server,
             "slug": "factory-mes",
@@ -90,13 +90,14 @@ class McpAgentTests(unittest.TestCase):
                 {"name": "mes_overdue_orders"},
                 {"name": "mes_line_downtime_today"},
                 {"name": "mes_work_order_production_quality"},
+                {"name": "mes_electronics_schedule_snapshot"},
                 {"name": "create_order", "annotations": {"readOnlyHint": True}},
             ]),
         }
         tools = available_mcp_servers([mes])[0]["tools"]
         self.assertEqual([tool["name"] for tool in tools], [
             "mes_overdue_orders", "mes_line_downtime_today",
-            "mes_work_order_production_quality",
+            "mes_work_order_production_quality", "mes_electronics_schedule_snapshot",
         ])
         self.assertEqual(available_mcp_servers([{**mes, "endpoint": "https://other.example/mcp"}]), [])
         with self.assertRaises(McpPlanningError):

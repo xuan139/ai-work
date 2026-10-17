@@ -128,7 +128,8 @@ from app.llm_catalog import PRICING_UPDATED_AT, get_model, model_summary, provid
 from app.llm_cache import lookup_llm_cache, normalize_llm_prompt, store_llm_cache, suggest_llm_prompts
 from app.llm_runtime import LlmRuntimeError, company_api_key_for_model, run_llm
 from app.langchain_demo import run_odoo_langchain_demo
-from app.manufacturing_schedule_demo import answer_question as answer_manufacturing_question, run_schedule as run_manufacturing_schedule
+from app.manufacturing_schedule_demo import answer_question as answer_manufacturing_question
+from app.manufacturing_schedule_mcp import ManufacturingMcpError, run_mcp_schedule
 from app.drive_mcp import DRIVE_MCP_TOOLS, handle_drive_mcp_request
 from app.notion_mcp import NOTION_MCP_TOOLS, handle_notion_mcp_request
 from app.hospital_mcp import HOSPITAL_MCP_TOOLS, handle_hospital_mcp_request
@@ -764,13 +765,32 @@ async def manufacturing_schedule_demo_page(user: dict = Depends(current_user)) -
     return FileResponse(STATIC_DIR / "manufacturing-schedule-demo.html", headers={"Cache-Control": "no-cache"})
 
 
+def manufacturing_schedule_mcp_servers(user: dict) -> tuple[dict, dict]:
+    servers = available_mcp_servers(mcp_servers_for_user(user))
+    odoo = next((server for server in servers if server["slug"] == "odoo"
+                 and any(tool["name"] == "search_read" for tool in server["tools"])), None)
+    mes = next((server for server in servers if server["slug"] == "factory-mes"
+                and any(tool["name"] == "mes_electronics_schedule_snapshot" for tool in server["tools"])), None)
+    missing = []
+    if not odoo:
+        missing.append("Goldsys Odoo / search_read")
+    if not mes:
+        missing.append("FactorySemantics MES / mes_electronics_schedule_snapshot")
+    if missing:
+        raise HTTPException(status_code=503, detail=f"排程所需 MCP 尚未連線：{', '.join(missing)}")
+    return odoo, mes
+
+
 @app.post("/api/manufacturing-schedule-demo/schedule")
 async def manufacturing_schedule_demo_run(payload: dict, user: dict = Depends(current_user)) -> dict:
     scenario = payload.get("scenario", {})
     if not isinstance(scenario, dict):
         raise HTTPException(status_code=400, detail="scenario 必須是 JSON object")
     try:
-        return run_manufacturing_schedule(scenario)
+        odoo, mes = manufacturing_schedule_mcp_servers(user)
+        return await run_mcp_schedule(scenario, user=user, odoo_server=odoo, mes_server=mes)
+    except ManufacturingMcpError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
@@ -791,10 +811,14 @@ async def manufacturing_schedule_demo_ask(payload: dict, user: dict = Depends(cu
     model_id = current_llm_model()["id"]
     async with LLM_RUN_LOCKS.setdefault((user["id"], model_id), asyncio.Lock()):
         try:
+            odoo, mes = manufacturing_schedule_mcp_servers(user)
+            schedule = await run_mcp_schedule(scenario, user=user, odoo_server=odoo, mes_server=mes)
             return await answer_manufacturing_question(
                 prompt=prompt.strip(), scenario=scenario, model_id=model_id, user=user,
-                run_model=run_model_with_audit,
+                run_model=run_model_with_audit, schedule=schedule,
             )
+        except ManufacturingMcpError as exc:
+            raise HTTPException(status_code=502, detail=str(exc)) from exc
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
 

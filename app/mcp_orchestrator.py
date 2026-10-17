@@ -31,6 +31,7 @@ MES_READ_ONLY_TOOLS = {
     "mes_overdue_orders",
     "mes_line_downtime_today",
     "mes_work_order_production_quality",
+    "mes_electronics_schedule_snapshot",
 }
 
 

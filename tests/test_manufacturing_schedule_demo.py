@@ -21,7 +21,7 @@ class ManufacturingScheduleDemoTests(unittest.TestCase):
         self.assertEqual(len(first["work_centers"]), 3)
         self.assertEqual(len(first["operations"]), 15)
         self.assertEqual(len(first["sources"]), 4)
-        self.assertEqual(len(first["trace"]), 5)
+        self.assertEqual(len(first["trace"]), 3)
         self.assertEqual(first["summary"]["order_count"], 5)
         self.assertTrue(first["read_only"])
         self.assertTrue(first["demo"])
@@ -63,11 +63,15 @@ class ManufacturingScheduleDemoTests(unittest.TestCase):
                 main.app.dependency_overrides[current_user] = lambda: admin
                 self.assertEqual(client.get("/manufacturing-schedule-demo").status_code, 200)
                 self.assertIn('/manufacturing-schedule-demo', client.get("/").text)
-                result = client.post("/api/manufacturing-schedule-demo/schedule", json={"scenario": {}})
-                self.assertEqual(result.status_code, 200)
-                self.assertEqual(result.json()["summary"]["order_count"], 5)
-                self.assertEqual(client.post("/api/manufacturing-schedule-demo/schedule", json={"scenario": []}).status_code, 400)
-                self.assertEqual(client.post("/api/manufacturing-schedule-demo/schedule", json={"scenario": {"smt_downtime_hours": 9}}).status_code, 400)
+                async def fake_schedule(scenario, **_kwargs):
+                    return run_schedule(scenario)
+                with patch.object(main, "manufacturing_schedule_mcp_servers", return_value=({}, {})), \
+                     patch.object(main, "run_mcp_schedule", side_effect=fake_schedule):
+                    result = client.post("/api/manufacturing-schedule-demo/schedule", json={"scenario": {}})
+                    self.assertEqual(result.status_code, 200)
+                    self.assertEqual(result.json()["summary"]["order_count"], 5)
+                    self.assertEqual(client.post("/api/manufacturing-schedule-demo/schedule", json={"scenario": []}).status_code, 400)
+                    self.assertEqual(client.post("/api/manufacturing-schedule-demo/schedule", json={"scenario": {"smt_downtime_hours": 9}}).status_code, 400)
             finally:
                 main.app.dependency_overrides.clear()
                 client.close()
@@ -100,11 +104,14 @@ class ManufacturingScheduleDemoTests(unittest.TestCase):
                                 "steps": run_schedule({})["trace"] + [{"tool": "llm.explain_schedule"}], "read_only": True}
             try:
                 main.app.dependency_overrides[current_user] = lambda: admin
-                with patch.object(main, "answer_manufacturing_question", new=AsyncMock(return_value=copy.deepcopy(response_payload))) as answer:
+                with patch.object(main, "manufacturing_schedule_mcp_servers", return_value=({}, {})), \
+                     patch.object(main, "run_mcp_schedule", new=AsyncMock(return_value=run_schedule({}))), \
+                     patch.object(main, "answer_manufacturing_question", new=AsyncMock(return_value=copy.deepcopy(response_payload))) as answer:
                     result = client.post("/api/manufacturing-schedule-demo/ask", json={"prompt": "SO-1003 為何延期？", "scenario": {}})
                     self.assertEqual(result.status_code, 200)
                     self.assertEqual(result.json()["model"], "demo-model")
                     answer.assert_awaited_once()
+                    self.assertIn("schedule", answer.await_args.kwargs)
                 self.assertEqual(client.post("/api/manufacturing-schedule-demo/ask", json={"prompt": "", "scenario": {}}).status_code, 400)
             finally:
                 main.app.dependency_overrides.clear()

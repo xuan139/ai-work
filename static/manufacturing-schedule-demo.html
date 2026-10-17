@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>電子製造排程 Demo · AI Work</title>
   <link rel="icon" href="/static/icons/icon-192.png">
-  <link rel="stylesheet" href="/static/manufacturing-schedule-demo.css?v=1">
-  <script src="/static/manufacturing-schedule-demo.js?v=1" defer></script>
+  <link rel="stylesheet" href="/static/manufacturing-schedule-demo.css?v=2">
+  <script src="/static/manufacturing-schedule-demo.js?v=2" defer></script>
 </head>
 <body>
   <header>
@@ -16,18 +16,21 @@
   <main>
     <div class="heading">
       <div><p class="eyebrow">ELECTRONICS MANUFACTURING · SCHEDULING</p><h1 data-copy="title">電子製造排程 Demo</h1></div>
-      <span class="badge" data-copy="badge">虛構資料 · 唯讀模擬</span>
+      <span class="badge" data-copy="badge">LIVE MCP · 唯讀</span>
     </div>
-    <p class="intro" data-copy="intro">使用 5 筆銷售訂單、3 個工作中心、庫存與停機快照，展示有限產能排程、交期風險與可追溯的 LLM 說明。</p>
-    <p class="notice" data-copy="notice">固定快照 2026-10-19。延期機率是規則式 Demo 風險分數，不是已訓練模型的預測；本頁不會寫入 Odoo、MES 或 PLC。</p>
+    <p class="intro" data-copy="intro">透過唯讀 MCP 取得 Odoo 訂單、庫存及 MES 教學產線快照，再由本地有限產能排程引擎計算交期風險。</p>
+    <p id="snapshotNotice" class="notice" data-copy="notice">資料由 MCP 即時讀取；MES 產線為明確標示的教學模擬。本頁不會寫入 Odoo、MES 或 PLC。</p>
+    <section id="integrationWarnings" class="warning-panel" aria-labelledby="warningsTitle" hidden>
+      <h2 id="warningsTitle" data-copy="warnings">資料邊界與假設</h2><ul id="warningList"></ul>
+    </section>
 
     <section class="scenario-panel" aria-labelledby="scenarioTitle">
       <div class="section-heading"><div><p class="eyebrow" data-copy="scenarioEyebrow">WHAT-IF 模擬</p><h2 id="scenarioTitle" data-copy="scenarioTitle">選擇情境並重新排程</h2></div>
         <button id="runSchedule" class="primary" type="button" data-copy="run">產生有限產能排程</button></div>
       <div class="scenario-controls">
-        <label class="toggle"><input id="rushOrder" type="checkbox"><span><strong data-copy="rush">加入急單 SO-1006</strong><small data-copy="rushHelp">70 件 Edge Gateway，要求 10/20 14:00 交付</small></span></label>
+        <label class="toggle"><input id="rushOrder" type="checkbox"><span><strong data-copy="rush">加入模擬急單</strong><small data-copy="rushHelp">沿用最新 MCP 訂單的產品條件，建立 WHAT-IF 急單</small></span></label>
         <label><span data-copy="downtime">SMT-01 模擬停機</span><select id="downtimeHours"><option value="0" data-copy="none">不增加</option><option value="2" data-copy="twoHours">2 小時</option><option value="4" data-copy="fourHours">4 小時</option></select></label>
-        <label><span data-copy="materialDelay">MCU-C 到料延後</span><select id="materialDelay"><option value="0" data-copy="none">不增加</option><option value="2" data-copy="twoDays">2 個工作日</option><option value="3" data-copy="threeDays">3 個工作日</option></select></label>
+        <label><span data-copy="materialDelay">短缺物料到料延後</span><select id="materialDelay"><option value="0" data-copy="none">不增加</option><option value="2" data-copy="twoDays">2 個工作日</option><option value="3" data-copy="threeDays">3 個工作日</option></select></label>
       </div>
       <p id="scenarioState" class="muted" data-copy="baseline">目前顯示基準情境。</p>
     </section>
@@ -47,7 +50,7 @@
     <section id="metrics" class="metrics" aria-label="排程摘要"></section>
 
     <section class="data-section" aria-labelledby="ordersTitle"><div class="section-heading"><div><p class="eyebrow">ODOO · SALE.ORDER</p><h2 id="ordersTitle" data-copy="orders">訂單與預測交期</h2></div></div>
-      <div class="table-scroll"><table><thead><tr><th data-copy="order">訂單</th><th data-copy="product">產品</th><th data-copy="quantity">數量</th><th data-copy="priority">優先級</th><th data-copy="due">要求交期</th><th data-copy="predicted">預測完成</th><th data-copy="risk">延期風險</th><th data-copy="reason">主要原因</th></tr></thead><tbody id="ordersBody"></tbody></table></div>
+      <div class="table-scroll"><table><thead><tr><th data-copy="order">訂單</th><th data-copy="customer">客戶</th><th data-copy="product">產品</th><th data-copy="quantity">數量</th><th data-copy="priority">優先級</th><th data-copy="due">要求交期</th><th data-copy="predicted">預測完成</th><th data-copy="risk">延期風險</th><th data-copy="sourceType">來源</th><th data-copy="reason">主要原因</th></tr></thead><tbody id="ordersBody"></tbody></table></div>
     </section>
 
     <section class="data-section" aria-labelledby="ganttTitle"><div class="section-heading"><div><p class="eyebrow">FINITE CAPACITY</p><h2 id="ganttTitle" data-copy="gantt">工作中心甘特圖</h2></div><span class="muted" data-copy="ganttHelp">包含工序順序、班次、換線與停機避讓</span></div>
@@ -56,7 +59,7 @@
     </section>
 
     <div class="split-grid">
-      <section class="data-section" aria-labelledby="centersTitle"><p class="eyebrow">MES · CAPACITY</p><h2 id="centersTitle" data-copy="centers">工作中心與停機</h2><div id="centers"></div></section>
+      <section class="data-section" aria-labelledby="centersTitle"><p class="eyebrow">MES MCP · SYNTHETIC CAPACITY</p><h2 id="centersTitle" data-copy="centers">工作中心與停機</h2><p id="mesStatus" class="source-note"></p><div id="centers"></div></section>
       <section class="data-section" aria-labelledby="inventoryTitle"><p class="eyebrow">ODOO · STOCK.QUANT</p><h2 id="inventoryTitle" data-copy="inventory">庫存與缺料</h2><div id="inventory"></div></section>
     </div>
 

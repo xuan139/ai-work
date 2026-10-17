@@ -28,15 +28,16 @@ repository.
 4. Confirm `ss -ltn` shows ports 8010 and 8310 only on `127.0.0.1`, and
    `curl http://127.0.0.1:8010/health` reports plant `bottling`.
 5. In AI Work MCP management, enable and sync `FactorySemantics MES 唯讀`.
-   Then select that MCP server in AI Work and use one of its three sample
-   questions. The included pack has work order `WO-ACME-4711`; the deployed
+   Then select that MCP server in AI Work and use one of its sample questions.
+   The included pack has work order `WO-ACME-4711`; the deployed
    demo also contains `WO-DEMO-LATE-001`, created with a past due date through
    the local plant API so the overdue-order question has one real example.
 
 The MCP adapter authenticates to the plant as `ANALYST`, whose role is limited
 to `plant.read` and `audit.read`. It only issues GET requests after login and
-exposes three tools: overdue work orders, today's downtime, and one work
-order's production/quality history. AI Work also rejects any tool name outside
+exposes four tools: overdue work orders, today's downtime, one work
+order's production/quality history, and an explicitly synthetic electronics
+work-center snapshot for the scheduling demo. AI Work also rejects any tool name outside
 this fixed list. An empty result means the simulated line has not recorded
 matching events; it is not evidence that a real factory had none.
 

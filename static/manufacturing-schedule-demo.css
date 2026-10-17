@@ -24,6 +24,10 @@ h3 { margin: 0 0 8px; font-size: 17px; }
 .badge { padding: 7px 12px; color: #176b9c; border: 1px solid #abd5e9; border-radius: 999px; white-space: nowrap; }
 .intro { margin: 0 0 14px; color: #547184; font-size: 17px; }
 .notice { margin: 0 0 26px; padding: 14px 18px; background: #edf8ff; border-left: 4px solid #2d9bd3; }
+.warning-panel { margin: 18px 0 26px; padding: 16px 18px; color: #704d0c; background: #fff8e7; border-left: 4px solid #e1a52c; }
+.warning-panel h2 { margin: 0 0 8px; font-size: 16px; }
+.warning-panel ul { margin: 0; padding-left: 22px; }
+.source-note { margin: -8px 0 10px; color: #647f91; font-size: 13px; }
 .scenario-panel, .question-panel, .data-section { margin-top: 26px; padding-top: 22px; border-top: 1px solid #dce9f0; }
 .scenario-controls { display: grid; grid-template-columns: 1.25fr 1fr 1fr; gap: 18px; align-items: end; }
 .scenario-controls label { min-width: 0; font-size: 14px; font-weight: 650; }
@@ -48,7 +52,8 @@ h3 { margin: 0 0 8px; font-size: 17px; }
 .metric span { display: block; font-size: 28px; font-weight: 760; }
 .metric small { color: #647f91; }
 .table-scroll, .gantt-scroll { overflow-x: auto; }
-table { width: 100%; min-width: 1050px; border-collapse: collapse; font-size: 14px; }
+table { width: 100%; min-width: 1280px; border-collapse: collapse; font-size: 14px; }
+.origin { display: inline-flex; padding: 2px 7px; border: 1px solid #abd5e9; border-radius: 999px; color: #176b9c; background: #edf8ff; font-size: 11px; white-space: nowrap; }
 th, td { padding: 11px 10px; text-align: left; vertical-align: top; border-bottom: 1px solid #dce9f0; overflow-wrap: anywhere; }
 th { color: #537184; background: #edf8ff; font-size: 12px; }
 .risk { display: inline-flex; min-width: 66px; justify-content: center; padding: 3px 8px; border-radius: 999px; font-weight: 700; }

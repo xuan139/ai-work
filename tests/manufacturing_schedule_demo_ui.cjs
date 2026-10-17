@@ -11,6 +11,7 @@ const files = {
   '/static/icons/icon-192.png': ['icons/icon-192.png', 'image/png'],
 };
 const baseOrder = (id, family, index) => ({ order: id, product: `Product ${family}`, family, quantity: 100,
+  customer: index < 3 ? 'Goldsys Customer' : 'MES 教學客戶', source_kind: index < 3 ? 'odoo_mcp' : 'mes_mcp_demo',
   priority: index === 2 ? 'normal' : 'high', due_at: `2026-10-2${index}T16:00`, material: index === 2 ? 'MCU-C 缺 120 件' : '齊套',
   material_ready_at: '2026-10-19T08:00', predicted_completion_at: `2026-10-2${index}T15:00`, late_minutes: index === 2 ? 60 : 0,
   risk_probability: index === 2 ? 80 : 12, risk_level: index === 2 ? 'high' : 'low', reasons: [index === 2 ? '缺料' : '可滿足交期'] });
@@ -19,13 +20,15 @@ function fixture(orderCount = 5) {
   const centers = [{id:'SMT-01',name:'SMT',shift:'08:00–17:00',units_per_hour:70,setup_minutes:30},{id:'ASSY-01',name:'組裝',shift:'08:00–17:00',units_per_hour:45,setup_minutes:20},{id:'TEST-01',name:'測試',shift:'08:00–17:00',units_per_hour:55,setup_minutes:15}];
   const operations = orders.flatMap((order, oi) => centers.map((center, ci) => ({order:order.order,product:order.product,family:order.family,center_id:center.id,center:center.name,
     start_at:`2026-10-${19 + oi}T${String(8 + ci).padStart(2,'0')}:00`,end_at:`2026-10-${19 + oi}T${String(10 + ci).padStart(2,'0')}:00`,setup_minutes:ci ? 15 : 0,duration_minutes:120})));
-  return {demo:true,read_only:true,snapshot_at:'2026-10-19T08:00',scenario:{},engine:{name:'確定性有限產能規則排程',note:'Demo'},
+  return {demo:true,read_only:true,data_mode:'live_mcp',snapshot_at:'2026-10-19T08:00',scenario:{},engine:{name:'確定性有限產能規則排程',note:'Demo'},
     work_centers:centers,downtimes:[{center_id:'TEST-01',start:'2026-10-20T13:00',end:'2026-10-20T14:30',reason:'預防保養'}],
+    mes_snapshot:{plant:'ELECTRONICS-DEMO-01',dataset_type:'synthetic_electronics_schedule',notice:'教學模擬資料；由 MES MCP 提供。'},
+    integration_warnings:['教學模擬資料；由 MES MCP 提供。','Odoo MCP 提供 3 筆訂單；另由 MES MCP 補入 2 筆教學訂單。'],
     inventory:[{item:'MCU-C',on_hand:40,required:160,status:'短缺 120',source_id:'stock.quant/MCU-C'}],orders,operations,
     summary:{order_count:orderCount,late_count:1,on_time_count:orderCount-1,high_risk_count:1,setup_count:6,latest_completion_at:'2026-10-24T15:00'},
-    sources:[{id:'odoo',name:'Odoo Demo 快照',detail:`${orderCount} 筆訂單`},{id:'mes',name:'MES Demo 快照',detail:'3 個工作中心'},
-      {id:'stock',name:'Odoo 庫存 Demo',detail:'MCU-C 缺料'},{id:'scheduler',name:'排程引擎',detail:'finite-capacity-demo-v1'}],
-    trace:[{tool:'odoo.get_sales_orders',arguments:{},result:`${orderCount} orders`},{tool:'schedule.run_finite_capacity',arguments:{},result:`${operations.length} operations`}],};
+    sources:[{id:'odoo',name:'Goldsys Odoo / search_read',detail:'3 筆訂單'},{id:'stock',name:'Goldsys Odoo / search_read',detail:'stock.quant'},
+      {id:'mes',name:'FactorySemantics MES / mes_electronics_schedule_snapshot',detail:'3 個模擬工作中心'},{id:'scheduler',name:'本地排程引擎',detail:'finite-capacity-mcp-v2'}],
+    trace:[{kind:'mcp',tool:'search_read',arguments:{model:'sale.order'},result:`${orderCount} orders`},{kind:'mcp',tool:'mes_electronics_schedule_snapshot',arguments:{},result:'snapshot'},{kind:'local',tool:'schedule.run_finite_capacity',arguments:{},result:`${operations.length} operations`}],};
 }
 const server = http.createServer(async (req, res) => {
   const file = files[new URL(req.url, 'http://localhost').pathname];
@@ -45,11 +48,13 @@ const server = http.createServer(async (req, res) => {
     await page.goto(`http://127.0.0.1:${server.address().port}/manufacturing-schedule-demo`);
     await page.waitForFunction(() => document.querySelectorAll('#ordersBody tr').length === 5);
     assert.equal(scheduleCalls.length,1); assert.equal(await page.locator('.gantt-row').count(),3); assert.equal(await page.locator('.gantt-bar').count(),15); assert.equal(await page.locator('.source').count(),4);
+    assert.equal(await page.locator('#integrationWarnings').isVisible(),true); assert.match(await page.locator('#mesStatus').textContent(),/ELECTRONICS-DEMO-01/);
+    assert.match(await page.locator('.badge').textContent(),/MCP/); assert.match(await page.locator('#trace').textContent(),/mes_electronics_schedule_snapshot/);
     await page.locator('#rushOrder').check(); await page.locator('#downtimeHours').selectOption('2'); await page.locator('#materialDelay').selectOption('2');
     assert.match(await page.locator('#scenarioState').textContent(), /變更/); assert.equal(scheduleCalls.length,1);
     await page.locator('#runSchedule').click(); await page.waitForFunction(() => document.querySelectorAll('#ordersBody tr').length === 6);
     assert.deepEqual(scheduleCalls.at(-1).scenario,{rush_order:true,smt_downtime_hours:2,material_delay_days:2});
-    await page.locator('#sampleQuestion').selectOption('1'); assert.match(await page.locator('#prompt').inputValue(),/SO-1003/); assert.equal(askCalls.length,0);
+    await page.locator('#sampleQuestion').selectOption('1'); assert.match(await page.locator('#prompt').inputValue(),/S00003/); assert.equal(askCalls.length,0);
     await page.locator('#sampleQuestion').selectOption('2'); assert.equal(await page.locator('#downtimeHours').inputValue(),'2'); assert.equal(askCalls.length,0);
     await page.locator('#sampleQuestion').selectOption('1');
     await page.locator('#ask').click(); await page.waitForFunction(() => !document.getElementById('answerPanel').hidden);

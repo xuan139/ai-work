@@ -9,6 +9,7 @@ from mcp.server.mcpserver import MCPServer
 from mcp.server.transport_security import TransportSecuritySettings
 
 from app.mes_readonly import MesReader
+from app.manufacturing_mes_demo import electronics_schedule_snapshot
 
 
 reader = MesReader(
@@ -34,6 +35,12 @@ def mes_line_downtime_today() -> dict:
 def mes_work_order_production_quality(code: str) -> dict:
     """Read one MES work order, material genealogy and its matching quality checks."""
     return reader.work_order_production_quality(code)
+
+
+@mcp.tool()
+def mes_electronics_schedule_snapshot() -> dict:
+    """Return a synthetic read-only electronics work-center snapshot for scheduling demonstrations."""
+    return electronics_schedule_snapshot()
 
 
 def main() -> None:
