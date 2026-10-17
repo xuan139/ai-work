@@ -7,6 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from app import db
+from app.manufacturing_extension_demo import engineering_snapshot, process_snapshot, warehouse_snapshot
 from app.manufacturing_mes_demo import electronics_schedule_snapshot
 from app.manufacturing_support_demo import maintenance_snapshot, quality_snapshot
 from app.manufacturing_schedule_mcp import ManufacturingMcpError, run_mcp_schedule
@@ -30,6 +31,9 @@ class ManufacturingScheduleMcpTests(unittest.TestCase):
         self.mes = {**servers["factory-mes"], "name": "FactorySemantics MES 唯讀", "slug": "factory-mes"}
         self.qms = {**servers["manufacturing-qms"], "name": "Electronics QMS Demo 唯讀", "slug": "manufacturing-qms"}
         self.cmms = {**servers["manufacturing-cmms"], "name": "Electronics CMMS Demo 唯讀", "slug": "manufacturing-cmms"}
+        self.wms = {**servers["manufacturing-wms"], "name": "Electronics WMS Demo 唯讀", "slug": "manufacturing-wms"}
+        self.plm = {**servers["manufacturing-plm"], "name": "Electronics PLM Demo 唯讀", "slug": "manufacturing-plm"}
+        self.spc = {**servers["manufacturing-spc"], "name": "Electronics SPC Demo 唯讀", "slug": "manufacturing-spc"}
         self.now = datetime(2026, 10, 19, 8, 0)
         self.calls = []
 
@@ -45,6 +49,12 @@ class ManufacturingScheduleMcpTests(unittest.TestCase):
             return mcp_result(quality_snapshot(self.now))
         if tool == "cmms_maintenance_snapshot":
             return mcp_result(maintenance_snapshot(self.now))
+        if tool == "wms_inventory_snapshot":
+            return mcp_result(warehouse_snapshot(self.now))
+        if tool == "plm_engineering_snapshot":
+            return mcp_result(engineering_snapshot(self.now))
+        if tool == "spc_process_snapshot":
+            return mcp_result(process_snapshot(self.now))
         model = arguments.get("model")
         if model == "sale.order":
             return mcp_result([
@@ -71,6 +81,7 @@ class ManufacturingScheduleMcpTests(unittest.TestCase):
         result = asyncio.run(run_mcp_schedule(
             {}, user=self.user, odoo_server=self.odoo, mes_server=self.mes,
             qms_server=self.qms, cmms_server=self.cmms,
+            wms_server=self.wms, plm_server=self.plm, spc_server=self.spc,
             call_tool=self.fake_call, now=self.now,
         ))
         self.assertEqual(result["data_mode"], "live_mcp")
@@ -80,12 +91,19 @@ class ManufacturingScheduleMcpTests(unittest.TestCase):
         self.assertEqual(result["mes_snapshot"]["dataset_type"], "synthetic_electronics_schedule")
         self.assertEqual(result["qms_snapshot"]["dataset_type"], "synthetic_electronics_quality")
         self.assertEqual(result["cmms_snapshot"]["dataset_type"], "synthetic_electronics_maintenance")
+        self.assertEqual(result["wms_snapshot"]["dataset_type"], "synthetic_electronics_wms_traceability")
+        self.assertEqual(result["plm_snapshot"]["dataset_type"], "synthetic_electronics_plm")
+        self.assertEqual(result["spc_snapshot"]["dataset_type"], "synthetic_electronics_spc")
         self.assertTrue(all("quality_rework_minutes" in row for row in result["orders"]))
+        self.assertTrue(all("wms" in row and "engineering" in row and "spc" in row for row in result["orders"]))
+        self.assertTrue(any(row["spc_inspection_minutes"] > 0 for row in result["orders"]))
+        self.assertTrue(any(op["plm_setup_minutes"] > 0 for op in result["operations"]))
         self.assertTrue(any(item.get("source") == "cmms_mcp" for item in result["downtimes"]))
         self.assertIn("短缺 2", {item["status"] for item in result["inventory"]})
-        self.assertEqual([step["tool"] for step in result["trace"][:6]], [
+        self.assertEqual([step["tool"] for step in result["trace"][:9]], [
             "search_read", "search_read", "search_read", "mes_electronics_schedule_snapshot",
-            "qms_quality_snapshot", "cmms_maintenance_snapshot",
+            "qms_quality_snapshot", "cmms_maintenance_snapshot", "wms_inventory_snapshot",
+            "plm_engineering_snapshot", "spc_process_snapshot",
         ])
         self.assertEqual(result["trace"][-1]["kind"], "local")
         self.assertTrue(any("MES MCP 補入 3 筆" in warning for warning in result["integration_warnings"]))
@@ -95,7 +113,7 @@ class ManufacturingScheduleMcpTests(unittest.TestCase):
             audit = connection.execute(
                 "SELECT status, tool_name FROM mcp_audit_logs ORDER BY id"
             ).fetchall()
-        self.assertEqual(len(audit), 6)
+        self.assertEqual(len(audit), 9)
         self.assertTrue(all(row["status"] == "completed" for row in audit))
         self.assertNotIn("create_records", {row["tool_name"] for row in audit})
 
@@ -107,6 +125,7 @@ class ManufacturingScheduleMcpTests(unittest.TestCase):
             asyncio.run(run_mcp_schedule(
                 {}, user=self.user, odoo_server=self.odoo, mes_server=self.mes,
                 qms_server=self.qms, cmms_server=self.cmms,
+                wms_server=self.wms, plm_server=self.plm, spc_server=self.spc,
                 call_tool=fail, now=self.now,
             ))
         with db.connect() as connection:
@@ -119,6 +138,7 @@ class ManufacturingScheduleMcpTests(unittest.TestCase):
             asyncio.run(run_mcp_schedule(
                 {"smt_downtime_hours": 99}, user=self.user, odoo_server=self.odoo,
                 mes_server=self.mes, qms_server=self.qms, cmms_server=self.cmms,
+                wms_server=self.wms, plm_server=self.plm, spc_server=self.spc,
                 call_tool=self.fake_call, now=self.now,
             ))
         self.assertEqual(self.calls, [])

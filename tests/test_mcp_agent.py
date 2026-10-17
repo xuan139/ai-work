@@ -135,6 +135,48 @@ class McpAgentTests(unittest.TestCase):
         self.assertEqual(cmms_plan["arguments"], {"center_id": "SMT-01"})
         self.assertEqual(available_mcp_servers([{**qms, "endpoint": "https://other.example/mcp"}]), [])
 
+    def test_wms_plm_and_spc_have_separate_fixed_read_only_catalogs(self) -> None:
+        catalogs = {row["slug"]: row for row in db.list_mcp_servers()}
+        cases = [
+            (
+                "manufacturing-wms", "http://127.0.0.1:8322/mcp",
+                ["wms_inventory_snapshot", "wms_material_availability", "wms_lot_location",
+                 "trace_serial_history", "trace_order_genealogy", "trace_recall_impact"],
+            ),
+            (
+                "manufacturing-plm", "http://127.0.0.1:8323/mcp",
+                ["plm_engineering_snapshot", "plm_current_bom", "plm_product_revision",
+                 "plm_open_ecos", "plm_revision_difference", "plm_change_impact"],
+            ),
+            (
+                "manufacturing-spc", "http://127.0.0.1:8324/mcp",
+                ["spc_process_snapshot", "spc_process_capability", "spc_out_of_control_points",
+                 "spc_quality_risk_by_order"],
+            ),
+        ]
+        planned = {}
+        for slug, endpoint, expected in cases:
+            server = {
+                **catalogs[slug], "is_enabled": True, "status": "connected", "endpoint": endpoint,
+                "tools_json": json.dumps(
+                    [{"name": name} for name in expected]
+                    + [{"name": "delete_or_release", "annotations": {"readOnlyHint": True}}]
+                ),
+            }
+            tools = available_mcp_servers([server])[0]["tools"]
+            self.assertEqual([tool["name"] for tool in tools], expected)
+            planned[slug] = {**server, "tools": tools}
+            self.assertEqual(available_mcp_servers([{**server, "endpoint": "https://other.example/mcp"}]), [])
+
+        recall = build_known_business_plan("LOT-MCU-C-2610 召回會影響什麼？", [planned["manufacturing-wms"]])
+        self.assertEqual(recall["tool_name"], "trace_recall_impact")
+        self.assertEqual(recall["arguments"], {"lot_id": "LOT-MCU-C-2610"})
+        eco = build_known_business_plan("ECO-2026-014 有什麼影響？", [planned["manufacturing-plm"]])
+        self.assertEqual(eco["tool_name"], "plm_change_impact")
+        capability = build_known_business_plan("家族 C 的 Cpk？", [planned["manufacturing-spc"]])
+        self.assertEqual(capability["tool_name"], "spc_process_capability")
+        self.assertEqual(capability["arguments"], {"family": "C"})
+
     def test_odoo_contact_request_routes_directly_to_res_partner(self) -> None:
         odoo = {
             **self.server,

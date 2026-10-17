@@ -65,7 +65,7 @@ class ManufacturingScheduleDemoTests(unittest.TestCase):
                 self.assertIn('/manufacturing-schedule-demo', client.get("/").text)
                 async def fake_schedule(scenario, **_kwargs):
                     return run_schedule(scenario)
-                with patch.object(main, "manufacturing_schedule_mcp_servers", return_value=({}, {}, {}, {})), \
+                with patch.object(main, "manufacturing_schedule_mcp_servers", return_value=({}, {}, {}, {}, {}, {}, {})), \
                      patch.object(main, "run_mcp_schedule", side_effect=fake_schedule):
                     result = client.post("/api/manufacturing-schedule-demo/schedule", json={"scenario": {}})
                     self.assertEqual(result.status_code, 200)
@@ -104,7 +104,7 @@ class ManufacturingScheduleDemoTests(unittest.TestCase):
                                 "steps": run_schedule({})["trace"] + [{"tool": "llm.explain_schedule"}], "read_only": True}
             try:
                 main.app.dependency_overrides[current_user] = lambda: admin
-                with patch.object(main, "manufacturing_schedule_mcp_servers", return_value=({}, {}, {}, {})), \
+                with patch.object(main, "manufacturing_schedule_mcp_servers", return_value=({}, {}, {}, {}, {}, {}, {})), \
                      patch.object(main, "run_mcp_schedule", new=AsyncMock(return_value=run_schedule({}))), \
                      patch.object(main, "answer_manufacturing_question", new=AsyncMock(return_value=copy.deepcopy(response_payload))) as answer:
                     result = client.post("/api/manufacturing-schedule-demo/ask", json={"prompt": "SO-1003 為何延期？", "scenario": {}})

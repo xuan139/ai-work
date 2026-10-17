@@ -25,15 +25,21 @@ function fixture(orderCount = 5) {
     mes_snapshot:{plant:'ELECTRONICS-DEMO-01',dataset_type:'synthetic_electronics_schedule',notice:'教學模擬資料；由 MES MCP 提供。'},
     qms_snapshot:{notice:'QMS 教學模擬資料。',profiles:[{family:'A',first_pass_yield_pct:98.2,top_defect:'少錫',expected_rework_minutes_per_100:18,quality_level:'stable'},{family:'B',first_pass_yield_pct:95.8,top_defect:'連接器偏位',expected_rework_minutes_per_100:42,quality_level:'watch'},{family:'C',first_pass_yield_pct:91.2,top_defect:'BGA 焊點異常',expected_rework_minutes_per_100:95,quality_level:'alert'}]},
     cmms_snapshot:{notice:'CMMS 教學模擬資料。',assets:[{center_id:'SMT-01',health:'watch',open_work_order:'MWO-2026-018',reason:'吸嘴真空值趨勢偏低'},{center_id:'ASSY-01',health:'normal',open_work_order:null,reason:'無未結維護工單'},{center_id:'TEST-01',health:'planned',open_work_order:'MWO-2026-021',reason:'週期校驗'}]},
-    integration_warnings:['教學模擬資料；由 MES MCP 提供。','QMS 教學模擬資料。','CMMS 教學模擬資料。','Odoo MCP 提供 3 筆訂單；另由 MES MCP 補入 2 筆教學訂單。'],
+    wms_snapshot:{notice:'WMS 教學模擬資料。',material_profiles:[{family:'A',item:'PCB-A',available_units:520,location:'WH-A-01',lot_ids:['LOT-PCB-A-2609'],ready_at:'2026-10-19T08:00',status:'available'},{family:'B',item:'MCU-B',available_units:210,location:'WH-B-03',lot_ids:['LOT-MCU-B-2610'],ready_at:'2026-10-19T08:00',status:'available'},{family:'C',item:'MCU-C',available_units:40,location:'WH-C-02',lot_ids:['LOT-MCU-C-2610'],ready_at:'2026-10-21T08:00',status:'inbound'}],serial_genealogy:[{serial:'SN-DEMO-C-0001',order:'MES-DEMO-1003',consumed_lots:['LOT-MCU-C-2610']}]},
+    plm_snapshot:{notice:'PLM 教學模擬資料。',revisions:[{family:'A',bom:'BOM-A-004',revision:'A.04',status:'released',extra_setup_minutes:0,extra_operation_minutes:0},{family:'B',bom:'BOM-B-007',revision:'B.07',status:'released',extra_setup_minutes:5,extra_operation_minutes:0},{family:'C',bom:'BOM-C-012',revision:'C.12',status:'controlled_release',extra_setup_minutes:10,extra_operation_minutes:20}],open_ecos:[{eco_id:'ECO-2026-014',status:'verification',risk:'high',summary:'BGA 焊墊設計調整'}]},
+    spc_snapshot:{notice:'SPC 教學模擬資料。',profiles:[{family:'A',center_id:'SMT-01',metric:'paste',cp:1.82,cpk:1.67,status:'stable',extra_inspection_minutes_per_100:0},{family:'B',center_id:'ASSY-01',metric:'alignment',cp:1.36,cpk:1.21,status:'watch',extra_inspection_minutes_per_100:12},{family:'C',center_id:'TEST-01',metric:'resistance',cp:1.08,cpk:.91,status:'alert',extra_inspection_minutes_per_100:35}],out_of_control_points:[{point_id:'SPC-OOC-027',center_id:'TEST-01',rule:'Rule 2',observed_at:'2026-10-18T14:20'}]},
+    integration_warnings:['教學模擬資料；由 MES MCP 提供。','QMS 教學模擬資料。','CMMS 教學模擬資料。','WMS 教學模擬資料。','PLM 教學模擬資料。','SPC 教學模擬資料。','Odoo MCP 提供 3 筆訂單；另由 MES MCP 補入 2 筆教學訂單。'],
     inventory:[{item:'MCU-C',on_hand:40,required:160,status:'短缺 120',source_id:'stock.quant/MCU-C'}],orders,operations,
     summary:{order_count:orderCount,late_count:1,on_time_count:orderCount-1,high_risk_count:1,setup_count:6,latest_completion_at:'2026-10-24T15:00'},
     sources:[{id:'odoo',name:'Goldsys Odoo / search_read',detail:'3 筆訂單'},{id:'stock',name:'Goldsys Odoo / search_read',detail:'stock.quant'},
       {id:'mes',name:'FactorySemantics MES / mes_electronics_schedule_snapshot',detail:'3 個模擬工作中心'},
       {id:'qms',name:'Electronics QMS Demo / qms_quality_snapshot',detail:'3 個產品家族'},
       {id:'cmms',name:'Electronics CMMS Demo / cmms_maintenance_snapshot',detail:'3 台設備'},
-      {id:'scheduler',name:'本地排程引擎',detail:'finite-capacity-mcp-v3'}],
-    trace:[{kind:'mcp',tool:'search_read',arguments:{model:'sale.order'},result:`${orderCount} orders`},{kind:'mcp',tool:'mes_electronics_schedule_snapshot',arguments:{},result:'snapshot'},{kind:'mcp',tool:'qms_quality_snapshot',arguments:{},result:'snapshot'},{kind:'mcp',tool:'cmms_maintenance_snapshot',arguments:{},result:'snapshot'},{kind:'local',tool:'schedule.run_finite_capacity',arguments:{},result:`${operations.length} operations`}],};
+      {id:'wms',name:'Electronics WMS Demo / wms_inventory_snapshot',detail:'3 個家族'},
+      {id:'plm',name:'Electronics PLM Demo / plm_engineering_snapshot',detail:'3 個 BOM'},
+      {id:'spc',name:'Electronics SPC Demo / spc_process_snapshot',detail:'3 個製程剖面'},
+      {id:'scheduler',name:'本地排程引擎',detail:'finite-capacity-mcp-v4'}],
+    trace:[{kind:'mcp',tool:'search_read',arguments:{model:'sale.order'},result:`${orderCount} orders`},{kind:'mcp',tool:'mes_electronics_schedule_snapshot',arguments:{},result:'snapshot'},{kind:'mcp',tool:'qms_quality_snapshot',arguments:{},result:'snapshot'},{kind:'mcp',tool:'cmms_maintenance_snapshot',arguments:{},result:'snapshot'},{kind:'mcp',tool:'wms_inventory_snapshot',arguments:{},result:'snapshot'},{kind:'mcp',tool:'plm_engineering_snapshot',arguments:{},result:'snapshot'},{kind:'mcp',tool:'spc_process_snapshot',arguments:{},result:'snapshot'},{kind:'local',tool:'schedule.run_finite_capacity',arguments:{},result:`${operations.length} operations`}],};
 }
 const server = http.createServer(async (req, res) => {
   const file = files[new URL(req.url, 'http://localhost').pathname];
@@ -52,10 +58,12 @@ const server = http.createServer(async (req, res) => {
     await page.route('**/api/manufacturing-schedule-demo/ask', async route => { askCalls.push(route.request().postDataJSON()); const data=fixture(6); await route.fulfill({json:{answer:'SO-1003 因 MCU-C 缺料而延期。',model:'Qwen3 4B',schedule:data,sources:data.sources,steps:[...data.trace,{tool:'llm.explain_schedule'}]}}); });
     await page.goto(`http://127.0.0.1:${server.address().port}/manufacturing-schedule-demo`);
     await page.waitForFunction(() => document.querySelectorAll('#ordersBody tr').length === 5);
-    assert.equal(scheduleCalls.length,1); assert.equal(await page.locator('.gantt-row').count(),3); assert.equal(await page.locator('.gantt-bar').count(),15); assert.equal(await page.locator('.source').count(),6);
+    assert.equal(scheduleCalls.length,1); assert.equal(await page.locator('.gantt-row').count(),3); assert.equal(await page.locator('.gantt-bar').count(),15); assert.equal(await page.locator('.source').count(),9);
     assert.equal(await page.locator('#integrationWarnings').isVisible(),true); assert.match(await page.locator('#mesStatus').textContent(),/ELECTRONICS-DEMO-01/);
     assert.match(await page.locator('#quality').textContent(),/BGA/); assert.match(await page.locator('#maintenance').textContent(),/MWO-2026-018/);
+    assert.match(await page.locator('#wms').textContent(),/LOT-MCU-C-2610/); assert.match(await page.locator('#plm').textContent(),/ECO-2026-014/); assert.match(await page.locator('#spc').textContent(),/Cpk 0.91/);
     assert.match(await page.locator('.badge').textContent(),/MCP/); assert.match(await page.locator('#trace').textContent(),/qms_quality_snapshot/); assert.match(await page.locator('#trace').textContent(),/cmms_maintenance_snapshot/);
+    assert.match(await page.locator('#trace').textContent(),/wms_inventory_snapshot/); assert.match(await page.locator('#trace').textContent(),/plm_engineering_snapshot/); assert.match(await page.locator('#trace').textContent(),/spc_process_snapshot/);
     await page.locator('#rushOrder').check(); await page.locator('#downtimeHours').selectOption('2'); await page.locator('#materialDelay').selectOption('2');
     assert.match(await page.locator('#scenarioState').textContent(), /變更/); assert.equal(scheduleCalls.length,1);
     await page.locator('#runSchedule').click(); await page.waitForFunction(() => document.querySelectorAll('#ordersBody tr').length === 6);

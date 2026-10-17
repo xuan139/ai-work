@@ -156,6 +156,9 @@ def _build_snapshot(
     mes_snapshot: dict[str, Any],
     qms_snapshot: dict[str, Any],
     cmms_snapshot: dict[str, Any],
+    wms_snapshot: dict[str, Any],
+    plm_snapshot: dict[str, Any],
+    spc_snapshot: dict[str, Any],
     traces: list[dict[str, Any]],
     *,
     snapshot_at: datetime,
@@ -319,6 +322,80 @@ def _build_snapshot(
             "quality_level": str(profile.get("quality_level") or "unknown"),
         }
 
+    wms_profiles = wms_snapshot.get("material_profiles")
+    if not isinstance(wms_profiles, list):
+        raise ManufacturingMcpError("WMS MCP 沒有提供產品家族齊套資料")
+    wms_by_family = {
+        str(item.get("family")): item for item in wms_profiles
+        if isinstance(item, dict) and item.get("family") in {"A", "B", "C"}
+    }
+    if set(wms_by_family) != {"A", "B", "C"}:
+        raise ManufacturingMcpError("WMS MCP 產品家族齊套資料不完整")
+
+    plm_revisions = plm_snapshot.get("revisions")
+    if not isinstance(plm_revisions, list):
+        raise ManufacturingMcpError("PLM MCP 沒有提供 BOM 版本資料")
+    plm_by_family = {
+        str(item.get("family")): item for item in plm_revisions
+        if isinstance(item, dict) and item.get("family") in {"A", "B", "C"}
+    }
+    if set(plm_by_family) != {"A", "B", "C"}:
+        raise ManufacturingMcpError("PLM MCP BOM 版本資料不完整")
+
+    spc_profiles = spc_snapshot.get("profiles")
+    if not isinstance(spc_profiles, list):
+        raise ManufacturingMcpError("SPC MCP 沒有提供製程能力資料")
+    spc_by_family = {
+        str(item.get("family")): item for item in spc_profiles
+        if isinstance(item, dict) and item.get("family") in {"A", "B", "C"}
+    }
+    if set(spc_by_family) != {"A", "B", "C"}:
+        raise ManufacturingMcpError("SPC MCP 製程能力資料不完整")
+
+    for order in orders:
+        family = order["family"]
+        wms = wms_by_family[family]
+        plm = plm_by_family[family]
+        spc = spc_by_family[family]
+        try:
+            available_units = float(wms["available_units"])
+            ready_at = _as_datetime(wms["ready_at"])
+            extra_setup = int(plm.get("extra_setup_minutes") or 0)
+            extra_operation = int(plm.get("extra_operation_minutes") or 0)
+            cpk = float(spc["cpk"])
+            extra_inspection_per_100 = float(spc.get("extra_inspection_minutes_per_100") or 0)
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ManufacturingMcpError("WMS／PLM／SPC MCP 排程指標格式不正確") from exc
+        if available_units < 0 or ready_at is None:
+            raise ManufacturingMcpError("WMS MCP 齊套數量或時間格式不正確")
+        if not 0 <= extra_setup <= 1440 or not 0 <= extra_operation <= 1440:
+            raise ManufacturingMcpError("PLM MCP 工程變更時間超出允許範圍")
+        if not 0 <= cpk <= 10 or not 0 <= extra_inspection_per_100 <= 1440:
+            raise ManufacturingMcpError("SPC MCP 製程能力指標超出允許範圍")
+        shortage = max(0.0, float(order["quantity"]) - available_units)
+        current_ready = _as_datetime(order["material_ready_at"]) or snapshot_at
+        if shortage:
+            order["material"] = f"{order['material']}；WMS {wms.get('item', family)} 短缺 {shortage:g}"
+            order["material_ready_at"] = max(current_ready, ready_at).isoformat(timespec="minutes")
+        order["wms"] = {
+            "item": str(wms.get("item") or family), "available_units": available_units,
+            "shortage_units": shortage, "ready_at": ready_at.isoformat(timespec="minutes"),
+            "location": str(wms.get("location") or ""), "lot_ids": list(wms.get("lot_ids") or []),
+        }
+        order["engineering"] = {
+            "bom": str(plm.get("bom") or ""), "revision": str(plm.get("revision") or ""),
+            "status": str(plm.get("status") or "unknown"),
+        }
+        order["plm_extra_setup_minutes"] = extra_setup
+        order["plm_extra_operation_minutes"] = extra_operation
+        order["spc"] = {
+            "center_id": str(spc.get("center_id") or ""), "metric": str(spc.get("metric") or ""),
+            "cp": float(spc.get("cp") or 0), "cpk": cpk, "status": str(spc.get("status") or "unknown"),
+        }
+        order["spc_inspection_minutes"] = math.ceil(
+            float(order["quantity"]) / 100 * extra_inspection_per_100
+        )
+
     work_centers = mes_snapshot.get("work_centers")
     if not isinstance(work_centers, list) or not work_centers:
         raise ManufacturingMcpError("MES MCP 沒有提供電子製造工作中心")
@@ -394,6 +471,9 @@ def _build_snapshot(
         str(mes_snapshot.get("notice") or "MES 工作中心為教學模擬資料。"),
         str(qms_snapshot.get("notice") or "QMS 品質資料為教學模擬資料。"),
         str(cmms_snapshot.get("notice") or "CMMS 維護資料為教學模擬資料。"),
+        str(wms_snapshot.get("notice") or "WMS 追溯資料為教學模擬資料。"),
+        str(plm_snapshot.get("notice") or "PLM 工程資料為教學模擬資料。"),
+        str(spc_snapshot.get("notice") or "SPC 製程資料為教學模擬資料。"),
     ]
     plant = str(mes_snapshot.get("plant") or "unknown")
     if len(orders) < 5:
@@ -434,6 +514,31 @@ def _build_snapshot(
             "assets": mapped_assets,
             "maintenance_windows": [item for item in mapped_downtimes if item.get("source") == "cmms_mcp"],
         },
+        "wms_snapshot": {
+            "source": wms_snapshot.get("source"),
+            "dataset_type": wms_snapshot.get("dataset_type"),
+            "read_only": wms_snapshot.get("read_only"),
+            "notice": wms_snapshot.get("notice"),
+            "material_profiles": list(wms_by_family.values()),
+            "lots": wms_snapshot.get("lots") or [],
+            "serial_genealogy": wms_snapshot.get("serial_genealogy") or [],
+        },
+        "plm_snapshot": {
+            "source": plm_snapshot.get("source"),
+            "dataset_type": plm_snapshot.get("dataset_type"),
+            "read_only": plm_snapshot.get("read_only"),
+            "notice": plm_snapshot.get("notice"),
+            "revisions": list(plm_by_family.values()),
+            "open_ecos": plm_snapshot.get("open_ecos") or [],
+        },
+        "spc_snapshot": {
+            "source": spc_snapshot.get("source"),
+            "dataset_type": spc_snapshot.get("dataset_type"),
+            "read_only": spc_snapshot.get("read_only"),
+            "notice": spc_snapshot.get("notice"),
+            "profiles": list(spc_by_family.values()),
+            "out_of_control_points": spc_snapshot.get("out_of_control_points") or [],
+        },
         "mapped_downtimes": mapped_downtimes,
         "warnings": warnings,
         "sources": [
@@ -447,6 +552,12 @@ def _build_snapshot(
              "detail": f"{len(profiles_by_family)} 個產品家族 · {len(qms_snapshot.get('open_events') or [])} 筆未結品質事件"},
             {"id": "cmms-demo-mcp", "name": "Electronics CMMS Demo / cmms_maintenance_snapshot",
              "detail": f"{len(mapped_assets)} 台設備 · {sum(1 for item in mapped_downtimes if item.get('source') == 'cmms_mcp')} 個維護窗口"},
+            {"id": "wms-demo-mcp", "name": "Electronics WMS Demo / wms_inventory_snapshot",
+             "detail": f"{len(wms_by_family)} 個家族 · {len(wms_snapshot.get('lots') or [])} 個批次 · {len(wms_snapshot.get('serial_genealogy') or [])} 筆序號譜系"},
+            {"id": "plm-demo-mcp", "name": "Electronics PLM Demo / plm_engineering_snapshot",
+             "detail": f"{len(plm_by_family)} 個 BOM 版本 · {len(plm_snapshot.get('open_ecos') or [])} 筆未結 ECO"},
+            {"id": "spc-demo-mcp", "name": "Electronics SPC Demo / spc_process_snapshot",
+             "detail": f"{len(spc_by_family)} 個製程能力剖面 · {len(spc_snapshot.get('out_of_control_points') or [])} 個失控點"},
         ],
         "trace": traces,
     }
@@ -460,6 +571,9 @@ async def run_mcp_schedule(
     mes_server: dict[str, Any],
     qms_server: dict[str, Any],
     cmms_server: dict[str, Any],
+    wms_server: dict[str, Any],
+    plm_server: dict[str, Any],
+    spc_server: dict[str, Any],
     call_tool: Callable[[dict[str, Any], str, dict[str, Any]], dict[str, Any]] = call_streamable_http_tool,
     now: datetime | None = None,
 ) -> dict[str, Any]:
@@ -484,10 +598,18 @@ async def run_mcp_schedule(
     mes_task = _call_mcp(mes_server, "mes_electronics_schedule_snapshot", {}, user=user, call_tool=call_tool)
     qms_task = _call_mcp(qms_server, "qms_quality_snapshot", {}, user=user, call_tool=call_tool)
     cmms_task = _call_mcp(cmms_server, "cmms_maintenance_snapshot", {}, user=user, call_tool=call_tool)
+    wms_task = _call_mcp(wms_server, "wms_inventory_snapshot", {}, user=user, call_tool=call_tool)
+    plm_task = _call_mcp(plm_server, "plm_engineering_snapshot", {}, user=user, call_tool=call_tool)
+    spc_task = _call_mcp(spc_server, "spc_process_snapshot", {}, user=user, call_tool=call_tool)
     (line_rows, line_trace), (mes_snapshot, mes_trace), (qms_snapshot, qms_trace), \
-        (cmms_snapshot, cmms_trace) = await asyncio.gather(line_task, mes_task, qms_task, cmms_task)
+        (cmms_snapshot, cmms_trace), (wms_snapshot, wms_trace), \
+        (plm_snapshot, plm_trace), (spc_snapshot, spc_trace) = await asyncio.gather(
+            line_task, mes_task, qms_task, cmms_task, wms_task, plm_task, spc_task,
+        )
     if not all((isinstance(line_rows, list), isinstance(mes_snapshot, dict),
-                isinstance(qms_snapshot, dict), isinstance(cmms_snapshot, dict))):
+                isinstance(qms_snapshot, dict), isinstance(cmms_snapshot, dict),
+                isinstance(wms_snapshot, dict), isinstance(plm_snapshot, dict),
+                isinstance(spc_snapshot, dict))):
         raise ManufacturingMcpError("MCP 排程來源回傳格式不正確")
     product_ids = sorted({
         product_id for row in line_rows if isinstance(row, dict)
@@ -516,7 +638,13 @@ async def run_mcp_schedule(
         mes_snapshot,
         qms_snapshot,
         cmms_snapshot,
-        [order_trace, line_trace, stock_trace, mes_trace, qms_trace, cmms_trace],
+        wms_snapshot,
+        plm_snapshot,
+        spc_snapshot,
+        [
+            order_trace, line_trace, stock_trace, mes_trace, qms_trace, cmms_trace,
+            wms_trace, plm_trace, spc_trace,
+        ],
         snapshot_at=(now or datetime.now()).replace(second=0, microsecond=0),
         odoo_name=str(odoo_server["name"]),
         mes_name=str(mes_server["name"]),

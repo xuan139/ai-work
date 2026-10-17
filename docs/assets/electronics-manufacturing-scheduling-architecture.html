@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>電子製造排程 Demo 架構圖</title>
+  <style>
+    * { box-sizing: border-box; }
+    :root { font-family: -apple-system, BlinkMacSystemFont, "PingFang TC", "Microsoft JhengHei", sans-serif; color: #183b52; background: #fff; }
+    body { width: 1800px; margin: 0; padding: 34px; background: #fff; }
+    header { display: flex; justify-content: space-between; align-items: flex-end; padding: 26px 32px; color: #fff; background: #176ea5; border-radius: 6px; }
+    h1 { margin: 0; font-size: 38px; letter-spacing: 0; }
+    header p { margin: 7px 0 0; font-size: 17px; opacity: .92; }
+    .tag { padding: 9px 14px; color: #174867; background: #fff; border-radius: 5px; font-weight: 750; }
+    .layer { display: grid; grid-template-columns: 185px 1fr; margin-top: 18px; border: 1px solid #b8dceb; border-radius: 6px; overflow: hidden; }
+    .label { display: flex; flex-direction: column; justify-content: center; padding: 22px; color: #fff; background: #218fc5; }
+    .label strong { font-size: 21px; }
+    .label span { margin-top: 5px; font-size: 13px; opacity: .9; }
+    .content { padding: 18px 20px; background: #f8fcff; }
+    .flow { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; align-items: stretch; }
+    .systems { grid-template-columns: repeat(7, minmax(0, 1fr)); }
+    .calc { grid-template-columns: 1.05fr 1.6fr 1.05fr 1.05fr; }
+    .box { position: relative; min-height: 92px; padding: 15px 16px; border: 1px solid #b7d7e6; border-top: 5px solid #218fc5; border-radius: 5px; background: #fff; }
+    .box h2 { margin: 0 0 7px; font-size: 17px; letter-spacing: 0; }
+    .box p { margin: 0; color: #5b7484; font-size: 12px; line-height: 1.48; }
+    .box b { color: #176ea5; }
+    .arrow { display: flex; align-items: center; justify-content: center; min-height: 32px; color: #176ea5; font-size: 25px; font-weight: 800; }
+    .system { min-height: 165px; }
+    .system .port { display: inline-block; margin-bottom: 8px; padding: 3px 6px; color: #176ea5; background: #e8f6fd; border-radius: 3px; font: 700 11px ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .erp { border-top-color: #176ea5; }
+    .mes { border-top-color: #168a72; }
+    .wms { border-top-color: #178cbb; }
+    .plm { border-top-color: #7561b5; }
+    .qms { border-top-color: #d38422; }
+    .spc { border-top-color: #bd4e45; }
+    .cmms { border-top-color: #467f57; }
+    .bus { margin: 18px 0 0; padding: 13px 18px; color: #fff; background: #176ea5; border-radius: 4px; text-align: center; font-weight: 750; }
+    .bus span { margin-left: 16px; font-size: 12px; font-weight: 500; opacity: .9; }
+    .decision .label { background: #6555a6; }
+    .decision .content { background: #faf9ff; }
+    .decision .box { border-color: #d6d0ec; border-top-color: #6555a6; }
+    .security .label { background: #197b68; }
+    .security .content { background: #f4fbf8; }
+    .security-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+    .security-item { padding: 12px; border-left: 4px solid #1b9279; background: #fff; font-size: 13px; }
+    .blocked { color: #9d3f35; border-color: #d89d96 !important; border-style: dashed; background: #fff7f6; }
+    .process { margin-top: 18px; padding: 19px 24px; border: 1px solid #c8e1ed; border-radius: 6px; }
+    .process h2 { margin: 0 0 14px; font-size: 18px; }
+    .steps { display: grid; grid-template-columns: repeat(7, 1fr); gap: 9px; }
+    .step { position: relative; padding: 13px 10px; min-height: 78px; color: #24495f; background: #edf8ff; border-radius: 4px; font-size: 12px; }
+    .step strong { display: block; margin-bottom: 5px; color: #176ea5; font-size: 19px; }
+    .step:not(:last-child)::after { content: "›"; position: absolute; right: -8px; top: 22px; z-index: 2; color: #168dcc; font-size: 27px; font-weight: 800; }
+    footer { display: flex; justify-content: space-between; margin-top: 14px; color: #69808e; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div><h1>電子製造排程 Demo｜整合架構</h1><p>Read-only MCP evidence → deterministic finite-capacity scheduling → traceable LLM explanation</p></div>
+    <div class="tag">LIVE MCP · 唯讀決策支援</div>
+  </header>
+
+  <section class="layer">
+    <div class="label"><strong>使用者與入口</strong><span>需求、情境、問題</span></div>
+    <div class="content flow">
+      <div class="box"><h2>Web Portal</h2><p>排程總覽、甘特圖<br>來源與工具軌跡</p></div>
+      <div class="arrow">→</div>
+      <div class="box"><h2>FastAPI</h2><p>頁面與 API<br>輸入驗證、錯誤邊界</p></div>
+      <div class="box"><h2>身分與權限</h2><p>登入、RBAC、速率限制<br>Prompt Guard</p></div>
+      <div class="box"><h2>MCP Orchestrator</h2><p>固定端點與工具白名單<br>缺一即明確失敗</p></div>
+    </div>
+  </section>
+
+  <section class="layer">
+    <div class="label"><strong>企業與製造系統</strong><span>ISA-95 Level 4 / 3</span></div>
+    <div class="content">
+      <div class="flow systems">
+        <div class="box system erp"><span class="port">HTTPS MCP</span><h2>Odoo ERP</h2><p><b>3 次唯讀查詢</b><br>銷售訂單、明細、交期<br>客戶、金額、stock.quant</p></div>
+        <div class="box system mes"><span class="port">8310/mcp</span><h2>MES</h2><p>工作中心、班次、產能<br>停機、工單與生產紀錄</p></div>
+        <div class="box system wms"><span class="port">8322/mcp</span><h2>WMS＋追溯</h2><p>儲位、批次、齊套時間<br>序號譜系、召回影響</p></div>
+        <div class="box system plm"><span class="port">8323/mcp</span><h2>PLM／ECO</h2><p>BOM／產品版本<br>工程差異、訂單與工時影響</p></div>
+        <div class="box system qms"><span class="port">8320/mcp</span><h2>QMS</h2><p>FPY、不良率、品質事件<br>預期返工時間</p></div>
+        <div class="box system spc"><span class="port">8324/mcp</span><h2>SPC</h2><p>Cp／Cpk、失控點<br>額外檢驗時間與風險</p></div>
+        <div class="box system cmms"><span class="port">8321/mcp</span><h2>CMMS</h2><p>設備健康、MTBF／MTTR<br>維護工單與停機窗口</p></div>
+      </div>
+      <div class="bus">唯讀 MCP 證據總線 <span>9 次外部讀取｜端點白名單｜參數邊界｜每次呼叫寫入審計</span></div>
+    </div>
+  </section>
+
+  <section class="layer decision">
+    <div class="label"><strong>排程與 AI 決策</strong><span>本地可重現計算</span></div>
+    <div class="content flow calc">
+      <div class="box"><h2>驗證後快照</h2><p>訂單＋齊套<br>工作中心＋停機<br>BOM＋品質＋設備</p></div>
+      <div class="box"><h2>有限產能排程引擎</h2><p><b>規則式、確定性、可重跑</b><br>優先級 → 齊套 → 班次 → 換線／ECO → 停機／維護 → 返工／檢驗</p></div>
+      <div class="box"><h2>排程結果</h2><p>預測完成、延期分鐘<br>風險分數與原因、甘特圖</p></div>
+      <div class="box"><h2>本地 LLM</h2><p>只讀取壓縮證據<br>產生附來源的解釋</p></div>
+    </div>
+  </section>
+
+  <section class="layer security">
+    <div class="label"><strong>安全與治理</strong><span>無生產控制路徑</span></div>
+    <div class="content security-grid">
+      <div class="security-item">Loopback only<br><b>127.0.0.1</b></div>
+      <div class="security-item">MCP 固定唯讀<br><b>16 個新增工具</b></div>
+      <div class="security-item">工具輸入<br><b>ID／數值範圍驗證</b></div>
+      <div class="security-item">全鏈路<br><b>MCP＋LLM 審計</b></div>
+      <div class="security-item">教學資料<br><b>不可用於正式放行</b></div>
+      <div class="security-item blocked">PLC／設備控制<br><b>無命令或寫入工具</b></div>
+    </div>
+  </section>
+
+  <section class="process">
+    <h2>端到端流程</h2>
+    <div class="steps">
+      <div class="step"><strong>01</strong>使用者提交<br>情境或問題</div>
+      <div class="step"><strong>02</strong>驗證身分、權限<br>輸入與速率</div>
+      <div class="step"><strong>03</strong>Odoo 讀取訂單<br>明細與庫存</div>
+      <div class="step"><strong>04</strong>六套製造 MCP<br>平行取得快照</div>
+      <div class="step"><strong>05</strong>驗證並組合<br>排程證據快照</div>
+      <div class="step"><strong>06</strong>本地有限產能<br>排程與風險計算</div>
+      <div class="step"><strong>07</strong>顯示結果，LLM<br>附來源解釋</div>
+    </div>
+  </section>
+  <footer><span>AI Work · Electronics Manufacturing Scheduling Demo</span><span>Odoo + MES + WMS + PLM + QMS + SPC + CMMS + Local Scheduler + Local LLM</span></footer>
+</body>
+</html>

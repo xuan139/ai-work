@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>電子製造排程 Demo · AI Work</title>
   <link rel="icon" href="/static/icons/icon-192.png">
-  <link rel="stylesheet" href="/static/manufacturing-schedule-demo.css?v=3">
-  <script src="/static/manufacturing-schedule-demo.js?v=3" defer></script>
+  <link rel="stylesheet" href="/static/manufacturing-schedule-demo.css?v=4">
+  <script src="/static/manufacturing-schedule-demo.js?v=4" defer></script>
 </head>
 <body>
   <header>
@@ -18,8 +18,8 @@
       <div><p class="eyebrow">ELECTRONICS MANUFACTURING · SCHEDULING</p><h1 data-copy="title">電子製造排程 Demo</h1></div>
       <span class="badge" data-copy="badge">LIVE MCP · 唯讀</span>
     </div>
-    <p class="intro" data-copy="intro">透過唯讀 MCP 取得 Odoo 訂單與庫存、MES 產能、QMS 品質及 CMMS 維護資料，再由本地有限產能排程引擎計算交期風險。</p>
-    <p id="snapshotNotice" class="notice" data-copy="notice">資料由 MCP 即時讀取；MES、QMS 與 CMMS 為明確標示的教學模擬。本頁不會寫入企業系統或 PLC。</p>
+    <p class="intro" data-copy="intro">透過唯讀 MCP 整合 Odoo、MES、WMS 追溯、PLM／ECO、QMS、SPC 與 CMMS，再由本地有限產能排程引擎計算交期風險。</p>
+    <p id="snapshotNotice" class="notice" data-copy="notice">資料由 MCP 即時讀取；製造周邊系統為明確標示的教學模擬。本頁不會寫入企業系統或 PLC。</p>
     <section id="integrationWarnings" class="warning-panel" aria-labelledby="warningsTitle" hidden>
       <h2 id="warningsTitle" data-copy="warnings">資料邊界與假設</h2><ul id="warningList"></ul>
     </section>
@@ -67,6 +67,13 @@
       <section class="data-section" aria-labelledby="qualityTitle"><p class="eyebrow">QMS MCP · QUALITY</p><h2 id="qualityTitle" data-copy="quality">品質與預期返工</h2><p id="qmsStatus" class="source-note"></p><div id="quality"></div></section>
       <section class="data-section" aria-labelledby="maintenanceTitle"><p class="eyebrow">CMMS MCP · MAINTENANCE</p><h2 id="maintenanceTitle" data-copy="maintenance">設備健康與維護</h2><p id="cmmsStatus" class="source-note"></p><div id="maintenance"></div></section>
     </div>
+
+    <div class="split-grid support-grid">
+      <section class="data-section" aria-labelledby="wmsTitle"><p class="eyebrow">WMS MCP · TRACEABILITY</p><h2 id="wmsTitle" data-copy="wms">倉儲、批次與序號追溯</h2><p id="wmsStatus" class="source-note"></p><div id="wms"></div></section>
+      <section class="data-section" aria-labelledby="plmTitle"><p class="eyebrow">PLM MCP · BOM / ECO</p><h2 id="plmTitle" data-copy="plm">BOM 版本與工程變更</h2><p id="plmStatus" class="source-note"></p><div id="plm"></div></section>
+    </div>
+
+    <section class="data-section" aria-labelledby="spcTitle"><p class="eyebrow">SPC MCP · PROCESS CAPABILITY</p><h2 id="spcTitle" data-copy="spc">製程能力與失控點</h2><p id="spcStatus" class="source-note"></p><div id="spc"></div></section>
 
     <section class="data-section" aria-labelledby="sourcesTitle"><p class="eyebrow">PROVENANCE</p><h2 id="sourcesTitle" data-copy="sources">資料來源與工具軌跡</h2>
       <div id="sources" class="source-grid"></div>

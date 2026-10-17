@@ -57,6 +57,27 @@ MCP_CATALOG_TEMPLATES = (
         "source_url": None, "is_enabled": False,
     },
     {
+        "slug": "manufacturing-wms", "name": "Electronics WMS Traceability Demo 唯讀", "transport": "streamable_http",
+        "endpoint": "http://127.0.0.1:8322/mcp", "auth_type": "none", "auth_env_var": None,
+        "description": "電子製造 WMS 唯讀教學：儲位、批次、齊套時間、序號譜系與召回影響。固定模擬資料。",
+        "description_en": "Read-only electronics WMS teaching data: locations, lots, material readiness, serial genealogy, and recall impact.",
+        "source_url": None, "is_enabled": False,
+    },
+    {
+        "slug": "manufacturing-plm", "name": "Electronics PLM ECO Demo 唯讀", "transport": "streamable_http",
+        "endpoint": "http://127.0.0.1:8323/mcp", "auth_type": "none", "auth_env_var": None,
+        "description": "電子製造 PLM 唯讀教學：BOM／產品版本、工程變更、差異及排程影響。固定模擬資料。",
+        "description_en": "Read-only electronics PLM teaching data: BOM/product revisions, engineering changes, differences, and scheduling impact.",
+        "source_url": None, "is_enabled": False,
+    },
+    {
+        "slug": "manufacturing-spc", "name": "Electronics SPC Demo 唯讀", "transport": "streamable_http",
+        "endpoint": "http://127.0.0.1:8324/mcp", "auth_type": "none", "auth_env_var": None,
+        "description": "電子製造 SPC 唯讀教學：Cp／Cpk、失控點、額外檢驗時間與訂單品質風險。固定模擬資料。",
+        "description_en": "Read-only electronics SPC teaching data: Cp/Cpk, out-of-control points, inspection time, and order quality risk.",
+        "source_url": None, "is_enabled": False,
+    },
+    {
         "slug": "nas-demo", "name": "NAS Demo MCP", "transport": "streamable_http",
         "endpoint": "http://127.0.0.1:8000/mcp/nas", "auth_type": "none", "auth_env_var": None,
         "description": "AI Work 內建唯讀 NAS 示範工具，可查詢系統狀態、共享資料夾、示範檔案與近期活動。",

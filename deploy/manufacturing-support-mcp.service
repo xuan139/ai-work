@@ -1,5 +1,5 @@
 [Unit]
-Description=AI Work read-only manufacturing QMS and CMMS MCP
+Description=AI Work read-only manufacturing support MCP demos
 After=network.target
 
 [Service]

@@ -44,6 +44,31 @@ CMMS_READ_ONLY_TOOLS = {
     "cmms_asset_maintenance",
 }
 
+WMS_READ_ONLY_TOOLS = {
+    "wms_inventory_snapshot",
+    "wms_material_availability",
+    "wms_lot_location",
+    "trace_serial_history",
+    "trace_order_genealogy",
+    "trace_recall_impact",
+}
+
+PLM_READ_ONLY_TOOLS = {
+    "plm_engineering_snapshot",
+    "plm_current_bom",
+    "plm_product_revision",
+    "plm_open_ecos",
+    "plm_revision_difference",
+    "plm_change_impact",
+}
+
+SPC_READ_ONLY_TOOLS = {
+    "spc_process_snapshot",
+    "spc_process_capability",
+    "spc_out_of_control_points",
+    "spc_quality_risk_by_order",
+}
+
 
 def available_mcp_servers(
     servers: list[dict[str, Any]],
@@ -125,6 +150,51 @@ def build_known_business_plan(
             tool_name = "cmms_asset_maintenance" if match else "cmms_maintenance_snapshot"
             arguments = {"center_id": match.group(0).upper()} if match else {}
         if any(tool.get("name") == tool_name for tool in server.get("tools") or []):
+            return {
+                "action": "tool", "server_id": int(server["id"]),
+                "tool_name": tool_name, "arguments": arguments,
+            }
+
+    if len(servers) == 1 and servers[0].get("slug") in {
+        "manufacturing-wms", "manufacturing-plm", "manufacturing-spc",
+    }:
+        server = servers[0]
+        tool_name = None
+        arguments: dict[str, Any] = {}
+        if server["slug"] == "manufacturing-wms":
+            lot = re.search(r"LOT-[A-Za-z0-9_-]+", user_prompt, re.IGNORECASE)
+            serial = re.search(r"SN-[A-Za-z0-9_-]+", user_prompt, re.IGNORECASE)
+            order = re.search(r"(?:SO|MES-DEMO)-[A-Za-z0-9_-]+", user_prompt, re.IGNORECASE)
+            if lot and any(term in normalized for term in ("召回", "影響", "影响", "recall")):
+                tool_name, arguments = "trace_recall_impact", {"lot_id": lot.group(0).upper()}
+            elif lot:
+                tool_name, arguments = "wms_lot_location", {"lot_id": lot.group(0).upper()}
+            elif serial:
+                tool_name, arguments = "trace_serial_history", {"serial": serial.group(0).upper()}
+            elif order:
+                tool_name, arguments = "trace_order_genealogy", {"order": order.group(0).upper()}
+            else:
+                tool_name = "wms_inventory_snapshot"
+        elif server["slug"] == "manufacturing-plm":
+            eco = re.search(r"ECO-[A-Za-z0-9_-]+", user_prompt, re.IGNORECASE)
+            family = re.search(r"(?:家族|family)\s*([ABC])\b", user_prompt, re.IGNORECASE)
+            if eco and any(term in normalized for term in ("差異", "差异", "difference")):
+                tool_name, arguments = "plm_revision_difference", {"eco_id": eco.group(0).upper()}
+            elif eco:
+                tool_name, arguments = "plm_change_impact", {"eco_id": eco.group(0).upper()}
+            elif family:
+                tool_name, arguments = "plm_current_bom", {"family": family.group(1).upper()}
+            else:
+                tool_name = "plm_engineering_snapshot"
+        else:
+            family = re.search(r"(?:家族|family)\s*([ABC])\b", user_prompt, re.IGNORECASE)
+            if any(term in normalized for term in ("失控", "out of control", "ooc")):
+                tool_name = "spc_out_of_control_points"
+            elif family:
+                tool_name, arguments = "spc_process_capability", {"family": family.group(1).upper()}
+            else:
+                tool_name = "spc_process_snapshot"
+        if tool_name and any(tool.get("name") == tool_name for tool in server.get("tools") or []):
             return {
                 "action": "tool", "server_id": int(server["id"]),
                 "tool_name": tool_name, "arguments": arguments,
@@ -307,6 +377,12 @@ def _is_read_only_tool(tool: object, server: dict[str, Any]) -> bool:
         return endpoint == "http://127.0.0.1:8320/mcp" and str(tool["name"]) in QMS_READ_ONLY_TOOLS
     if server.get("slug") == "manufacturing-cmms":
         return endpoint == "http://127.0.0.1:8321/mcp" and str(tool["name"]) in CMMS_READ_ONLY_TOOLS
+    if server.get("slug") == "manufacturing-wms":
+        return endpoint == "http://127.0.0.1:8322/mcp" and str(tool["name"]) in WMS_READ_ONLY_TOOLS
+    if server.get("slug") == "manufacturing-plm":
+        return endpoint == "http://127.0.0.1:8323/mcp" and str(tool["name"]) in PLM_READ_ONLY_TOOLS
+    if server.get("slug") == "manufacturing-spc":
+        return endpoint == "http://127.0.0.1:8324/mcp" and str(tool["name"]) in SPC_READ_ONLY_TOOLS
     annotations = tool.get("annotations")
     return bool(
         isinstance(annotations, dict)

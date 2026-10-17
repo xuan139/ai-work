@@ -7,6 +7,9 @@ systemd services on Ubuntu. Neither port is published through Nginx:
 - AI Work MES MCP: `127.0.0.1:8310/mcp`
 - AI Work QMS Demo MCP: `127.0.0.1:8320/mcp`
 - AI Work CMMS Demo MCP: `127.0.0.1:8321/mcp`
+- AI Work WMS Traceability Demo MCP: `127.0.0.1:8322/mcp`
+- AI Work PLM ECO Demo MCP: `127.0.0.1:8323/mcp`
+- AI Work SPC Demo MCP: `127.0.0.1:8324/mcp`
 
 The plant is based on the upstream FactorySemantics MES bottling pack, tested
 at commit `d8d077dcaeb111fdbb4f26745354e9898544f293`. Pin that checkout
@@ -28,8 +31,8 @@ repository.
    `deploy/factory-mes-mcp.service` under `/etc/systemd/system/`, then enable
    and start them in that order. Install and enable
    `deploy/manufacturing-support-mcp.service` for the independent synthetic
-   QMS/CMMS teaching adapter.
-4. Confirm `ss -ltn` shows ports 8010, 8310, 8320 and 8321 only on `127.0.0.1`, and
+   QMS/CMMS/WMS/PLM/SPC teaching adapters.
+4. Confirm `ss -ltn` shows ports 8010, 8310, and 8320 through 8324 only on `127.0.0.1`, and
    `curl http://127.0.0.1:8010/health` reports plant `bottling`.
 5. In AI Work MCP management, enable and sync `FactorySemantics MES 唯讀`.
    Then select that MCP server in AI Work and use one of its sample questions.
@@ -45,14 +48,21 @@ work-center snapshot for the scheduling demo. AI Work also rejects any tool name
 this fixed list. An empty result means the simulated line has not recorded
 matching events; it is not evidence that a real factory had none.
 
-The QMS and CMMS catalog entries use separate loopback endpoints in one
-restricted systemd process. QMS exposes `qms_quality_snapshot` and
+The QMS, CMMS, WMS, PLM and SPC catalog entries use separate loopback endpoints
+in one restricted systemd process. QMS exposes `qms_quality_snapshot` and
 `qms_order_quality`; CMMS exposes `cmms_maintenance_snapshot` and
-`cmms_asset_maintenance`. All records are authored teaching data. The
+`cmms_asset_maintenance`. WMS exposes six bounded inventory, material, lot,
+serial, order-genealogy and recall-impact queries. PLM exposes six bounded
+snapshot, BOM/revision, ECO difference and impact queries. SPC exposes four
+bounded process snapshot, capability, out-of-control and order-risk queries.
+All records are authored teaching data. The
 scheduling demo uses expected family rework time in the TEST operation and
-uses CMMS maintenance windows as unavailable capacity. It cannot release a
-lot, close a quality event, acknowledge an alarm, or update a maintenance work
-order. If either connector is disabled or unavailable, scheduling returns an
-explicit error instead of silently substituting process-local fixtures.
+uses CMMS maintenance windows as unavailable capacity. WMS readiness can delay
+an order, PLM revisions can add setup/operation time, and SPC capability can add
+inspection time and risk. It cannot release or recall a lot, apply an ECO,
+close a quality event, acknowledge an alarm, or update a maintenance work
+order. If any required connector is disabled or unavailable, scheduling
+returns an explicit error instead of silently substituting process-local
+fixtures.
 
 Upstream: https://github.com/factorysemantics/factorysemantics-mes

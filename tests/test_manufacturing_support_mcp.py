@@ -1,6 +1,19 @@
 import unittest
 from datetime import datetime
 
+from app.manufacturing_extension_demo import (
+    change_impact,
+    current_bom,
+    lot_location,
+    material_availability,
+    order_genealogy,
+    order_quality_risk,
+    process_capability,
+    recall_impact,
+    revision_difference,
+    serial_history,
+    warehouse_snapshot,
+)
 from app.manufacturing_support_demo import (
     maintenance_asset_detail,
     maintenance_snapshot,
@@ -40,6 +53,42 @@ class ManufacturingSupportMcpTests(unittest.TestCase):
         for center in ("../SMT-01", "UNKNOWN-01"):
             with self.subTest(center=center), self.assertRaises(ValueError):
                 maintenance_asset_detail(center, self.now)
+
+    def test_wms_snapshot_and_traceability_queries_are_bounded(self):
+        snapshot = warehouse_snapshot(self.now)
+        self.assertTrue(snapshot["read_only"])
+        self.assertEqual(snapshot["dataset_type"], "synthetic_electronics_wms_traceability")
+        availability = material_availability("C", 160, self.now)
+        self.assertEqual(availability["shortage_units"], 120)
+        self.assertEqual(lot_location("LOT-MCU-C-2610", self.now)["lot"]["location"], "WH-C-02")
+        self.assertEqual(serial_history("SN-DEMO-C-0001", self.now)["genealogy"]["order"], "MES-DEMO-1003")
+        self.assertEqual(len(order_genealogy("MES-DEMO-1003", self.now)["serials"]), 1)
+        self.assertIn("MES-DEMO-1003", recall_impact("LOT-MCU-C-2610", self.now)["affected_orders"])
+        for callback, value in ((lot_location, "../lot"), (serial_history, "SN/unsafe"), (recall_impact, "unknown")):
+            with self.subTest(callback=callback.__name__), self.assertRaises(ValueError):
+                callback(value, self.now)
+
+    def test_plm_revision_and_change_impact_are_read_only(self):
+        bom = current_bom("C", self.now)["bom"]
+        self.assertEqual(bom["revision"], "C.12")
+        self.assertEqual(bom["status"], "controlled_release")
+        difference = revision_difference("ECO-2026-014", self.now)
+        self.assertIn("SMT 換線 +10 分鐘", difference["changes"])
+        impact = change_impact("ECO-2026-014", self.now)
+        self.assertEqual(impact["schedule_impact"]["extra_operation_minutes"], 20)
+        for callback, value in ((current_bom, "D"), (revision_difference, "../ECO"), (change_impact, "ECO-404")):
+            with self.subTest(callback=callback.__name__), self.assertRaises(ValueError):
+                callback(value, self.now)
+
+    def test_spc_capability_and_order_risk_are_bounded(self):
+        capability = process_capability("C", self.now)["profile"]
+        self.assertEqual(capability["cpk"], 0.91)
+        risk = order_quality_risk("SO-1003", "C", 160, self.now)
+        self.assertEqual(risk["extra_inspection_minutes"], 56)
+        self.assertEqual(risk["matching_points"][0]["point_id"], "SPC-OOC-027")
+        for arguments in (("../SO", "C", 1), ("SO-1", "D", 1), ("SO-1", "A", 0)):
+            with self.subTest(arguments=arguments), self.assertRaises(ValueError):
+                order_quality_risk(*arguments, now=self.now)
 
 
 if __name__ == "__main__":
