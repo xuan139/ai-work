@@ -95,6 +95,8 @@ class ManufacturingScheduleDemoTests(unittest.TestCase):
         evidence = compact_evidence(result["schedule"])
         self.assertLess(len(evidence), 6000)
         self.assertIn('"sources"', evidence)
+        self.assertIn('local deterministic finite-capacity rule scheduling', evidence)
+        self.assertIn('"llm_role":"explanation only', evidence)
 
     def test_question_uses_current_model_path_and_returns_trace(self):
         with tempfile.TemporaryDirectory() as directory, patch.object(db, "DB_PATH", Path(directory) / "app.db"):

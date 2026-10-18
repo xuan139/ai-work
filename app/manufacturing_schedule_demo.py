@@ -304,6 +304,15 @@ def compact_evidence(result: dict[str, Any]) -> str:
     payload = {
         "snapshot": result["snapshot_at"],
         "scenario": result["scenario"],
+        "engine": {
+            "name": result.get("engine", {}).get("name"),
+            "version": result.get("engine", {}).get("version"),
+            "method": "local deterministic finite-capacity rule scheduling",
+            "inputs": ["orders and due dates", "priority", "material readiness", "routing and shift capacity",
+                       "changeovers", "downtime and maintenance", "quality rework and SPC inspection"],
+            "outputs": ["operation start and finish", "predicted completion", "lateness", "demo risk score", "reasons", "Gantt"],
+            "llm_role": "explanation only; the LLM does not calculate or change the schedule",
+        },
         "orders": [
             {
                 "id": order.get("order"), "family": order.get("family"),

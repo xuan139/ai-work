@@ -63,6 +63,8 @@ const server = http.createServer(async (req, res) => {
     });
     await page.goto(`http://127.0.0.1:${server.address().port}/manufacturing-schedule-demo`);
     await page.waitForFunction(() => document.querySelectorAll('#ordersBody tr').length === 5);
+    assert.equal(await page.locator('#sampleQuestion option').count(),19);
+    assert.match(await page.locator('#sampleQuestion option').nth(10).textContent(),/有限產能排程引擎/);
     assert.equal(scheduleCalls.length,1); assert.equal(await page.locator('.gantt-row').count(),3); assert.equal(await page.locator('.gantt-bar').count(),15); assert.equal(await page.locator('.source').count(),9);
     assert.equal(await page.locator('#integrationWarnings').isVisible(),true); assert.match(await page.locator('#mesStatus').textContent(),/ELECTRONICS-DEMO-01/);
     assert.match(await page.locator('#quality').textContent(),/BGA/); assert.match(await page.locator('#maintenance').textContent(),/MWO-2026-018/);
