@@ -187,6 +187,7 @@ from app.security import (
 from app.segment_transcriptions import list_audio_segment_transcriptions, update_audio_segment_transcription
 from app.system_asr import current_asr_model, current_asr_state, update_current_asr
 from app.system_llm import current_llm_model, current_llm_state, update_current_llm
+from app.scheduling_engine import SCHEDULING_ENGINES, current_scheduling_engine, update_scheduling_engine
 from app.translation_service import TARGET_LANGUAGES
 from app.upload_storage import UploadTooLargeError, save_upload_stream
 from app.video_catalog import get_video_model, video_model_summary
@@ -807,12 +808,19 @@ async def manufacturing_schedule_demo_run(payload: dict, user: dict = Depends(cu
     if not isinstance(scenario, dict):
         raise HTTPException(status_code=400, detail="scenario 必須是 JSON object")
     try:
+        engine = current_scheduling_engine()
         odoo, mes, qms, cmms, wms, plm, spc = manufacturing_schedule_mcp_servers(user)
-        return await run_mcp_schedule(
+        result = await run_mcp_schedule(
             scenario, user=user, odoo_server=odoo, mes_server=mes,
             qms_server=qms, cmms_server=cmms, wms_server=wms,
-            plm_server=plm, spc_server=spc,
+            plm_server=plm, spc_server=spc, default_engine=engine["id"],
         )
+        result["engine_setting"] = {
+            "current": engine,
+            "options": list(SCHEDULING_ENGINES),
+            "can_manage": user.get("role") == "admin",
+        }
+        return result
     except ManufacturingMcpError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     except ValueError as exc:
@@ -840,6 +848,7 @@ async def manufacturing_schedule_demo_ask(payload: dict, user: dict = Depends(cu
                 scenario, user=user, odoo_server=odoo, mes_server=mes,
                 qms_server=qms, cmms_server=cmms, wms_server=wms,
                 plm_server=plm, spc_server=spc,
+                default_engine=current_scheduling_engine()["id"],
             )
             return await answer_manufacturing_question(
                 prompt=prompt.strip(), scenario=scenario, model_id=model_id, user=user,
@@ -849,6 +858,23 @@ async def manufacturing_schedule_demo_ask(payload: dict, user: dict = Depends(cu
             raise HTTPException(status_code=502, detail=str(exc)) from exc
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/api/manufacturing-schedule-demo/engine-setting")
+async def manufacturing_schedule_engine_setting(user: dict = Depends(current_user)) -> dict:
+    return {
+        "current": current_scheduling_engine(),
+        "options": list(SCHEDULING_ENGINES),
+        "can_manage": user.get("role") == "admin",
+    }
+
+
+@app.put("/api/admin/manufacturing-schedule-engine")
+async def set_manufacturing_schedule_engine(payload: dict, admin: dict = Depends(require_admin)) -> dict:
+    try:
+        return update_scheduling_engine(str(payload.get("engine_id") or "").strip(), admin["id"])
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.post("/mcp/notion")

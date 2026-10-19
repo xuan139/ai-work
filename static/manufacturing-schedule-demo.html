@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>電子製造排程 Demo · AI Work</title>
   <link rel="icon" href="/static/icons/icon-192.png">
-  <link rel="stylesheet" href="/static/manufacturing-schedule-demo.css?v=5">
-  <script src="/static/manufacturing-schedule-demo.js?v=6" defer></script>
+  <link rel="stylesheet" href="/static/manufacturing-schedule-demo.css?v=6">
+  <script src="/static/manufacturing-schedule-demo.js?v=8" defer></script>
 </head>
 <body>
   <header>
@@ -33,6 +33,28 @@
         <label><span data-copy="materialDelay">短缺物料到料延後</span><select id="materialDelay"><option value="0" data-copy="none">不增加</option><option value="2" data-copy="twoDays">2 個工作日</option><option value="3" data-copy="threeDays">3 個工作日</option></select></label>
       </div>
       <p id="scenarioState" class="muted" data-copy="baseline">目前顯示基準情境。</p>
+    </section>
+
+    <section id="engineComparison" class="engine-comparison" aria-labelledby="comparisonTitle" hidden>
+      <div class="section-heading">
+        <div><p class="eyebrow" data-copy="comparisonEyebrow">DUAL ENGINE · SAME MCP SNAPSHOT</p><h2 id="comparisonTitle" data-copy="comparisonTitle">雙引擎排程比較</h2></div>
+        <div id="engineSettingControls" class="engine-setting" hidden>
+          <label for="defaultEngine" data-copy="defaultEngine">系統預設引擎</label>
+          <select id="defaultEngine"></select>
+          <button id="saveEngine" type="button" data-copy="saveDefault">儲存預設</button>
+        </div>
+      </div>
+      <p class="muted" data-copy="comparisonHelp">現有規則引擎與 OR-Tools 使用完全相同的 MCP 資料與情境。</p>
+      <p id="engineSaveStatus" class="source-note" role="status" aria-live="polite"></p>
+      <div class="engine-grid">
+        <article class="engine-column"><h3 id="ruleEngineName">現有規則引擎</h3><div id="ruleMetrics"></div></article>
+        <article class="engine-column"><h3 id="ortoolsEngineName">OR-Tools CP-SAT</h3><div id="ortoolsMetrics"></div></article>
+      </div>
+      <p id="comparisonVerdict" class="comparison-verdict"></p>
+      <div class="comparison-gantt-grid">
+        <div class="comparison-gantt"><h3 data-copy="ruleGantt">規則引擎甘特圖</h3><div class="gantt-scroll"><div id="ruleGantt"></div></div></div>
+        <div id="ortoolsGanttWrap" class="comparison-gantt"><h3 data-copy="ortoolsGantt">OR-Tools 甘特圖</h3><div class="gantt-scroll"><div id="ortoolsGantt"></div></div></div>
+      </div>
     </section>
 
     <section class="question-panel" aria-labelledby="questionTitle">

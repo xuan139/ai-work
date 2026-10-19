@@ -10,6 +10,7 @@ from fastapi.testclient import TestClient
 from app import db, main
 from app.auth import current_user
 from app.manufacturing_schedule_demo import BASE_ORDERS, WORK_CENTERS, answer_question, compact_evidence, normalize_scenario, run_schedule
+from app.scheduling_engine import current_scheduling_engine, update_scheduling_engine
 
 
 class ManufacturingScheduleDemoTests(unittest.TestCase):
@@ -60,9 +61,15 @@ class ManufacturingScheduleDemoTests(unittest.TestCase):
             try:
                 self.assertEqual(client.get("/manufacturing-schedule-demo").status_code, 401)
                 self.assertEqual(client.post("/api/manufacturing-schedule-demo/schedule", json={"scenario": {}}).status_code, 401)
+                self.assertEqual(client.get("/api/manufacturing-schedule-demo/engine-setting").status_code, 401)
                 main.app.dependency_overrides[current_user] = lambda: admin
                 self.assertEqual(client.get("/manufacturing-schedule-demo").status_code, 200)
                 self.assertIn('/manufacturing-schedule-demo', client.get("/").text)
+                setting = client.get("/api/manufacturing-schedule-demo/engine-setting")
+                self.assertEqual(setting.status_code, 200)
+                self.assertTrue(setting.json()["can_manage"])
+                self.assertEqual(client.put("/api/admin/manufacturing-schedule-engine", json={"engine_id": "unknown"}).status_code, 400)
+                self.assertEqual(client.put("/api/admin/manufacturing-schedule-engine", json={"engine_id": "ortools-cp-sat-v1"}).status_code, 200)
                 async def fake_schedule(scenario, **_kwargs):
                     return run_schedule(scenario)
                 with patch.object(main, "manufacturing_schedule_mcp_servers", return_value=({}, {}, {}, {}, {}, {}, {})), \
@@ -75,6 +82,17 @@ class ManufacturingScheduleDemoTests(unittest.TestCase):
             finally:
                 main.app.dependency_overrides.clear()
                 client.close()
+
+    def test_admin_can_select_system_scheduling_engine(self):
+        with tempfile.TemporaryDirectory() as directory, patch.object(db, "DB_PATH", Path(directory) / "app.db"):
+            db.init_db()
+            db.seed_admin("unused-test-hash")
+            admin = db.get_user_by_username("admin")
+            self.assertEqual(current_scheduling_engine()["id"], "finite-capacity-mcp-v4")
+            updated = update_scheduling_engine("ortools-cp-sat-v1", admin["id"])
+            self.assertEqual(updated["id"], "ortools-cp-sat-v1")
+            with self.assertRaises(ValueError):
+                update_scheduling_engine("unknown", admin["id"])
 
     def test_question_evidence_is_bounded_and_read_only(self):
         captured = {}

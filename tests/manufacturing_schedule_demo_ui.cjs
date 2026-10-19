@@ -41,6 +41,20 @@ function fixture(orderCount = 5) {
       {id:'scheduler',name:'本地排程引擎',detail:'finite-capacity-mcp-v4'}],
     trace:[{kind:'mcp',tool:'search_read',arguments:{model:'sale.order'},result:`${orderCount} orders`},{kind:'mcp',tool:'mes_electronics_schedule_snapshot',arguments:{},result:'snapshot'},{kind:'mcp',tool:'qms_quality_snapshot',arguments:{},result:'snapshot'},{kind:'mcp',tool:'cmms_maintenance_snapshot',arguments:{},result:'snapshot'},{kind:'mcp',tool:'wms_inventory_snapshot',arguments:{},result:'snapshot'},{kind:'mcp',tool:'plm_engineering_snapshot',arguments:{},result:'snapshot'},{kind:'mcp',tool:'spc_process_snapshot',arguments:{},result:'snapshot'},{kind:'local',tool:'schedule.run_finite_capacity',arguments:{},result:`${operations.length} operations`}],};
 }
+function comparedFixture(orderCount = 5) {
+  const rule = fixture(orderCount); const optimized = structuredClone(rule);
+  rule.optimization_metrics={late_minutes:60,weighted_late_minutes:240,changeover_minutes:180,setup_minutes:180,makespan_minutes:7200};
+  optimized.engine={name:'Google OR-Tools CP-SAT',version:'ortools-cp-sat-v1',solver_status:'OPTIMAL',solve_time_ms:42};
+  optimized.optimization_metrics={late_minutes:0,weighted_late_minutes:0,changeover_minutes:120,setup_minutes:120,makespan_minutes:6900};
+  optimized.trace=[...optimized.trace.slice(0,-1),{kind:'local',tool:'schedule.solve_cp_sat',arguments:{},result:`${optimized.operations.length} operations`}];
+  const result=structuredClone(rule);
+  result.engine_comparison={default_engine:'finite-capacity-mcp-v4',active_engine:'finite-capacity-mcp-v4',fallback_used:false,ortools_available:true,ortools_error:null,
+    rule,ortools:optimized,metrics:{rule:rule.optimization_metrics,ortools:optimized.optimization_metrics},delay_improved:true,changeover_improved:true,validated_better:true,
+    delta:{weighted_late_minutes_reduced:240,changeover_minutes_reduced:60,makespan_minutes_reduced:300},verdict:'ortools_validated_better'};
+  result.engine_setting={current:{id:'finite-capacity-mcp-v4',name:'確定性有限產能規則排程'},can_manage:true,options:[
+    {id:'finite-capacity-mcp-v4',name:'確定性有限產能規則排程'},{id:'ortools-cp-sat-v1',name:'Google OR-Tools CP-SAT'}]};
+  return result;
+}
 const server = http.createServer(async (req, res) => {
   const file = files[new URL(req.url, 'http://localhost').pathname];
   if (!file) { res.writeHead(404); res.end(); return; }
@@ -54,18 +68,22 @@ const server = http.createServer(async (req, res) => {
     browser = await chromium.launch({headless:true,channel:'chrome'});
     const page = await browser.newPage({viewport:{width:1440,height:1100}}); const errors=[]; const scheduleCalls=[]; const askCalls=[];
     page.on('pageerror', error => errors.push(error.message));
-    await page.route('**/api/manufacturing-schedule-demo/schedule', async route => { scheduleCalls.push(route.request().postDataJSON()); await route.fulfill({json:fixture(scheduleCalls.at(-1).scenario.rush_order ? 6 : 5)}); });
+    await page.route('**/api/manufacturing-schedule-demo/schedule', async route => { scheduleCalls.push(route.request().postDataJSON()); await route.fulfill({json:comparedFixture(scheduleCalls.at(-1).scenario.rush_order ? 6 : 5)}); });
+    await page.route('**/api/admin/manufacturing-schedule-engine', async route => route.fulfill({json:{id:route.request().postDataJSON().engine_id,name:'Google OR-Tools CP-SAT'}}));
     await page.route('**/api/manufacturing-schedule-demo/ask', async route => {
       const request = route.request().postDataJSON(); askCalls.push(request);
       if (request.prompt === 'FAIL') { await route.fulfill({status:502,json:{detail:'Prompt has too many tokens'}}); return; }
-      const data=fixture(6); await new Promise(resolve => setTimeout(resolve, 50));
+      const data=comparedFixture(6); await new Promise(resolve => setTimeout(resolve, 50));
       await route.fulfill({json:{answer:'SO-1003 因 MCU-C 缺料而延期。',model:'Qwen3 4B',schedule:data,sources:data.sources,steps:[...data.trace,{tool:'llm.explain_schedule'}]}});
     });
     await page.goto(`http://127.0.0.1:${server.address().port}/manufacturing-schedule-demo`);
     await page.waitForFunction(() => document.querySelectorAll('#ordersBody tr').length === 5);
     assert.equal(await page.locator('#sampleQuestion option').count(),19);
     assert.match(await page.locator('#sampleQuestion option').nth(10).textContent(),/有限產能排程引擎/);
-    assert.equal(scheduleCalls.length,1); assert.equal(await page.locator('.gantt-row').count(),3); assert.equal(await page.locator('.gantt-bar').count(),15); assert.equal(await page.locator('.source').count(),9);
+    assert.equal(scheduleCalls.length,1); assert.equal(await page.locator('#gantt .gantt-row').count(),3); assert.equal(await page.locator('#gantt .gantt-bar').count(),15); assert.equal(await page.locator('.source').count(),9);
+    assert.equal(await page.locator('#engineComparison').isVisible(),true); assert.match(await page.locator('#comparisonVerdict').textContent(),/比較通過/);
+    assert.equal(await page.locator('#ruleGantt .gantt-row').count(),3); assert.equal(await page.locator('#ortoolsGantt .gantt-row').count(),3);
+    assert.equal(await page.locator('#defaultEngine option').count(),2); assert.equal(await page.locator('#defaultEngine option').nth(1).isDisabled(),false);
     assert.equal(await page.locator('#integrationWarnings').isVisible(),true); assert.match(await page.locator('#mesStatus').textContent(),/ELECTRONICS-DEMO-01/);
     assert.match(await page.locator('#quality').textContent(),/BGA/); assert.match(await page.locator('#maintenance').textContent(),/MWO-2026-018/);
     assert.match(await page.locator('#wms').textContent(),/LOT-MCU-C-2610/); assert.match(await page.locator('#plm').textContent(),/ECO-2026-014/); assert.match(await page.locator('#spc').textContent(),/Cpk 0.91/);

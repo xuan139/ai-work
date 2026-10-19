@@ -156,6 +156,7 @@ The NAS Upload page accepts audio, video, image, PDF, DOCX, text, and general fi
 - Browser recordings and audio uploads share the same ASR selector and processing path.
 - Local ASR options include `whisper.cpp`, `faster-whisper`, `SenseVoiceSmall`, and `Paraformer-zh`; they run only when the corresponding runtime and model files are installed on the NAS host.
 - `whisper.cpp` uses CPU by default so it can coexist with the local GPU LLM. Set `WHISPER_CPP_USE_GPU=1` to enable its GPU backend. Python ASR runtimes can be installed with `pip install -r requirements-asr.txt`.
+- The optional OR-Tools CP-SAT scheduling engine can be installed with `pip install -r requirements-scheduling.txt`. Without it, manufacturing scheduling remains available through the built-in deterministic rule engine.
 - Cloud ASR options include OpenAI Transcribe, Deepgram Nova-3, and AssemblyAI Universal. The API key is used only for the current upload and is not written to SQLite.
 - Every ASR success or failure is written to the model call audit table with caller, model, input file descriptor, output, status, and timestamp.
 - Successful ASR output is split into `audio_transcript` chunks in `document_chunks`, so audio meeting content can be queried through the same RAG panel as PDF/DOCX.

@@ -8,6 +8,13 @@ const copy = {
     rush: "加入模擬急單", rushHelp: "沿用最新 MCP 訂單的產品條件，建立 WHAT-IF 急單", downtime: "SMT-01 模擬停機",
     materialDelay: "短缺物料到料延後", none: "不增加", twoHours: "2 小時", fourHours: "4 小時", twoDays: "2 個工作日", threeDays: "3 個工作日",
     baseline: "目前顯示基準情境。", currentScenario: "目前排程情境", dirty: "情境已變更，請重新產生排程。",
+    comparisonEyebrow: "DUAL ENGINE · SAME MCP SNAPSHOT", comparisonTitle: "雙引擎排程比較",
+    comparisonHelp: "現有規則引擎與 OR-Tools 使用完全相同的 MCP 資料與情境。",
+    ruleEngine: "現有規則引擎", ortoolsEngine: "OR-Tools CP-SAT", solverStatus: "求解狀態", solveTime: "求解時間",
+    weightedLate: "加權延期", changeoverMinutes: "換線分鐘", makespan: "總完工跨度", defaultEngine: "系統預設引擎",
+    saveDefault: "儲存預設", saved: "預設引擎已更新", active: "目前使用", validated: "比較通過：OR-Tools 未增加延期或換線，且至少一項改善。",
+    notValidated: "尚未通過改善條件；保留規則引擎為預設。", unavailable: "OR-Tools 無法使用，已回退規則引擎。",
+    ruleGantt: "規則引擎甘特圖", ortoolsGantt: "OR-Tools 甘特圖", minutesShort: "分鐘",
     qaEyebrow: "LOCAL LLM · 可追溯", qaTitle: "AI 排程問答", sample: "範例問題", prompt: "您的問題",
     promptPlaceholder: "例如：目前哪些訂單可能延期？", ask: "詢問目前排程", answer: "模型回答",
     orders: "訂單與預測交期", order: "訂單", customer: "客戶", product: "產品", quantity: "數量", priority: "優先級", sourceType: "來源",
@@ -44,6 +51,13 @@ const copy = {
     rush: "Add a simulated rush order", rushHelp: "Copy the latest MCP order conditions into a WHAT-IF order", downtime: "SMT-01 simulated downtime",
     materialDelay: "Delay shortage replenishment", none: "No addition", twoHours: "2 hours", fourHours: "4 hours", twoDays: "2 workdays", threeDays: "3 workdays",
     baseline: "Showing the baseline scenario.", currentScenario: "Current schedule scenario", dirty: "Scenario changed. Generate the schedule again.",
+    comparisonEyebrow: "DUAL ENGINE · SAME MCP SNAPSHOT", comparisonTitle: "Dual-engine schedule comparison",
+    comparisonHelp: "The rule engine and OR-Tools use the exact same MCP data and scenario.",
+    ruleEngine: "Current rule engine", ortoolsEngine: "OR-Tools CP-SAT", solverStatus: "Solver status", solveTime: "Solve time",
+    weightedLate: "Weighted lateness", changeoverMinutes: "Changeover minutes", makespan: "Makespan", defaultEngine: "System default engine",
+    saveDefault: "Save default", saved: "Default engine updated", active: "Active", validated: "Validation passed: OR-Tools improves at least one metric without worsening lateness or changeovers.",
+    notValidated: "Improvement condition not yet met; keep the rule engine as default.", unavailable: "OR-Tools is unavailable; the rule engine was used as fallback.",
+    ruleGantt: "Rule-engine Gantt", ortoolsGantt: "OR-Tools Gantt", minutesShort: "min",
     qaEyebrow: "LOCAL LLM · TRACEABLE", qaTitle: "AI scheduling Q&A", sample: "Sample question", prompt: "Your question",
     promptPlaceholder: "Example: Which orders may be late?", ask: "Ask about this schedule", answer: "Model answer",
     orders: "Orders and predicted delivery", order: "Order", customer: "Customer", product: "Product", quantity: "Qty", priority: "Priority", sourceType: "Source",
@@ -73,14 +87,14 @@ const copy = {
       "Summarize material, engineering-change, quality, and equipment risks by order."],
   },
 };
-const state = { language: localStorage.getItem("ai-work-lang") === "en" ? "en" : "zh-Hant", schedule: null, trace: [] };
+const state = { language: localStorage.getItem("ai-work-lang") === "en" ? "en" : "zh-Hant", schedule: null, trace: [], engineSetting: null };
 const t = (key) => copy[state.language][key];
 
 function scenario() {
   return { rush_order: $("rushOrder").checked, smt_downtime_hours: Number($("downtimeHours").value), material_delay_days: Number($("materialDelay").value) };
 }
-async function request(path, payload) {
-  const response = await fetch(path, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+async function request(path, payload, method = "POST") {
+  const response = await fetch(path, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
   if (response.status === 401) { location.href = "/"; throw new Error("Login required"); }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.detail || `HTTP ${response.status}`);
@@ -129,7 +143,7 @@ function renderOrders(data) {
     cell(row, order.reasons.join("；")); return row;
   }));
 }
-function renderGantt(data) {
+function renderGanttInto(targetId, data) {
   const start = new Date(data.snapshot_at).getTime();
   const ends = data.operations.map((op) => new Date(op.end_at).getTime()).concat(data.downtimes.map((d) => new Date(d.end).getTime()));
   const end = Math.max(...ends, start + 24 * 3600 * 1000);
@@ -159,7 +173,64 @@ function renderGantt(data) {
     }
     row.append(track); board.append(row);
   }
-  $("gantt").replaceChildren(board);
+  $(targetId).replaceChildren(board);
+}
+function renderGantt(data) { renderGanttInto("gantt", data); }
+
+function metricLine(label, value) {
+  const row = document.createElement("div"); row.className = "engine-metric";
+  row.append(text("span", label), text("strong", value)); return row;
+}
+function renderEngineComparison(data) {
+  const comparison = data.engine_comparison;
+  if (!comparison) { $("engineComparison").hidden = true; return; }
+  $("engineComparison").hidden = false;
+  if (data.engine_setting) state.engineSetting = data.engine_setting;
+  const setting = state.engineSetting;
+  if (setting) {
+    const selected = $("defaultEngine").value || setting.current.id;
+    $("defaultEngine").replaceChildren(...setting.options.map((option) => {
+      const node = document.createElement("option"); node.value = option.id; node.textContent = option.name;
+      node.disabled = option.id === "ortools-cp-sat-v1" && !comparison.validated_better && setting.current.id !== option.id;
+      return node;
+    }));
+    $("defaultEngine").value = setting.options.some((item) => item.id === selected) ? selected : setting.current.id;
+    $("engineSettingControls").hidden = !setting.can_manage;
+  }
+  const rule = comparison.metrics.rule;
+  const optimized = comparison.metrics.ortools;
+  $("ruleEngineName").textContent = `${t("ruleEngine")}${comparison.active_engine === "finite-capacity-mcp-v4" ? ` · ${t("active")}` : ""}`;
+  $("ruleMetrics").replaceChildren(
+    metricLine(t("weightedLate"), `${rule.weighted_late_minutes} ${t("minutesShort")}`),
+    metricLine(t("changeoverMinutes"), `${rule.changeover_minutes} ${t("minutesShort")}`),
+    metricLine(t("makespan"), `${rule.makespan_minutes} ${t("minutesShort")}`),
+  );
+  if (optimized && comparison.ortools) {
+    const engine = comparison.ortools.engine;
+    $("ortoolsEngineName").textContent = `${t("ortoolsEngine")}${comparison.active_engine === "ortools-cp-sat-v1" ? ` · ${t("active")}` : ""}`;
+    $("ortoolsMetrics").replaceChildren(
+      metricLine(t("weightedLate"), `${optimized.weighted_late_minutes} ${t("minutesShort")}`),
+      metricLine(t("changeoverMinutes"), `${optimized.changeover_minutes} ${t("minutesShort")}`),
+      metricLine(t("makespan"), `${optimized.makespan_minutes} ${t("minutesShort")}`),
+      metricLine(t("solverStatus"), engine.solver_status || "-"),
+      metricLine(t("solveTime"), `${engine.solve_time_ms || 0} ms`),
+    );
+    $("ortoolsGanttWrap").hidden = false;
+    renderGanttInto("ruleGantt", comparison.rule);
+    renderGanttInto("ortoolsGantt", comparison.ortools);
+  } else {
+    $("ortoolsEngineName").textContent = t("ortoolsEngine");
+    $("ortoolsMetrics").replaceChildren(text("p", comparison.ortools_error || t("unavailable"), "shortage"));
+    $("ortoolsGanttWrap").hidden = true;
+    renderGanttInto("ruleGantt", comparison.rule);
+  }
+  const delta = comparison.delta || {};
+  const deltaText = comparison.validated_better
+    ? ` ${t("weightedLate")} ↓ ${delta.weighted_late_minutes_reduced ?? "-"} ${t("minutesShort")} · ${t("changeoverMinutes")} ↓ ${delta.changeover_minutes_reduced ?? "-"} ${t("minutesShort")}`
+    : "";
+  const message = !comparison.ortools_available ? t("unavailable") : comparison.validated_better ? `${t("validated")}${deltaText}` : t("notValidated");
+  $("comparisonVerdict").textContent = message;
+  $("comparisonVerdict").className = comparison.validated_better ? "comparison-verdict passed" : "comparison-verdict";
 }
 function renderCenters(data) {
   const mes = data.mes_snapshot || {};
@@ -274,6 +345,7 @@ function scheduledScenarioText(data) {
 }
 function renderSchedule(data, trace = data.trace) {
   state.schedule = data; state.trace = trace;
+  renderEngineComparison(data);
   renderMetrics(data); renderOrders(data); renderGantt(data); renderCenters(data); renderInventory(data);
   renderQuality(data); renderMaintenance(data); renderWms(data); renderPlm(data); renderSpc(data); renderSources(data, trace);
   $("snapshotNotice").textContent = `${t("notice")} Snapshot: ${fmt(data.snapshot_at)}.`;
@@ -300,6 +372,15 @@ async function generate() {
   await work(t("generating"), async () => renderSchedule(await request("/api/manufacturing-schedule-demo/schedule", { scenario: scenario() })));
 }
 $("runSchedule").addEventListener("click", generate);
+$("saveEngine").addEventListener("click", async () => {
+  const engineId = $("defaultEngine").value;
+  await work(t("generating"), async () => {
+    const current = await request("/api/admin/manufacturing-schedule-engine", { engine_id: engineId }, "PUT");
+    state.engineSetting = { ...state.engineSetting, current };
+    $("engineSaveStatus").textContent = t("saved");
+    renderSchedule(await request("/api/manufacturing-schedule-demo/schedule", { scenario: scenario() }));
+  });
+});
 for (const id of ["rushOrder", "downtimeHours", "materialDelay"]) $(id).addEventListener("change", () => { $("scenarioState").textContent = t("dirty"); });
 $("sampleQuestion").addEventListener("change", () => {
   if ($("sampleQuestion").value !== "") {

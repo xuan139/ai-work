@@ -10,6 +10,7 @@ from typing import Any, Callable
 
 from app.db import create_mcp_audit_log
 from app.manufacturing_schedule_demo import normalize_scenario, run_schedule
+from app.manufacturing_schedule_ortools import compare_schedules
 from app.mcp_orchestrator import normalize_mes_result
 from app.mcp_runtime import McpConnectionError, call_streamable_http_tool
 
@@ -576,6 +577,7 @@ async def run_mcp_schedule(
     spc_server: dict[str, Any],
     call_tool: Callable[[dict[str, Any], str, dict[str, Any]], dict[str, Any]] = call_streamable_http_tool,
     now: datetime | None = None,
+    default_engine: str = "finite-capacity-mcp-v4",
 ) -> dict[str, Any]:
     selected_scenario = normalize_scenario(scenario)
     order_rows, order_trace = await _call_mcp(
@@ -649,4 +651,5 @@ async def run_mcp_schedule(
         odoo_name=str(odoo_server["name"]),
         mes_name=str(mes_server["name"]),
     )
-    return run_schedule(selected_scenario, snapshot=snapshot)
+    rule_schedule = run_schedule(selected_scenario, snapshot=snapshot)
+    return await asyncio.to_thread(compare_schedules, rule_schedule, default_engine)
