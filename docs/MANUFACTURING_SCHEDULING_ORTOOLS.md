@@ -30,3 +30,13 @@ The manufacturing scheduling demo used one deterministic finite-capacity rule en
 ## Rollback
 
 Set `current_scheduling_engine_id` back to `finite-capacity-mcp-v4`, remove the optional OR-Tools package, restore the previous manufacturing demo files, and restart the service. MCP data and existing audit records do not require a database rollback.
+
+## 2026-10-19 professional console UI
+
+- **Trigger:** The scheduling demo exposed all data but read as one long technical report, with the summary below the controls and every connected-system detail expanded.
+- **Root cause:** Controls, decisions, results, and supporting evidence had similar visual weight, so users could not quickly identify the current risk, run a scenario, or compare engines.
+- **Fix:** Reorder the page as status and KPIs, scenario/AI workbench, dual-engine decision, schedule output, and system evidence. Add section navigation, stronger risk/status hierarchy, paired engine panels, responsive control layouts, and collapsible QMS/CMMS/WMS/PLM/SPC evidence. Keep the two most operational inputs, MES capacity and inventory, expanded by default. No scheduling or MCP behavior changed.
+- **Verification:** JavaScript syntax and the Chrome fixture suite pass. The suite checks the new structure, collapsed/open defaults, all prior interactions, and no horizontal overflow at 1440 px and 390 px. Desktop and mobile screenshots were inspected.
+- **Deployment:** Backed up the prior static files at `/home/ubuntu/ai-work/backups/manufacturing-ui-20261019-084651`, then replaced only the manufacturing HTML, CSS, and JavaScript. No service restart or database change was required. All three deployed file hashes match local files, public CSS/JavaScript hashes match the release, and the protected page continues to return 401 to an anonymous request.
+- **Unverified:** Final typography depends on the client operating system's available Traditional Chinese font. Authenticated production-browser behavior remains to be checked after deployment.
+- **Rollback:** Restore the previous manufacturing schedule HTML, CSS, JavaScript, and UI test. Backend data, settings, jobs, and the OR-Tools installation are unaffected.

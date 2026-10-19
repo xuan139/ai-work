@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>電子製造排程 Demo · AI Work</title>
   <link rel="icon" href="/static/icons/icon-192.png">
-  <link rel="stylesheet" href="/static/manufacturing-schedule-demo.css?v=6">
-  <script src="/static/manufacturing-schedule-demo.js?v=8" defer></script>
+  <link rel="stylesheet" href="/static/manufacturing-schedule-demo.css?v=7">
+  <script src="/static/manufacturing-schedule-demo.js?v=9" defer></script>
 </head>
 <body>
   <header>
@@ -14,17 +14,29 @@
     <nav><a href="/" data-copy="back">返回工作區</a><button id="language" type="button">EN</button></nav>
   </header>
   <main>
-    <div class="heading">
-      <div><p class="eyebrow">ELECTRONICS MANUFACTURING · SCHEDULING</p><h1 data-copy="title">電子製造排程 Demo</h1></div>
-      <span class="badge" data-copy="badge">LIVE MCP · 唯讀</span>
-    </div>
-    <p class="intro" data-copy="intro">透過唯讀 MCP 整合 Odoo、MES、WMS 追溯、PLM／ECO、QMS、SPC 與 CMMS，再由本地有限產能排程引擎計算交期風險。</p>
-    <p id="snapshotNotice" class="notice" data-copy="notice">資料由 MCP 即時讀取；製造周邊系統為明確標示的教學模擬。本頁不會寫入企業系統或 PLC。</p>
-    <section id="integrationWarnings" class="warning-panel" aria-labelledby="warningsTitle" hidden>
-      <h2 id="warningsTitle" data-copy="warnings">資料邊界與假設</h2><ul id="warningList"></ul>
+    <section class="hero" aria-labelledby="pageTitle">
+      <div class="heading">
+        <div><p class="eyebrow">ELECTRONICS MANUFACTURING · SCHEDULING CONTROL</p><h1 id="pageTitle" data-copy="title">電子製造排程 Demo</h1><p class="intro" data-copy="intro">透過唯讀 MCP 整合 Odoo、MES、WMS 追溯、PLM／ECO、QMS、SPC 與 CMMS，再由本地有限產能排程引擎計算交期風險。</p></div>
+        <div class="hero-status"><span class="badge" data-copy="badge">LIVE MCP · 唯讀</span><span class="status-dot" data-copy="connected">資料已連線</span></div>
+      </div>
+      <p id="snapshotNotice" class="notice" data-copy="notice">資料由 MCP 即時讀取；製造周邊系統為明確標示的教學模擬。本頁不會寫入企業系統或 PLC。</p>
     </section>
 
-    <section class="scenario-panel" aria-labelledby="scenarioTitle">
+    <section id="metrics" class="metrics" aria-label="排程摘要"></section>
+
+    <nav class="section-nav" aria-label="Page sections">
+      <a href="#controls" data-copy="navControls">情境與問答</a>
+      <a href="#engineComparison" data-copy="navEngines">引擎比較</a>
+      <a href="#scheduleResults" data-copy="navSchedule">排程結果</a>
+      <a href="#systems" data-copy="navSystems">系統證據</a>
+    </nav>
+
+    <details id="integrationWarnings" class="warning-panel" hidden>
+      <summary><span data-copy="warnings">資料邊界與假設</span><span class="summary-action" data-copy="expand">展開</span></summary><ul id="warningList"></ul>
+    </details>
+
+    <div id="controls" class="control-grid">
+    <section class="scenario-panel tool-panel" aria-labelledby="scenarioTitle">
       <div class="section-heading"><div><p class="eyebrow" data-copy="scenarioEyebrow">WHAT-IF 模擬</p><h2 id="scenarioTitle" data-copy="scenarioTitle">選擇情境並重新排程</h2></div>
         <button id="runSchedule" class="primary" type="button" data-copy="run">產生有限產能排程</button></div>
       <div class="scenario-controls">
@@ -34,6 +46,19 @@
       </div>
       <p id="scenarioState" class="muted" data-copy="baseline">目前顯示基準情境。</p>
     </section>
+
+    <section class="question-panel tool-panel" aria-labelledby="questionTitle">
+      <div class="section-heading"><div><p class="eyebrow" data-copy="qaEyebrow">LOCAL LLM · TRACEABLE</p><h2 id="questionTitle" data-copy="qaTitle">AI 排程問答</h2></div><span id="modelName" class="model-badge"></span></div>
+      <form id="askForm">
+        <label for="sampleQuestion" data-copy="sample">範例問題</label>
+        <select id="sampleQuestion"></select>
+        <label for="prompt" data-copy="prompt">您的問題</label>
+        <div class="prompt-row"><input id="prompt" maxlength="1000" required data-copy-placeholder="promptPlaceholder"><button id="ask" class="primary" type="submit" data-copy="ask">詢問目前排程</button></div>
+      </form>
+      <p id="busy" role="status" aria-live="polite" hidden></p><p id="error" role="alert" hidden></p>
+      <div id="answerPanel" class="answer-panel" hidden><h3 data-copy="answer">模型回答</h3><p id="answer"></p></div>
+    </section>
+    </div>
 
     <section id="engineComparison" class="engine-comparison" aria-labelledby="comparisonTitle" hidden>
       <div class="section-heading">
@@ -47,8 +72,8 @@
       <p class="muted" data-copy="comparisonHelp">現有規則引擎與 OR-Tools 使用完全相同的 MCP 資料與情境。</p>
       <p id="engineSaveStatus" class="source-note" role="status" aria-live="polite"></p>
       <div class="engine-grid">
-        <article class="engine-column"><h3 id="ruleEngineName">現有規則引擎</h3><div id="ruleMetrics"></div></article>
-        <article class="engine-column"><h3 id="ortoolsEngineName">OR-Tools CP-SAT</h3><div id="ortoolsMetrics"></div></article>
+        <article class="engine-column rule-engine"><div class="engine-title"><span class="engine-index">A</span><h3 id="ruleEngineName">現有規則引擎</h3></div><div id="ruleMetrics"></div></article>
+        <article class="engine-column optimized-engine"><div class="engine-title"><span class="engine-index">B</span><h3 id="ortoolsEngineName">OR-Tools CP-SAT</h3></div><div id="ortoolsMetrics"></div></article>
       </div>
       <p id="comparisonVerdict" class="comparison-verdict"></p>
       <div class="comparison-gantt-grid">
@@ -57,21 +82,8 @@
       </div>
     </section>
 
-    <section class="question-panel" aria-labelledby="questionTitle">
-      <div class="section-heading"><div><p class="eyebrow" data-copy="qaEyebrow">LOCAL LLM · TRACEABLE</p><h2 id="questionTitle" data-copy="qaTitle">AI 排程問答</h2></div><span id="modelName" class="muted"></span></div>
-      <form id="askForm">
-        <label for="sampleQuestion" data-copy="sample">範例問題</label>
-        <select id="sampleQuestion"></select>
-        <label for="prompt" data-copy="prompt">您的問題</label>
-        <div class="prompt-row"><input id="prompt" maxlength="1000" required data-copy-placeholder="promptPlaceholder"><button id="ask" class="primary" type="submit" data-copy="ask">詢問目前排程</button></div>
-      </form>
-      <p id="busy" role="status" aria-live="polite" hidden></p><p id="error" role="alert" hidden></p>
-      <div id="answerPanel" class="answer-panel" hidden><h3 data-copy="answer">模型回答</h3><p id="answer"></p></div>
-    </section>
-
-    <section id="metrics" class="metrics" aria-label="排程摘要"></section>
-
-    <section class="data-section" aria-labelledby="ordersTitle"><div class="section-heading"><div><p class="eyebrow">ODOO · SALE.ORDER</p><h2 id="ordersTitle" data-copy="orders">訂單與預測交期</h2></div></div>
+    <div id="scheduleResults" class="section-intro"><p class="eyebrow" data-copy="resultsEyebrow">SCHEDULE OUTPUT</p><h2 data-copy="resultsTitle">排程結果與交期風險</h2><p data-copy="resultsHelp">先查看訂單風險，再以工作中心時間軸確認產能配置。</p></div>
+    <section class="data-section orders-section" aria-labelledby="ordersTitle"><div class="section-heading"><div><p class="eyebrow">ODOO · SALE.ORDER</p><h2 id="ordersTitle" data-copy="orders">訂單與預測交期</h2></div><span class="section-meta" data-copy="readOnlyData">唯讀決策資料</span></div>
       <div class="table-scroll"><table><thead><tr><th data-copy="order">訂單</th><th data-copy="customer">客戶</th><th data-copy="product">產品</th><th data-copy="quantity">數量</th><th data-copy="priority">優先級</th><th data-copy="due">要求交期</th><th data-copy="predicted">預測完成</th><th data-copy="risk">延期風險</th><th data-copy="sourceType">來源</th><th data-copy="reason">主要原因</th></tr></thead><tbody id="ordersBody"></tbody></table></div>
     </section>
 
@@ -80,24 +92,20 @@
       <div class="legend"><span class="family-a">A</span><span class="family-b">B</span><span class="family-c">C</span><small data-copy="legend">色彩代表產品家族；條形內顯示訂單。</small></div>
     </section>
 
-    <div class="split-grid">
-      <section class="data-section" aria-labelledby="centersTitle"><p class="eyebrow">MES MCP · SYNTHETIC CAPACITY</p><h2 id="centersTitle" data-copy="centers">工作中心與停機</h2><p id="mesStatus" class="source-note"></p><div id="centers"></div></section>
-      <section class="data-section" aria-labelledby="inventoryTitle"><p class="eyebrow">ODOO · STOCK.QUANT</p><h2 id="inventoryTitle" data-copy="inventory">庫存與缺料</h2><div id="inventory"></div></section>
-    </div>
+    <section id="systems" class="systems-section" aria-labelledby="systemsTitle">
+      <div class="section-intro"><p class="eyebrow" data-copy="systemsEyebrow">CONNECTED OPERATIONS</p><h2 id="systemsTitle" data-copy="systemsTitle">製造系統證據</h2><p data-copy="systemsHelp">依需要展開各系統快照；關鍵風險已納入排程計算。</p></div>
+      <div class="systems-grid">
+        <details class="system-panel" open><summary><span><small>MES MCP</small><strong data-copy="centers">工作中心與停機</strong></span><span class="summary-action" data-copy="viewData">查看資料</span></summary><div class="system-body"><p id="mesStatus" class="source-note"></p><div id="centers"></div></div></details>
+        <details class="system-panel" open><summary><span><small>ODOO · STOCK.QUANT</small><strong data-copy="inventory">庫存與缺料</strong></span><span class="summary-action" data-copy="viewData">查看資料</span></summary><div class="system-body"><div id="inventory"></div></div></details>
+        <details class="system-panel"><summary><span><small>QMS MCP</small><strong data-copy="quality">品質與預期返工</strong></span><span class="summary-action" data-copy="viewData">查看資料</span></summary><div class="system-body"><p id="qmsStatus" class="source-note"></p><div id="quality"></div></div></details>
+        <details class="system-panel"><summary><span><small>CMMS MCP</small><strong data-copy="maintenance">設備健康與維護</strong></span><span class="summary-action" data-copy="viewData">查看資料</span></summary><div class="system-body"><p id="cmmsStatus" class="source-note"></p><div id="maintenance"></div></div></details>
+        <details class="system-panel"><summary><span><small>WMS MCP</small><strong data-copy="wms">倉儲、批次與序號追溯</strong></span><span class="summary-action" data-copy="viewData">查看資料</span></summary><div class="system-body"><p id="wmsStatus" class="source-note"></p><div id="wms"></div></div></details>
+        <details class="system-panel"><summary><span><small>PLM MCP</small><strong data-copy="plm">BOM 版本與工程變更</strong></span><span class="summary-action" data-copy="viewData">查看資料</span></summary><div class="system-body"><p id="plmStatus" class="source-note"></p><div id="plm"></div></div></details>
+        <details class="system-panel"><summary><span><small>SPC MCP</small><strong data-copy="spc">製程能力與失控點</strong></span><span class="summary-action" data-copy="viewData">查看資料</span></summary><div class="system-body"><p id="spcStatus" class="source-note"></p><div id="spc"></div></div></details>
+      </div>
+    </section>
 
-    <div class="split-grid support-grid">
-      <section class="data-section" aria-labelledby="qualityTitle"><p class="eyebrow">QMS MCP · QUALITY</p><h2 id="qualityTitle" data-copy="quality">品質與預期返工</h2><p id="qmsStatus" class="source-note"></p><div id="quality"></div></section>
-      <section class="data-section" aria-labelledby="maintenanceTitle"><p class="eyebrow">CMMS MCP · MAINTENANCE</p><h2 id="maintenanceTitle" data-copy="maintenance">設備健康與維護</h2><p id="cmmsStatus" class="source-note"></p><div id="maintenance"></div></section>
-    </div>
-
-    <div class="split-grid support-grid">
-      <section class="data-section" aria-labelledby="wmsTitle"><p class="eyebrow">WMS MCP · TRACEABILITY</p><h2 id="wmsTitle" data-copy="wms">倉儲、批次與序號追溯</h2><p id="wmsStatus" class="source-note"></p><div id="wms"></div></section>
-      <section class="data-section" aria-labelledby="plmTitle"><p class="eyebrow">PLM MCP · BOM / ECO</p><h2 id="plmTitle" data-copy="plm">BOM 版本與工程變更</h2><p id="plmStatus" class="source-note"></p><div id="plm"></div></section>
-    </div>
-
-    <section class="data-section" aria-labelledby="spcTitle"><p class="eyebrow">SPC MCP · PROCESS CAPABILITY</p><h2 id="spcTitle" data-copy="spc">製程能力與失控點</h2><p id="spcStatus" class="source-note"></p><div id="spc"></div></section>
-
-    <section class="data-section" aria-labelledby="sourcesTitle"><p class="eyebrow">PROVENANCE</p><h2 id="sourcesTitle" data-copy="sources">資料來源與工具軌跡</h2>
+    <section class="data-section provenance-section" aria-labelledby="sourcesTitle"><div class="section-heading"><div><p class="eyebrow">PROVENANCE</p><h2 id="sourcesTitle" data-copy="sources">資料來源與工具軌跡</h2></div><span class="section-meta" data-copy="auditReady">可追溯</span></div>
       <div id="sources" class="source-grid"></div>
       <details><summary data-copy="trace">查看完整工具呼叫軌跡</summary><pre id="trace"></pre></details>
     </section>

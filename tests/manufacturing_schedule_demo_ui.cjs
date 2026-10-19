@@ -78,6 +78,13 @@ const server = http.createServer(async (req, res) => {
     });
     await page.goto(`http://127.0.0.1:${server.address().port}/manufacturing-schedule-demo`);
     await page.waitForFunction(() => document.querySelectorAll('#ordersBody tr').length === 5);
+    assert.equal(await page.locator('.section-nav a').count(),4);
+    assert.equal(await page.locator('#metrics').evaluate((node) => Boolean(node.compareDocumentPosition(document.getElementById('controls')) & Node.DOCUMENT_POSITION_FOLLOWING)),true);
+    assert.equal(await page.locator('.control-grid > .tool-panel').count(),2);
+    assert.equal(await page.locator('.systems-grid > .system-panel').count(),7);
+    assert.equal(await page.locator('.system-panel').nth(0).getAttribute('open'),'');
+    assert.equal(await page.locator('.system-panel').nth(2).getAttribute('open'),null);
+    assert.equal(await page.locator('#modelName').isVisible(),false);
     assert.equal(await page.locator('#sampleQuestion option').count(),19);
     assert.match(await page.locator('#sampleQuestion option').nth(10).textContent(),/有限產能排程引擎/);
     assert.equal(scheduleCalls.length,1); assert.equal(await page.locator('#gantt .gantt-row').count(),3); assert.equal(await page.locator('#gantt .gantt-bar').count(),15); assert.equal(await page.locator('.source').count(),9);
