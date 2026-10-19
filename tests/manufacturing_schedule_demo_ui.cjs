@@ -78,6 +78,7 @@ const server = http.createServer(async (req, res) => {
     });
     await page.goto(`http://127.0.0.1:${server.address().port}/manufacturing-schedule-demo`);
     await page.waitForFunction(() => document.querySelectorAll('#ordersBody tr').length === 5);
+    await mkdir(path.join(root,'tmp'),{recursive:true});
     assert.equal(await page.locator('.section-nav a').count(),4);
     assert.equal(await page.locator('#metrics').evaluate((node) => Boolean(node.compareDocumentPosition(document.getElementById('controls')) & Node.DOCUMENT_POSITION_FOLLOWING)),true);
     assert.equal(await page.locator('.control-grid > .tool-panel').count(),2);
@@ -96,6 +97,15 @@ const server = http.createServer(async (req, res) => {
     assert.match(await page.locator('#wms').textContent(),/LOT-MCU-C-2610/); assert.match(await page.locator('#plm').textContent(),/ECO-2026-014/); assert.match(await page.locator('#spc').textContent(),/Cpk 0.91/);
     assert.match(await page.locator('.badge').textContent(),/MCP/); assert.match(await page.locator('#trace').textContent(),/qms_quality_snapshot/); assert.match(await page.locator('#trace').textContent(),/cmms_maintenance_snapshot/);
     assert.match(await page.locator('#trace').textContent(),/wms_inventory_snapshot/); assert.match(await page.locator('#trace').textContent(),/plm_engineering_snapshot/); assert.match(await page.locator('#trace').textContent(),/spc_process_snapshot/);
+    assert.equal(await page.locator('#metrics .metric').count(),5);
+    await page.locator('#metrics .metric').nth(1).click();
+    assert.equal(await page.locator('#metricDialog').isVisible(),true); assert.match(await page.locator('#metricDialogTitle').textContent(),/預計延期/);
+    assert.equal(await page.locator('#metricDialogBody tbody tr').count(),1); assert.match(await page.locator('#metricDialogBody').textContent(),/SO-1002/);
+    await page.screenshot({path:path.join(root,'tmp/manufacturing-metric-dialog-1440.png')});
+    await page.locator('#closeMetricDialog').click(); assert.equal(await page.locator('#metricDialog').isVisible(),false);
+    await page.locator('#metrics .metric').nth(3).click();
+    assert.equal(await page.locator('#metricDialogBody tbody tr').count(),10); assert.match(await page.locator('#metricDialogBody').textContent(),/ASSY-01/);
+    await page.keyboard.press('Escape'); assert.equal(await page.locator('#metricDialog').isVisible(),false);
     await page.locator('#rushOrder').check(); await page.locator('#downtimeHours').selectOption('2'); await page.locator('#materialDelay').selectOption('2');
     assert.match(await page.locator('#scenarioState').textContent(), /變更/); assert.equal(scheduleCalls.length,1);
     await page.locator('#runSchedule').click(); await page.waitForFunction(() => document.querySelectorAll('#ordersBody tr').length === 6);
@@ -110,8 +120,7 @@ const server = http.createServer(async (req, res) => {
     await page.locator('#prompt').fill('FAIL'); await page.locator('#ask').click();
     await page.waitForFunction(() => document.getElementById('answer').textContent.includes('too many tokens'));
     assert.equal(await page.locator('#answerPanel').isVisible(),true); assert.equal(await page.locator('#error').isVisible(),true);
-    await mkdir(path.join(root,'tmp'),{recursive:true});
     for (const width of [1440,390]) { await page.setViewportSize({width,height:1100}); assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),true); await page.screenshot({path:path.join(root,`tmp/manufacturing-schedule-${width}.png`),fullPage:true}); }
-    assert.deepEqual(errors,[]); console.log('PASS: baseline, three what-if controls, Gantt, LLM samples, sources/trace, desktop/mobile layout.');
+    assert.deepEqual(errors,[]); console.log('PASS: baseline, KPI drill-down dialogs, three what-if controls, Gantt, LLM samples, sources/trace, desktop/mobile layout.');
   } finally { if (browser) await browser.close(); await new Promise(resolve => server.close(resolve)); }
 })().catch(error => { console.error(error); process.exitCode=1; });

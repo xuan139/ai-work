@@ -28,6 +28,9 @@ const copy = {
     sources: "資料來源與工具軌跡", trace: "查看完整工具呼叫軌跡", auditReady: "可追溯",
     generating: "正在計算有限產能排程…", thinking: "模型正在根據目前排程產生說明…", failed: "操作失敗",
     metrics: ["訂單", "預計延期", "準時", "換線", "最晚完成"], riskLabels: { low: "低", medium: "中", high: "高" },
+    metricDetailEyebrow: "SCHEDULE METRIC", viewDetails: "查看詳情", close: "關閉", records: "筆明細",
+    center: "工作中心", start: "開始", end: "結束", setupTime: "換線時間", noDetails: "目前沒有符合條件的明細。",
+    metricDescriptions: ["目前情境中的全部訂單", "預測完成時間超過要求交期的訂單", "預測可在要求交期前完成的訂單", "排程中需要換線準備的工序", "依預測完成時間由晚至早排列"],
     priorityLabels: { normal: "一般", high: "高", urgent: "急單" }, shift: "班次", capacity: "產能", setup: "換線",
     downtimeLabel: "停機", noDowntime: "無停機", hours: "件／小時", minutes: "分鐘", onHand: "現有", available: "可用", required: "需求",
     orderSources: { odoo_mcp: "Odoo MCP", mes_mcp_demo: "MES 教學", what_if: "WHAT-IF" },
@@ -74,6 +77,9 @@ const copy = {
     sources: "Sources and tool trace", trace: "View full tool-call trace", auditReady: "Traceable",
     generating: "Calculating the finite-capacity schedule…", thinking: "The model is explaining the current schedule…", failed: "Operation failed",
     metrics: ["Orders", "Late", "On time", "Changeovers", "Latest finish"], riskLabels: { low: "Low", medium: "Medium", high: "High" },
+    metricDetailEyebrow: "SCHEDULE METRIC", viewDetails: "View details", close: "Close", records: "records",
+    center: "Work center", start: "Start", end: "End", setupTime: "Changeover", noDetails: "No matching details in the current schedule.",
+    metricDescriptions: ["All orders in the current scenario", "Orders predicted to finish after their requested due time", "Orders predicted to finish by their requested due time", "Scheduled operations that require changeover preparation", "Orders sorted from latest to earliest predicted completion"],
     priorityLabels: { normal: "Normal", high: "High", urgent: "Rush" }, shift: "Shift", capacity: "Capacity", setup: "Changeover",
     downtimeLabel: "Downtime", noDowntime: "No downtime", hours: "units/hour", minutes: "minutes", onHand: "On hand", available: "Available", required: "Required",
     orderSources: { odoo_mcp: "Odoo MCP", mes_mcp_demo: "MES teaching", what_if: "WHAT-IF" },
@@ -131,12 +137,53 @@ function fmt(value, includeTime = true) {
 }
 function cell(row, value, className = "") { row.append(text("td", value, className)); }
 
+function detailTable(columns, rows) {
+  if (!rows.length) return text("p", t("noDetails"), "dialog-empty");
+  const scroll = document.createElement("div"); scroll.className = "dialog-table-scroll";
+  const table = document.createElement("table"); table.className = "detail-table";
+  const head = document.createElement("thead"); const headRow = document.createElement("tr");
+  for (const column of columns) headRow.append(text("th", column));
+  head.append(headRow); table.append(head);
+  const body = document.createElement("tbody");
+  for (const values of rows) {
+    const row = document.createElement("tr");
+    for (const value of values) cell(row, value);
+    body.append(row);
+  }
+  table.append(body); scroll.append(table); return scroll;
+}
+function orderDetailRows(orders) {
+  return orders.map((order) => [order.order, order.customer || "-", order.product, String(order.quantity), fmt(order.due_at), fmt(order.predicted_completion_at), `${t("riskLabels")[order.risk_level]} · ${order.risk_probability}%`, order.reasons.join("；")]);
+}
+function openMetricDetail(index, data) {
+  const labels = t("metrics");
+  let columns; let rows;
+  if (index === 3) {
+    columns = [t("order"), t("center"), t("start"), t("end"), t("setupTime")];
+    rows = data.operations.filter((operation) => operation.setup_minutes > 0).map((operation) => [operation.order, operation.center_id, fmt(operation.start_at), fmt(operation.end_at), `${operation.setup_minutes} ${t("minutes")}`]);
+  } else {
+    columns = [t("order"), t("customer"), t("product"), t("quantity"), t("due"), t("predicted"), t("risk"), t("reason")];
+    const late = (order) => Number(order.late_minutes || 0) > 0;
+    let orders = index === 1 ? data.orders.filter(late) : index === 2 ? data.orders.filter((order) => !late(order)) : [...data.orders];
+    if (index === 4) orders.sort((a, b) => new Date(b.predicted_completion_at) - new Date(a.predicted_completion_at));
+    rows = orderDetailRows(orders);
+  }
+  $("metricDialogTitle").textContent = labels[index];
+  $("metricDialogSummary").textContent = `${t("metricDescriptions")[index]} · ${rows.length} ${t("records")}`;
+  $("metricDialogBody").replaceChildren(detailTable(columns, rows));
+  $("closeMetricDialog").ariaLabel = t("close");
+  $("closeMetricDialog").title = t("close");
+  $("metricDialog").showModal();
+}
 function renderMetrics(data) {
   const values = [data.summary.order_count, data.summary.late_count, data.summary.on_time_count,
     data.summary.setup_count, fmt(data.summary.latest_completion_at)];
   $("metrics").replaceChildren(...values.map((value, index) => {
-    const item = document.createElement("div"); item.className = "metric";
-    item.append(text("span", String(value)), text("small", t("metrics")[index])); return item;
+    const item = document.createElement("button"); item.type = "button"; item.className = "metric";
+    item.ariaLabel = `${t("metrics")[index]}：${value}。${t("viewDetails")}`;
+    item.append(text("span", String(value), "metric-value"), text("small", t("metrics")[index], "metric-label"), text("span", t("viewDetails"), "metric-action"));
+    item.addEventListener("click", () => openMetricDetail(index, data));
+    return item;
   }));
 }
 function renderOrders(data) {
@@ -397,6 +444,8 @@ $("sampleQuestion").addEventListener("change", () => {
   $("prompt").focus();
 });
 $("prompt").addEventListener("input", () => { $("sampleQuestion").value = ""; });
+$("closeMetricDialog").addEventListener("click", () => $("metricDialog").close());
+$("metricDialog").addEventListener("click", (event) => { if (event.target === $("metricDialog")) $("metricDialog").close(); });
 $("askForm").addEventListener("submit", async (event) => {
   event.preventDefault(); const prompt = $("prompt").value.trim(); if (!prompt) return;
   $("answerPanel").hidden = false;
@@ -420,5 +469,5 @@ $("askForm").addEventListener("submit", async (event) => {
     $("answerPanel").scrollIntoView({ behavior: "smooth", block: "nearest" });
   }
 });
-$("language").addEventListener("click", () => { state.language = state.language === "en" ? "zh-Hant" : "en"; localStorage.setItem("ai-work-lang", state.language); renderLanguage(); });
+$("language").addEventListener("click", () => { if ($("metricDialog").open) $("metricDialog").close(); state.language = state.language === "en" ? "zh-Hant" : "en"; localStorage.setItem("ai-work-lang", state.language); renderLanguage(); });
 renderLanguage(); generate();

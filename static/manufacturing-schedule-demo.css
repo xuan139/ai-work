@@ -52,12 +52,15 @@ h3 { margin: 0 0 8px; font-size: 17px; letter-spacing: 0; }
 .model-badge:empty { display: none; }
 .notice { margin: 20px 0 0; padding-top: 14px; color: #526f82; border-top: 1px solid var(--line); font-size: 13px; }
 .metrics { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); margin: 14px 0 0; background: var(--surface); border: 1px solid var(--line); }
-.metric { min-width: 0; min-height: 94px; padding: 18px 20px; border-right: 1px solid var(--line); }
+.metric { position: relative; min-width: 0; min-height: 110px; padding: 17px 20px 15px; text-align: left; border: 0; border-right: 1px solid var(--line); border-radius: 0; background: var(--surface); }
 .metric:last-child { border-right: 0; }
-.metric span { display: block; overflow-wrap: anywhere; color: var(--navy); font-size: 28px; font-weight: 780; line-height: 1.15; }
-.metric small { display: block; margin-top: 6px; color: var(--muted); font-size: 12px; font-weight: 650; }
-.metric:nth-child(2) span { color: var(--red); }
-.metric:nth-child(3) span { color: var(--teal); }
+.metric:hover { z-index: 1; background: #f7fbfd; box-shadow: inset 0 -3px 0 var(--blue); }
+.metric-value { display: block; overflow-wrap: anywhere; color: var(--navy); font-size: 28px; font-weight: 780; line-height: 1.15; }
+.metric-label { display: block; margin-top: 5px; color: var(--muted); font-size: 12px; font-weight: 650; }
+.metric-action { display: block; margin-top: 8px; color: var(--blue); font-size: 11px; font-weight: 750; }
+.metric-action::after { content: "  →"; }
+.metric:nth-child(2) .metric-value { color: var(--red); }
+.metric:nth-child(3) .metric-value { color: var(--teal); }
 .section-nav { position: sticky; top: 64px; z-index: 15; margin: 14px 0 0; padding: 8px; display: flex; gap: 4px; overflow-x: auto; background: rgba(234, 246, 251, .96); border: 1px solid #c6e1ec; backdrop-filter: blur(10px); }
 .section-nav a { padding: 8px 14px; color: #31576f; border-radius: 4px; text-decoration: none; font-size: 13px; font-weight: 700; white-space: nowrap; }
 .section-nav a:hover { color: #0e628f; background: #fff; }
@@ -168,6 +171,18 @@ tbody tr:hover { background: #f7fafc; }
 details { margin-top: 16px; }
 summary { color: var(--blue); cursor: pointer; }
 pre { max-height: 360px; overflow: auto; padding: 14px; white-space: pre-wrap; overflow-wrap: anywhere; color: #284557; background: #f1f5f7; border: 1px solid var(--line); font-size: 11px; }
+.metric-dialog { width: min(1120px, calc(100vw - 40px)); max-height: min(760px, calc(100vh - 40px)); padding: 0; color: var(--navy); background: var(--surface); border: 1px solid #b9cbd6; border-radius: 6px; box-shadow: 0 24px 70px rgba(12, 43, 64, .28); }
+.metric-dialog::backdrop { background: rgba(12, 35, 52, .58); backdrop-filter: blur(2px); }
+.dialog-shell { min-width: 0; }
+.dialog-header { position: sticky; top: 0; z-index: 3; min-height: 82px; padding: 18px 20px; display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; background: #fff; border-bottom: 1px solid var(--line); }
+.dialog-header h2 { margin-bottom: 0; }
+.dialog-close { width: 40px; min-height: 40px; padding: 0; display: grid; place-items: center; flex: 0 0 40px; color: #496779; border-color: var(--line); font-size: 25px; line-height: 1; }
+.dialog-summary { margin: 0; padding: 13px 20px; color: var(--muted); background: #f4f8fa; border-bottom: 1px solid var(--line); font-size: 13px; }
+.metric-dialog-body { padding: 0 20px 22px; }
+.dialog-table-scroll { max-height: 520px; overflow: auto; }
+.detail-table { min-width: 940px; }
+.detail-table th { top: 0; }
+.dialog-empty { margin: 20px 0 0; padding: 18px; color: var(--muted); background: #f7fafc; }
 @media (max-width: 1100px) {
   .control-grid, .comparison-gantt-grid { grid-template-columns: 1fr; }
   .metrics { grid-template-columns: repeat(3, 1fr); }
@@ -200,7 +215,11 @@ pre { max-height: 360px; overflow: auto; padding: 14px; white-space: pre-wrap; o
 @media (max-width: 440px) {
   .metrics { grid-template-columns: 1fr 1fr; }
   .metric { min-height: 82px; padding: 14px 12px; }
-  .metric span { font-size: 24px; }
+  .metric-value { font-size: 24px; }
   .source-grid { grid-template-columns: 1fr; }
   .badge, .status-dot { white-space: normal; }
+  .metric-dialog { width: calc(100vw - 20px); max-height: calc(100vh - 20px); }
+  .dialog-header { padding: 15px 14px; }
+  .dialog-summary { padding-inline: 14px; }
+  .metric-dialog-body { padding-inline: 14px; }
 }

@@ -40,3 +40,13 @@ Set `current_scheduling_engine_id` back to `finite-capacity-mcp-v4`, remove the 
 - **Deployment:** Backed up the prior static files at `/home/ubuntu/ai-work/backups/manufacturing-ui-20261019-084651`, then replaced only the manufacturing HTML, CSS, and JavaScript. No service restart or database change was required. All three deployed file hashes match local files, public CSS/JavaScript hashes match the release, and the protected page continues to return 401 to an anonymous request.
 - **Unverified:** Final typography depends on the client operating system's available Traditional Chinese font. Authenticated production-browser behavior remains to be checked after deployment.
 - **Rollback:** Restore the previous manufacturing schedule HTML, CSS, JavaScript, and UI test. Backend data, settings, jobs, and the OR-Tools installation are unaffected.
+
+## 2026-10-19 KPI detail dialogs
+
+- **Trigger:** The five headline schedule metrics showed totals but did not let an operator inspect the orders or operations behind each number.
+- **Root cause:** The KPI band rendered plain summary values and had no mapping from a selected metric to the current in-memory schedule result.
+- **Fix:** Render every KPI as an accessible button and open a native modal dialog with the matching live details. Orders, predicted-late orders, on-time orders, changeover operations, and orders sorted by latest completion each use the current schedule response; no extra API call or database write is introduced. The dialog supports the close button, backdrop click, and Escape key.
+- **Verification:** JavaScript syntax, the 254-test Python suite, and the Chrome fixture suite pass; one optional local OR-Tools test remains skipped under Python 3.14. Browser checks assert five interactive metrics, one matching late-order row, ten matching changeover-operation rows, dialog close behavior, and no horizontal overflow at 1440 px and 390 px. Desktop, mobile, and open-dialog screenshots were inspected.
+- **Deployment:** Backed up the previous static files at `/home/ubuntu/ai-work/backups/manufacturing-metric-dialog-20261019-104029`, then replaced only the manufacturing HTML, CSS, and JavaScript. Local, server, and public static-resource hashes match. No process restart or database change was required, and the protected page still returns 401 to an anonymous request.
+- **Unverified:** The modal has not yet been exercised with hundreds of simultaneous orders; its table scrolls within a bounded viewport, but pagination may be appropriate for production-scale snapshots.
+- **Rollback:** Restore the previous manufacturing schedule HTML, CSS, JavaScript, and UI test. No backend, MCP, scheduling-engine, setting, or database rollback is required.
