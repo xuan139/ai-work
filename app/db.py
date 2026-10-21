@@ -101,6 +101,14 @@ MCP_CATALOG_TEMPLATES = (
         "source_url": "https://openpyxl.readthedocs.io/en/stable/", "is_enabled": False,
     },
     {
+        "slug": "nas-excel-pro", "name": "NAS Excel Pro MCP", "transport": "streamable_http",
+        "endpoint": "http://127.0.0.1:8000/mcp/excel-pro", "auth_type": "bearer",
+        "auth_env_var": "NAS_EXCEL_PRO_LOCAL_MCP_KEY",
+        "description": "以 DuckDB 跨 XLSX／CSV／TSV 聯表查詢，依 NAS 資產權限限制資料，並可在背景產生含來源、樞紐分析與圖表的新 XLSX。",
+        "description_en": "Permission-aware DuckDB queries across XLSX, CSV, and TSV assets, with background exports to new XLSX files containing citations, pivot summaries, and charts.",
+        "source_url": "https://duckdb.org/docs/stable/", "is_enabled": True,
+    },
+    {
         "slug": "gmail", "name": "Gmail Read-only", "transport": "streamable_http",
         "endpoint": "http://127.0.0.1:8000/mcp/gmail", "auth_type": "bearer", "auth_env_var": "GMAIL_LOCAL_MCP_KEY",
         "description": "AI Work 受保護的 Gmail 唯讀 MCP，透過正式 Gmail API 搜尋與讀取郵件、討論串及標籤。",
@@ -547,6 +555,28 @@ def init_db() -> None:
                 created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE(job_type, record_id)
+            )
+            """
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS excel_pro_jobs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                status TEXT NOT NULL DEFAULT 'queued',
+                progress INTEGER NOT NULL DEFAULT 0,
+                stage TEXT NOT NULL DEFAULT 'queued',
+                request_json TEXT NOT NULL,
+                result_json TEXT,
+                output_asset_id INTEGER,
+                cancel_requested INTEGER NOT NULL DEFAULT 0,
+                started_at TEXT,
+                finished_at TEXT,
+                error_message TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(user_id) REFERENCES users(id),
+                FOREIGN KEY(output_asset_id) REFERENCES nas_assets(id)
             )
             """
         )
@@ -2651,6 +2681,145 @@ def list_nas_assets(*, user_id: int, role: str, q: str | None = None) -> list[di
     with connect() as conn:
         rows = conn.execute(sql, params).fetchall()
     return _attach_processing_jobs([dict(row) for row in rows])
+
+
+def create_excel_pro_job(*, user_id: int, request_json: str) -> dict[str, Any]:
+    with connect() as conn:
+        cursor = conn.execute(
+            "INSERT INTO excel_pro_jobs (user_id, request_json) VALUES (?, ?)",
+            (user_id, request_json),
+        )
+        row = conn.execute("SELECT * FROM excel_pro_jobs WHERE id = ?", (cursor.lastrowid,)).fetchone()
+    return dict(row)
+
+
+def recover_excel_pro_jobs() -> None:
+    with connect() as conn:
+        conn.execute(
+            """
+            UPDATE excel_pro_jobs
+            SET status = 'queued', stage = 'recovered', started_at = NULL,
+                updated_at = CURRENT_TIMESTAMP
+            WHERE status = 'running'
+            """
+        )
+
+
+def claim_next_excel_pro_job() -> dict[str, Any] | None:
+    with connect() as conn:
+        conn.execute("BEGIN IMMEDIATE")
+        row = conn.execute(
+            """
+            SELECT * FROM excel_pro_jobs
+            WHERE status = 'queued' AND cancel_requested = 0
+            ORDER BY id ASC LIMIT 1
+            """
+        ).fetchone()
+        if row is None:
+            return None
+        conn.execute(
+            """
+            UPDATE excel_pro_jobs
+            SET status = 'running', stage = 'starting', progress = MAX(progress, 1),
+                started_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ? AND status = 'queued'
+            """,
+            (row["id"],),
+        )
+        claimed = conn.execute("SELECT * FROM excel_pro_jobs WHERE id = ?", (row["id"],)).fetchone()
+    return dict(claimed) if claimed else None
+
+
+def update_excel_pro_job(
+    job_id: int,
+    *,
+    status: str | None = None,
+    progress: int | None = None,
+    stage: str | None = None,
+    result_json: str | None = None,
+    output_asset_id: int | None = None,
+    error_message: str | None = None,
+) -> dict[str, Any] | None:
+    assignments = ["updated_at = CURRENT_TIMESTAMP"]
+    params: list[Any] = []
+    for column, value in (("status", status), ("progress", progress), ("stage", stage),
+                          ("result_json", result_json), ("output_asset_id", output_asset_id),
+                          ("error_message", error_message)):
+        if value is not None:
+            assignments.append(f"{column} = ?")
+            params.append(value)
+    if status in {"completed", "failed", "cancelled"}:
+        assignments.append("finished_at = CURRENT_TIMESTAMP")
+    params.append(job_id)
+    with connect() as conn:
+        conn.execute(f"UPDATE excel_pro_jobs SET {', '.join(assignments)} WHERE id = ?", params)
+        row = conn.execute("SELECT * FROM excel_pro_jobs WHERE id = ?", (job_id,)).fetchone()
+    return _row_to_dict(row)
+
+
+def excel_pro_job_cancel_requested(job_id: int) -> bool:
+    with connect() as conn:
+        row = conn.execute("SELECT cancel_requested FROM excel_pro_jobs WHERE id = ?", (job_id,)).fetchone()
+    return bool(row and row["cancel_requested"])
+
+
+def request_excel_pro_job_cancel(job_id: int, *, user_id: int, role: str) -> dict[str, Any] | None:
+    ownership = "" if role == "admin" else "AND user_id = ?"
+    params: list[Any] = [job_id] + ([] if role == "admin" else [user_id])
+    with connect() as conn:
+        row = conn.execute(f"SELECT * FROM excel_pro_jobs WHERE id = ? {ownership}", params).fetchone()
+        if row is None:
+            return None
+        if row["status"] == "queued":
+            conn.execute(
+                "UPDATE excel_pro_jobs SET cancel_requested = 1, status = 'cancelled', stage = 'cancelled', progress = 100, finished_at = CURRENT_TIMESTAMP, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (job_id,),
+            )
+        elif row["status"] == "running":
+            conn.execute(
+                "UPDATE excel_pro_jobs SET cancel_requested = 1, stage = 'cancelling', updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (job_id,),
+            )
+        result = conn.execute("SELECT * FROM excel_pro_jobs WHERE id = ?", (job_id,)).fetchone()
+    return _row_to_dict(result)
+
+
+def get_excel_pro_job(job_id: int, *, user_id: int, role: str) -> dict[str, Any] | None:
+    ownership = "" if role == "admin" else "AND excel_pro_jobs.user_id = ?"
+    params: list[Any] = [job_id] + ([] if role == "admin" else [user_id])
+    with connect() as conn:
+        row = conn.execute(
+            f"""
+            SELECT excel_pro_jobs.*, users.username,
+                   nas_assets.original_filename AS output_filename
+            FROM excel_pro_jobs
+            JOIN users ON users.id = excel_pro_jobs.user_id
+            LEFT JOIN nas_assets ON nas_assets.id = excel_pro_jobs.output_asset_id
+            WHERE excel_pro_jobs.id = ? {ownership}
+            """,
+            params,
+        ).fetchone()
+    return _row_to_dict(row)
+
+
+def list_excel_pro_jobs(*, user_id: int, role: str, limit: int = 50) -> list[dict[str, Any]]:
+    ownership = "" if role == "admin" else "WHERE excel_pro_jobs.user_id = ?"
+    params: list[Any] = [] if role == "admin" else [user_id]
+    params.append(max(1, min(int(limit), 100)))
+    with connect() as conn:
+        rows = conn.execute(
+            f"""
+            SELECT excel_pro_jobs.*, users.username,
+                   nas_assets.original_filename AS output_filename
+            FROM excel_pro_jobs
+            JOIN users ON users.id = excel_pro_jobs.user_id
+            LEFT JOIN nas_assets ON nas_assets.id = excel_pro_jobs.output_asset_id
+            {ownership}
+            ORDER BY excel_pro_jobs.id DESC LIMIT ?
+            """,
+            params,
+        ).fetchall()
+    return [dict(row) for row in rows]
 
 
 def list_network_assets(*, user_id: int, role: str) -> list[dict[str, Any]]:

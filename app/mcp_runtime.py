@@ -10,6 +10,8 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlencode, urlparse
 from urllib.request import HTTPRedirectHandler, Request, build_opener
 
+from app.auth import create_mcp_delegation_headers
+
 
 class McpConnectionError(RuntimeError):
     pass
@@ -133,8 +135,11 @@ def call_streamable_http_tool(
     server: dict[str, Any],
     tool_name: str,
     arguments: dict[str, Any],
+    delegated_user: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     endpoint, token, extra_headers = _server_connection(server)
+    if delegated_user and server.get("slug") == "nas-excel-pro":
+        extra_headers.update(create_mcp_delegation_headers(delegated_user))
     _, session_id = _initialize_session(endpoint, token, extra_headers)
     response, _ = _json_rpc_request(
         endpoint,

@@ -19,7 +19,7 @@ from fastapi import BackgroundTasks, Depends, FastAPI, File, Form, Header, HTTPE
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 
-from app.auth import SESSION_COOKIE, authenticate, create_session_token, current_user, hash_password, require_admin, require_meeting_access, websocket_user
+from app.auth import SESSION_COOKIE, authenticate, create_session_token, current_user, hash_password, read_mcp_delegated_user, require_admin, require_meeting_access, websocket_user
 from app.audit_context import reset_audit_context, set_audit_context
 from app.analysis_persistence import persist_cloud_asset_analysis
 from app.asset_normalization import convert_asset_to_traditional
@@ -27,6 +27,7 @@ from app.asr_catalog import asr_model_summary, find_asr_model
 from app.asr_service import run_asr_with_audit
 from app.db import (
     create_mcp_audit_log,
+    get_excel_pro_job,
     create_security_event,
     create_mcp_server,
     create_llm_call,
@@ -137,6 +138,19 @@ from app.radiology_mcp import handle_radiology_mcp
 from app.radiology_demo import execute as execute_radiology, image_for_user as radiology_image, summarize as summarize_radiology
 from app.notion_demo import execute_tool as execute_notion_tool, run_notion_demo
 from app.excel_mcp import EXCEL_MCP_TOOLS, handle_excel_mcp_request
+from app.excel_pro import (
+    EXCEL_PRO_TOOLS,
+    ExcelProError,
+    cancel_job as cancel_excel_pro_job,
+    describe_sources as describe_excel_pro_sources,
+    enqueue_export as enqueue_excel_pro_export,
+    handle_excel_pro_mcp_request,
+    job_status as excel_pro_job_status,
+    jobs_for_user as excel_pro_jobs_for_user,
+    list_sources as list_excel_pro_sources,
+    run_query as run_excel_pro_query,
+)
+from app.excel_pro_worker import start_excel_pro_worker, stop_excel_pro_worker
 from app.file_security import UploadScanResult, UploadSecurityError, inspect_uploaded_file, validated_upload_filename
 from app.gmail_mcp import GMAIL_MCP_TOOLS, handle_gmail_mcp_request
 from app.line_service import LineServiceError, list_line_groups, push_line_messages
@@ -470,7 +484,23 @@ async def lifespan(app: FastAPI):
             tool_count=len(EXCEL_MCP_TOOLS),
             last_error=None,
         )
+    excel_pro_server = next((item for item in list_mcp_servers() if item.get("slug") == "nas-excel-pro"), None)
+    if (
+        excel_pro_server
+        and excel_pro_server.get("is_enabled")
+        and excel_pro_server.get("endpoint") == "http://127.0.0.1:8000/mcp/excel-pro"
+        and mcp_auth_configured(excel_pro_server)
+    ):
+        update_mcp_server_sync(
+            excel_pro_server["id"],
+            status="connected",
+            protocol_version="2025-06-18",
+            tools_json=json.dumps(EXCEL_PRO_TOOLS, ensure_ascii=False),
+            tool_count=len(EXCEL_PRO_TOOLS),
+            last_error=None,
+        )
     await start_media_workers()
+    await start_excel_pro_worker()
     tasks = [
         asyncio.create_task(nas_discovery_loop(BASE_DIR)),
         asyncio.create_task(embedding_backfill_loop()),
@@ -499,6 +529,7 @@ async def lifespan(app: FastAPI):
             except asyncio.CancelledError:
                 pass
         await stop_media_workers()
+        await stop_excel_pro_worker()
 
 
 app = FastAPI(title="AI Work NAS", version=APP_VERSION, lifespan=lifespan)
@@ -670,6 +701,36 @@ async def excel_mcp(request: Request, payload: dict) -> Response:
     return JSONResponse(result)
 
 
+@app.get("/mcp/excel-pro")
+async def excel_pro_mcp_info() -> dict:
+    return {
+        "name": "NAS Excel Pro MCP",
+        "transport": "streamable_http",
+        "endpoint": "/mcp/excel-pro",
+        "protocol_version": "2025-06-18",
+        "permission_aware": True,
+        "tools": [tool["name"] for tool in EXCEL_PRO_TOOLS],
+    }
+
+
+@app.post("/mcp/excel-pro")
+async def excel_pro_mcp(request: Request, payload: dict) -> Response:
+    expected_key = os.getenv("NAS_EXCEL_PRO_LOCAL_MCP_KEY", "")
+    supplied = request.headers.get("authorization", "")
+    if not expected_key:
+        raise HTTPException(status_code=503, detail="NAS Excel Pro MCP 尚未設定內部存取金鑰")
+    if not hmac.compare_digest(supplied, f"Bearer {expected_key}"):
+        raise HTTPException(status_code=401, detail="NAS Excel Pro MCP authorization failed")
+    result = await asyncio.to_thread(
+        handle_excel_pro_mcp_request,
+        payload,
+        read_mcp_delegated_user(request.headers),
+    )
+    if result is None:
+        return Response(status_code=204)
+    return JSONResponse(result)
+
+
 @app.post("/mcp/hospital-demo")
 async def hospital_demo_mcp(request: Request, payload: dict) -> Response:
     expected = os.getenv("HOSPITAL_DEMO_MCP_KEY", "").strip()
@@ -764,6 +825,84 @@ async def radiology_demo_summary(payload: dict, user: dict = Depends(current_use
 @app.get("/manufacturing-schedule-demo")
 async def manufacturing_schedule_demo_page(user: dict = Depends(current_user)) -> FileResponse:
     return FileResponse(STATIC_DIR / "manufacturing-schedule-demo.html", headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/excel-pro")
+async def excel_pro_page(user: dict = Depends(current_user)) -> FileResponse:
+    return FileResponse(STATIC_DIR / "excel-pro.html", headers={"Cache-Control": "no-cache"})
+
+
+@app.get("/api/excel-pro/sources")
+async def excel_pro_sources(q: str = "", limit: int = 50, user: dict = Depends(current_user)) -> dict:
+    return await asyncio.to_thread(list_excel_pro_sources, user, q, limit)
+
+
+@app.post("/api/excel-pro/sources/describe")
+async def excel_pro_describe(payload: dict, user: dict = Depends(current_user)) -> dict:
+    try:
+        return await asyncio.to_thread(describe_excel_pro_sources, user, payload.get("sources"))
+    except ExcelProError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/excel-pro/query")
+async def excel_pro_query(payload: dict, user: dict = Depends(current_user)) -> dict:
+    try:
+        return await asyncio.to_thread(
+            run_excel_pro_query,
+            user,
+            payload.get("sources"),
+            str(payload.get("sql") or ""),
+            int(payload.get("max_rows") or 100),
+        )
+    except ExcelProError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/excel-pro/jobs")
+async def excel_pro_create_job(payload: dict, user: dict = Depends(current_user)) -> dict:
+    try:
+        return enqueue_excel_pro_export(user, payload)
+    except ExcelProError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.get("/api/excel-pro/jobs")
+async def excel_pro_list_jobs(limit: int = 50, user: dict = Depends(current_user)) -> dict:
+    return {"jobs": excel_pro_jobs_for_user(user, limit)}
+
+
+@app.get("/api/excel-pro/jobs/{job_id}")
+async def excel_pro_get_job(job_id: int, user: dict = Depends(current_user)) -> dict:
+    try:
+        return excel_pro_job_status(user, job_id)
+    except ExcelProError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.post("/api/excel-pro/jobs/{job_id}/cancel")
+async def excel_pro_cancel(job_id: int, user: dict = Depends(current_user)) -> dict:
+    try:
+        return cancel_excel_pro_job(user, job_id)
+    except ExcelProError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.get("/api/excel-pro/jobs/{job_id}/download")
+async def excel_pro_download(job_id: int, user: dict = Depends(current_user)) -> FileResponse:
+    job = get_excel_pro_job(job_id, user_id=int(user["id"]), role=str(user["role"]))
+    if not job or job.get("status") != "completed" or not job.get("output_asset_id"):
+        raise HTTPException(status_code=404, detail="Excel export is not available")
+    asset = require_nas_asset_access(get_nas_asset(int(job["output_asset_id"])), user)
+    path = Path(asset["stored_path"])
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="Excel export file is missing")
+    return FileResponse(
+        path,
+        filename=asset["original_filename"],
+        media_type=asset["mime_type"],
+        content_disposition_type="attachment",
+    )
 
 
 def manufacturing_schedule_mcp_servers(user: dict) -> tuple[dict, dict, dict, dict, dict, dict, dict]:
@@ -1120,6 +1259,7 @@ def serialize_mcp_server(server: dict) -> dict:
         "gmail": "/mcp/gmail",
         "google-drive": "/mcp/google-drive",
         "nas-excel": "/mcp/excel",
+        "nas-excel-pro": "/mcp/excel-pro",
         "notion-readonly": "/mcp/notion",
         "hospital-demo": "/mcp/hospital-demo",
         "orthanc-radiology": "/mcp/radiology-demo",
@@ -3032,6 +3172,7 @@ async def run_model_with_mcp(
             server,
             tool["name"],
             plan["arguments"],
+            user,
         )
     except (McpConnectionError, ValueError) as exc:
         create_mcp_audit_log(

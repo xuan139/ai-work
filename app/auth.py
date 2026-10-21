@@ -4,7 +4,7 @@ import hmac
 import json
 import os
 import time
-from typing import Any
+from typing import Any, Mapping
 
 from fastapi import Cookie, Depends, HTTPException, Request, WebSocket, status
 
@@ -12,6 +12,7 @@ from app.db import get_user_by_id, get_user_by_username
 
 SESSION_COOKIE = "ai_work_session"
 SESSION_TTL_SECONDS = 60 * 60 * 8
+MCP_DELEGATION_TTL_SECONDS = 60
 def hash_password(password: str, salt: bytes | None = None) -> str:
     salt = salt or os.urandom(16)
     digest = hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, 120_000)
@@ -43,6 +44,36 @@ def create_session_token(user_id: int, session_version: int = 1) -> str:
     }
     raw_payload = base64.urlsafe_b64encode(json.dumps(payload, separators=(",", ":")).encode()).decode()
     return f"{raw_payload}.{_sign(raw_payload)}"
+
+
+def create_mcp_delegation_headers(user: dict[str, Any]) -> dict[str, str]:
+    timestamp = str(int(time.time()))
+    user_id = str(int(user["id"]))
+    payload = f"mcp-user:{user_id}:{timestamp}"
+    return {
+        "X-AI-Work-User-Id": user_id,
+        "X-AI-Work-Timestamp": timestamp,
+        "X-AI-Work-Signature": _sign(payload),
+    }
+
+
+def read_mcp_delegated_user(headers: Mapping[str, str]) -> dict[str, Any] | None:
+    user_id = str(headers.get("x-ai-work-user-id") or headers.get("X-AI-Work-User-Id") or "")
+    timestamp = str(headers.get("x-ai-work-timestamp") or headers.get("X-AI-Work-Timestamp") or "")
+    signature = str(headers.get("x-ai-work-signature") or headers.get("X-AI-Work-Signature") or "")
+    try:
+        age = abs(int(time.time()) - int(timestamp))
+        numeric_user_id = int(user_id)
+    except ValueError:
+        return None
+    if age > MCP_DELEGATION_TTL_SECONDS:
+        return None
+    if not hmac.compare_digest(_sign(f"mcp-user:{user_id}:{timestamp}"), signature):
+        return None
+    user = get_user_by_id(numeric_user_id)
+    if not user or not user.get("is_active", 1):
+        return None
+    return user
 
 
 def read_session_token(token: str | None) -> dict[str, Any] | None:
