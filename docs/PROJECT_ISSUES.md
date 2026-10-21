@@ -60,6 +60,16 @@
 - **Release authorization:** User explicitly authorized this documentation commit and push on 2026-10-15. Fetched `origin/main` and confirmed it matches local HEAD before preparing the scoped commit; unrelated Hospital edits remain excluded.
 - **Rollback:** Restore only README and LICENSE from their prior revision, remove `docs/LICENSE_EXPLANATIONS.md` and this entry. Preserve the separate Hospital UI changes and unrelated files.
 
+## 2026-10-15 — Query-first Hospital demo (deployed)
+
+- **Trigger:** User requested the LLM form first, no initial X-ray display, barcode and question presets, then the selected patient's complete record after submission.
+- **Root cause:** Connection checking automatically opened the first patient's profile and image; the question form was below the long record and its prompts were fixed to patient 001.
+- **Fix:** Place the form below the page title, use existing demo MRNs (DEMO-001 through DEMO-003) as patient/barcode choices, and offer five editable patient-specific presets. These are identifiers, not a barcode-scanner feature. Initial load only discovers connections and the patient list. Selection clears stale results without fetching details or invoking an LLM; submit loads the HIS overview/profile and Orthanc study/report/image before one model request. The model receives textual teaching-report evidence, never pixels, and uses the selected Hospital MCP for HIS evidence. Keep the full HIS table independent of the model-selected tool result. Collapse advanced read-tool buttons initially.
+- **Validation:** Both browser suites passed at 1440px/390px, including zero initial overview/radiology/LLM calls, preset and barcode changes without requests, explicit submission, stale-data clearing, pending/missing/disconnected Orthanc, patient-ID conflicts and LLM failure retaining source data. Initial screenshots inspected. Tests use fixtures, not real model output.
+- **Deployment:** User requested automatic publication after verified changes on 2026-10-15. Matched all three remote static-file hashes to Git HEAD before updating. Backed up to `/home/ubuntu/backups/hospital-query-first-20261015-041733/static.tar.gz`, deployed only HTML/JS/CSS without restarting services or changing the database, and verified all three public HTTPS responses exactly match local release files. Health check passed. The query-first browser fixture suite passed again before release.
+- **Unverified:** Actual Qwen context budget, generated-answer quality and authenticated live-browser integration require further validation. Current teaching fixture has one X-ray study per patient; the study selector supports choosing available studies. Automatic commit authorization has been requested separately because the existing project rule requires explicit commit consent.
+- **Rollback:** Restore the previous three Hospital static files and these associated tests/docs. No backend schema, credentials, service configuration or patient fixtures changed.
+
 ## 2026-10-15 — Hospital patient images and teaching care notes
 
 - **Trigger:** User requested images/reports in the HIS page, followed by a fictional patient interview, admission history and dietary restrictions demo.

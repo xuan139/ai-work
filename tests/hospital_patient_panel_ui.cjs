@@ -11,22 +11,29 @@ const profiles = JSON.parse(execFileSync(path.join(root, '.venv/bin/python'), ['
   try {
     const page = await browser.newPage({ viewport: { width: 1440, height: 1050 } });
     let connected = true, failed = false, empty = false, mismatch = false, release;
-    let pause = false, llm = 0;
+    let pause = false, llm = 0, imageCalls = 0, overviewCalls = 0, llmFailure = false;
     const errors = [];
     page.on('pageerror', e => errors.push(e.message));
-    const patients = [1, 2, 3].map(n => ({ id: `demo-p00${n}`, name: [{ text: `教學病患 ${n}` }] }));
+    const patients = [1, 2, 3].map(n => ({ resourceType: 'Patient', id: `demo-p00${n}`, name: [{ text: `教學病患 ${n}` }], identifier: [{value: `DEMO-00${n}`}] }));
     await page.route('https://hospital.test/**', async route => {
       const url = new URL(route.request().url());
       if (url.pathname === '/api/mcp/available') return route.fulfill({ json: { servers: [
         { id: 77, slug: 'hospital-demo', tools: [] }, ...(connected ? [{ id: 78, slug: 'orthanc-radiology', tools: [] }] : [])] } });
-      if (url.pathname === '/api/llm/run') { llm++; return route.fulfill({ json: { answer: '' } }); }
+      if (url.pathname === '/api/llm/run') {
+        llm++; const payload = route.request().postDataJSON();
+        assert.match(payload.prompt, /Selected patient: demo-p00[1-3]/);
+        if (llmFailure) return route.fulfill({status: 502, json: {detail: 'LLM unavailable'}});
+        return route.fulfill({ json: { answer: 'Teaching answer [source]', mcp: {used: true, tool: 'his_patient_overview', result: {}} } });
+      }
       if (url.pathname === '/api/hospital-demo/tools/call') {
         const { name, arguments: args } = route.request().postDataJSON();
+        if (name === 'his_patient_overview') overviewCalls++;
         if (pause && name === 'his_patient_overview') { pause = false; await new Promise(resolve => { release = resolve; }); }
-        const content = name === 'his_search_patients' ? { records: patients } : { records: [], teaching_profile: profiles[args.patient_id] };
+        const content = name === 'his_search_patients' ? { records: patients } : { records: patients.filter(p => p.id === args.patient_id), teaching_profile: profiles[args.patient_id] };
         return route.fulfill({ json: { tool: name, result: { structuredContent: content } } });
       }
       if (url.pathname === '/api/radiology-demo/tools/call') {
+        imageCalls++;
         if (failed) return route.fulfill({ status: 502, json: { detail: 'Orthanc unavailable' } });
         const { name, arguments: args } = route.request().postDataJSON();
         const id = args.study_id || 'demo-xr' + args.patient_id.slice(-3);
@@ -44,13 +51,29 @@ const profiles = JSON.parse(execFileSync(path.join(root, '.venv/bin/python'), ['
       return route.fulfill({ contentType: file.endsWith('.html') ? 'text/html' : file.endsWith('.js') ? 'text/javascript' : file.endsWith('.css') ? 'text/css' : 'image/png', body: await readFile(path.join(root, file)) });
     });
     const ready = () => page.waitForFunction(() => !document.getElementById('imagePatient').disabled);
+    const submit = async () => { await page.locator('#ask').click(); await ready(); };
     await page.goto('https://hospital.test/hospital-demo'); await ready();
+    assert.equal(overviewCalls, 0); assert.equal(imageCalls, 0); assert.equal(llm, 0);
+    assert.equal(await page.locator('#patientDetails').isVisible(), false);
+    assert.equal(await page.locator('#imagePatient option').first().textContent(), 'DEMO-001 · 教學病患 1 · demo-p001');
+    await mkdir(path.join(root, 'tmp'), { recursive: true });
+    for (const width of [1440, 390]) {
+      await page.setViewportSize({width, height: 1050});
+      assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+      assert.ok((await page.locator('#ask').boundingBox()).y < 1050);
+      await page.screenshot({path: path.join(root, `tmp/hospital-query-initial-${width}.png`),fullPage:true});
+    }
+    await page.locator('#sample').selectOption('0');
+    assert.equal(llm, 0); assert.equal(imageCalls, 0);
+    await submit();
     assert.equal(await page.locator('#patientXray').evaluate(el => el.naturalWidth > 0 && !el.hidden), true);
     assert.match(await page.locator('#profileDiet').textContent(), /花生/);
     assert.match(await page.locator('#imagingReport').textContent(), /demo-xr001/);
     assert.equal(await page.locator('#imagingLink').getAttribute('href'), '/radiology-demo?study=demo-xr001');
     pause = true;
     await page.locator('#imagePatient').selectOption('demo-p002');
+    assert.equal(llm, 1); assert.match(await page.locator('#prompt').inputValue(), /demo-p002/);
+    await page.locator('#ask').click();
     await page.waitForFunction(() => document.getElementById('imagePatient').disabled);
     assert.equal(await page.locator('#imagingContent').isVisible(), false);
     assert.equal(await page.locator('#patientProfile').isVisible(), false);
@@ -58,15 +81,16 @@ const profiles = JSON.parse(execFileSync(path.join(root, '.venv/bin/python'), ['
     release(); await ready();
     assert.match(await page.locator('#profileDiet').textContent(), /蛋奶素/);
     assert.doesNotMatch(await page.locator('#profileDiet').textContent(), /花生/);
-    await page.locator('#imagePatient').selectOption('demo-p003'); await ready();
+    await page.locator('#imagePatient').selectOption('demo-p003'); await submit();
     assert.match(await page.locator('#profileAdmissions').textContent(), /不代表從未住院/);
     assert.match(await page.locator('#imagingReportMeta').textContent(), /待完成/);
     assert.doesNotMatch(await page.locator('#imagingReport').textContent(), /demo-xr002/);
     await page.locator('#language').click();
-    assert.equal(await page.locator('#imagingTitle').textContent(), 'Patient images and reports');
+    assert.equal(await page.locator('#imagingTitle').textContent(), 'Selected patient record');
     assert.match(await page.locator('#imagingReportMeta').textContent(), /pending/);
     await page.locator('#language').click();
-    await page.locator('#imagePatient').selectOption('demo-p001'); await ready();
+    await page.locator('#imagePatient').selectOption('demo-p001'); await submit();
+    assert.match(await page.locator('#records').textContent(), /Patient\/demo-p001/);
     await mkdir(path.join(root, 'tmp'), { recursive: true });
     for (const width of [1440, 390]) {
       await page.setViewportSize({ width, height: 1050 });
@@ -74,24 +98,34 @@ const profiles = JSON.parse(execFileSync(path.join(root, '.venv/bin/python'), ['
       await page.screenshot({ path: path.join(root, `tmp/hospital-patient-${width}.png`), fullPage: true });
     }
     failed = true;
-    await page.locator('#imagePatient').selectOption('demo-p002'); await ready();
+    await page.locator('#imagePatient').selectOption('demo-p002'); await submit();
     assert.equal(await page.locator('#imagingContent').isVisible(), false);
     assert.equal(await page.locator('#patientProfile').isVisible(), true);
     assert.match(await page.locator('#imagingMessage').textContent(), /Orthanc unavailable/);
     failed = false; empty = true;
-    await page.locator('#imagePatient').selectOption('demo-p003'); await ready();
+    await page.locator('#imagePatient').selectOption('demo-p003'); await submit();
     assert.match(await page.locator('#imagingMessage').textContent(), /沒有符合/);
     assert.equal(await page.locator('#imageStudy').isDisabled(), true);
     empty = false; mismatch = true;
-    await page.locator('#imagePatient').selectOption('demo-p001'); await ready();
+    await page.locator('#imagePatient').selectOption('demo-p001'); await submit();
     assert.equal(await page.locator('#imagingContent').isVisible(), false);
     assert.match(await page.locator('#imagingMessage').textContent(), /不符合/);
     mismatch = false; connected = false;
-    await page.locator('#imageRefresh').click(); await ready();
+    await page.locator('#refresh').click(); await ready();
+    assert.equal(await page.locator('#patientDetails').isVisible(), false);
+    await submit();
     assert.match(await page.locator('#imagingMessage').textContent(), /尚未連線/);
     assert.equal(await page.locator('#patientProfile').isVisible(), true);
-    assert.equal(llm, 0);
+    assert.equal(llm, 8);
+    llmFailure = true;
+    await submit();
+    assert.equal(await page.locator('#patientProfile').isVisible(), true);
+    assert.match(await page.locator('#error').textContent(), /LLM unavailable/);
+    await page.locator('#prompt').fill('請查詢 demo-p003');
+    await page.locator('#ask').click();
+    assert.equal(llm, 9, 'Conflicting patient must not send a request');
+    assert.match(await page.locator('#error').textContent(), /不一致/);
     assert.deepEqual(errors, []);
-    console.log('PASS hospital patient panel: images/reports, profiles, switching, pending/empty/error/disconnected, source links, no automatic LLM, bilingual desktop/mobile (fixtures).');
+    console.log('PASS query-first: no initial details/image/LLM requests; patient barcode and presets; submit loads full record; switching, errors, report sources and desktop/mobile (fixtures).');
   } finally { await browser.close(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

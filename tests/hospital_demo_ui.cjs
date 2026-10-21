@@ -29,6 +29,7 @@ const server = http.createServer(async (req, res) => {
     const errors = []; const requests = [];
     page.on('pageerror', error => errors.push(error.message));
     await page.route('**/api/mcp/available', route => route.fulfill({ json: { servers: [{ id: 77, slug: 'hospital-demo', tools: [] }] } }));
+    await page.route('**/api/hospital-demo/tools/call', route => route.fulfill({json: {result: {structuredContent: {records: [{resourceType: 'Patient', id: 'demo-p001', name: [{text: '教學病患甲'}], identifier: [{value: 'DEMO-001'}]}]}}}}));
     let release;
     await page.route('**/api/llm/run', async route => {
       requests.push(route.request().postDataJSON());
@@ -39,7 +40,7 @@ const server = http.createServer(async (req, res) => {
     await page.waitForFunction(() => !document.getElementById('ask').disabled);
     assert.equal(await page.locator('#sample option').count(), 6);
     assert.equal(await page.locator('#prompt').inputValue(), '');
-    for (const [index, expected] of ['所有示範病患', 'demo-p001', '2026-10-15', 'Observation', 'Encounter/demo-e001'].entries()) {
+    for (const [index, expected] of ['完整教學資料', '訪談', '住院歷史', '飲食', 'X 光'].entries()) {
       await page.locator('#sample').selectOption(String(index));
       assert.ok((await page.locator('#prompt').inputValue()).includes(expected));
       assert.equal(await page.locator('#prompt').evaluate(el => el === document.activeElement), true);
@@ -52,7 +53,7 @@ const server = http.createServer(async (req, res) => {
     assert.equal(await page.locator('#prompt').inputValue(), '我的自訂問題 demo-p002');
     for (let index = 0; index < 5; index++) {
       await page.locator('#sample').selectOption(String(index));
-      assert.ok((await page.locator('#prompt').inputValue()).startsWith('Use Hospital HIS / FHIR Demo MCP'));
+      assert.ok((await page.locator('#prompt').inputValue()).includes('demo-p001'));
     }
     const draft = await page.locator('#prompt').inputValue();
     await page.locator('#sample').selectOption('');
@@ -65,7 +66,8 @@ const server = http.createServer(async (req, res) => {
     assert.equal(await page.locator('#prompt').isDisabled(), true);
     while (!release) await new Promise(resolve => setTimeout(resolve, 10));
     assert.equal(requests.length, 1);
-    assert.equal(requests[0].prompt, prompt);
+    assert.ok(requests[0].prompt.startsWith(prompt));
+    assert.ok(requests[0].prompt.includes('Selected patient: demo-p001'));
     assert.equal(requests[0].use_mcp, true);
     assert.equal(requests[0].mcp_server_id, 77);
     release();

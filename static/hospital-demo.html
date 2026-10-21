@@ -5,8 +5,8 @@
   <title>Hospital HIS / FHIR Demo · AI Work</title>
   <link rel="icon" href="/static/icons/icon-192.png">
   <link rel="stylesheet" href="/static/notion-demo.css?v=1">
-  <link rel="stylesheet" href="/static/hospital-demo.css?v=3">
-  <script src="/static/hospital-demo.js?v=3" defer></script>
+  <link rel="stylesheet" href="/static/hospital-demo.css?v=4">
+  <script src="/static/hospital-demo.js?v=4" defer></script>
 </head>
 <body>
   <header><a class="brand" href="/"><img src="/static/icons/icon-192.png" alt="AI Work" width="36" height="36">AI Work</a>
@@ -14,18 +14,26 @@
   <main>
     <div class="heading"><div><p class="eyebrow">HEALTHCARE · READ-ONLY MCP</p><h1>Hospital HIS / FHIR Demo</h1></div><span class="badge" data-copy="readonly">5 個唯讀工具</span></div>
     <p class="muted" data-copy="notice">虛構教學資料 · 固定快照 2026-10-14 · 不供臨床決策</p>
+    <section class="question-section" aria-labelledby="qaTitle"><h2 id="qaTitle" data-copy="qa">醫療資料問答</h2>
+      <form id="askForm"><div class="prompt-selectors">
+        <div><label for="imagePatient" data-copy="barcode">Demo 病患／條碼</label><select id="imagePatient" required disabled></select></div>
+        <div><label for="sample" data-copy="sample">範例問題</label><select id="sample"></select></div>
+      </div><label for="prompt" data-copy="question">您的問題</label><textarea id="prompt" rows="2" maxlength="1000" required></textarea>
+        <div class="actions"><button id="ask" type="submit" data-copy="ask">查詢示範資料</button></div></form>
+      <p id="error" role="alert" hidden></p><p id="busy" role="status" aria-live="polite" hidden></p>
+    </section>
     <div class="status-strip"><div><span data-copy="connectionLabel">連線狀態</span><strong id="connection" role="status">檢查中…</strong></div>
       <div><span data-copy="dataLabel">資料範圍</span><strong data-copy="dataValue">3 位病患 · 18 筆關聯資料</strong></div>
       <button id="refresh" type="button" data-copy="refresh">重新檢查</button></div>
-    <p id="error" role="alert" hidden></p><p id="busy" role="status" aria-live="polite" hidden></p>
     <p id="setup" class="notice" hidden data-copy="setup">尚未連線，請由管理員在 MCP 管理啟用並同步 Hospital HIS / FHIR Demo。</p>
-    <section class="hospital-imaging" aria-labelledby="imagingTitle">
+    <section id="answerSection" hidden><h2 data-copy="answer">模型回答</h2><p id="answer"></p>
+      <details id="modelTraceSection" hidden><summary data-copy="trace">MCP 工具參數與原始結果</summary><pre id="modelTrace"></pre></details>
+    </section>
+    <section id="patientDetails" class="hospital-imaging" aria-labelledby="imagingTitle" hidden>
       <h2 id="imagingTitle" data-copy="imagingTitle">病患影像與報告</h2>
       <p class="muted" data-copy="imagingNotice">虛構病患與教學報告；各檢查重用公開 CC0 X 光影像，不代表病患的實際影像，不供臨床診斷。</p>
       <div class="imaging-filters">
-        <div><label for="imagePatient" data-copy="imagePatient">影像病患</label><select id="imagePatient" disabled></select></div>
         <div><label for="imageStudy" data-copy="imageStudy">檢查</label><select id="imageStudy" disabled></select></div>
-        <button id="imageRefresh" type="button" data-copy="refresh">重新檢查</button>
       </div>
       <section id="patientProfile" hidden aria-labelledby="profileTitle">
         <h3 id="profileTitle" data-copy="profileTitle">病患訪談與照護資料 Demo</h3>
@@ -48,17 +56,11 @@
       </div>
       <details id="imagingTraceSection" hidden><summary data-copy="trace">MCP 工具參數與原始結果</summary><pre id="imagingTrace"></pre></details>
     </section>
-    <section class="tool-section" aria-labelledby="toolsTitle"><h2 id="toolsTitle" data-copy="tools">唯讀工具</h2><div id="tools" class="tool-grid"></div></section>
-    <section class="question-section" aria-labelledby="qaTitle"><h2 id="qaTitle" data-copy="qa">醫療資料問答</h2>
-      <form id="askForm"><label for="sample" data-copy="sample">範例問題</label><select id="sample"></select>
-        <label for="prompt" data-copy="question">您的問題</label><textarea id="prompt" rows="2" maxlength="1000" required></textarea>
-        <div class="actions"><button id="ask" type="submit" data-copy="ask">查詢示範資料</button></div></form>
-    </section>
-    <section id="answerSection" hidden><h2 data-copy="answer">模型回答</h2><p id="answer"></p></section>
-    <section class="results" aria-labelledby="resultTitle"><h2 id="resultTitle" data-copy="results">查詢結果與來源</h2>
+    <section id="resultSection" class="results" aria-labelledby="resultTitle" hidden><h2 id="resultTitle" data-copy="results">查詢結果與來源</h2>
       <p id="empty" class="muted" data-copy="waiting">尚未查詢</p><div id="records"></div>
       <details id="traceSection" hidden><summary data-copy="trace">MCP 工具參數與原始結果</summary><pre id="trace"></pre></details>
     </section>
+    <details class="tool-section"><summary id="toolsTitle" data-copy="tools">唯讀工具</summary><div id="tools" class="tool-grid"></div></details>
   </main>
 </body>
 </html>
