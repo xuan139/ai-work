@@ -311,7 +311,7 @@ def _asset_path(asset: dict[str, Any]) -> Path:
 
 
 def _source_summary(asset: dict[str, Any]) -> dict[str, Any]:
-    return {"asset_id": asset["id"], "title": asset["title"], "filename": asset["original_filename"], "uploader": asset.get("owner_username"), "uploaded_at": asset.get("created_at"), "visibility": asset.get("visibility"), "department_group_id": asset.get("owner_group_id"), "file_size": asset.get("file_size")}
+    return {"asset_id": asset["id"], "title": asset["title"], "filename": asset["original_filename"], "uploader": asset.get("owner_username"), "uploaded_at": asset.get("created_at"), "visibility": asset.get("visibility"), "department_group_id": asset.get("owner_group_id"), "file_size": asset.get("file_size"), "source_type": asset.get("source_type")}
 
 
 def _normalize_sources(value: Any) -> list[dict[str, Any]]:

@@ -101,6 +101,100 @@ class ExcelProAgentTests(unittest.IsolatedAsyncioTestCase):
                     server=self.server, run_model=runner, call_tool=self.call_tool,
                 )
 
+    async def test_schema_question_uses_deterministic_sample_query(self):
+        self.sources = [
+            {
+                "asset_id": 72, "title": "excel-pro-analysis",
+                "filename": "excel-pro-analysis.xlsx", "uploader": "admin",
+                "source_type": "excel_pro_export",
+            }
+        ]
+
+        def call_tool(server, name, arguments, delegated_user):
+            self.tool_calls.append((name, arguments))
+            if name == "excel_pro_list_sources":
+                value = {"count": 1, "sources": self.sources}
+            elif name == "excel_pro_describe_sources":
+                value = {
+                    "source_count": 1, "table_count": 2,
+                    "tables": [
+                        {
+                            "table_name": "asset_72__Query_Result", "filename": "excel-pro-analysis.xlsx",
+                            "sheet_name": "Query Result", "columns": ["選取", "權限代碼"],
+                            "row_count": 100, "range": "Query Result!A2:B101",
+                            "source_type": "excel_pro_export",
+                        },
+                        {
+                            "table_name": "asset_72__Sources", "filename": "excel-pro-analysis.xlsx",
+                            "sheet_name": "Sources", "columns": ["DuckDB SQL", "column_2"],
+                            "row_count": 3, "range": "Sources!A2:B4",
+                            "source_type": "excel_pro_export",
+                        },
+                    ],
+                }
+            elif name == "excel_pro_query":
+                self.assertEqual(arguments["sql"], 'SELECT * FROM "asset_72__Query_Result" LIMIT 5')
+                value = {
+                    "engine": "DuckDB 1.5.6", "columns": ["選取", "權限代碼"],
+                    "rows": [["A", "R1"]], "row_count": 1, "truncated": False,
+                    "citations": [{"filename": "excel-pro-analysis.xlsx", "range": "Query Result!A2:B101"}],
+                }
+            else:
+                self.fail(f"Unexpected tool call: {name}")
+            return {"structuredContent": value}
+
+        calls, runner = self.model_runner([
+            json.dumps({"goal": "识别栏位", "search_terms": ["栏位"]}),
+            "主要欄位為選取與權限代碼。",
+        ])
+        with patch("app.excel_pro_agent.create_mcp_audit_log"):
+            result = await run_excel_pro_agent(
+                "当前文件的主要栏位是什么", [72], model_id="qwen3-4b", user=self.user,
+                server=self.server, run_model=runner, call_tool=call_tool,
+            )
+        self.assertEqual(len(calls), 2)
+        self.assertNotIn("Sources", calls[-1]["prompt"])
+        self.assertIn("source_row_count", calls[-1]["prompt"])
+        self.assertEqual(result["generated_sql"], 'SELECT * FROM "asset_72__Query_Result" LIMIT 5')
+        self.assertEqual(result["llm_call_ids"], [101, None, 102])
+
+    async def test_zero_query_result_does_not_claim_source_is_empty(self):
+        def call_tool(server, name, arguments, delegated_user):
+            if name == "excel_pro_list_sources":
+                value = {"count": 1, "sources": [self.sources[0]]}
+            elif name == "excel_pro_describe_sources":
+                value = {
+                    "source_count": 1, "table_count": 1,
+                    "tables": [{
+                        "table_name": "asset_41__Sales", "filename": "sales.xlsx",
+                        "sheet_name": "Sales", "columns": ["Product", "Quantity"],
+                        "row_count": 100, "range": "Sales!A2:B101",
+                    }],
+                }
+            elif name == "excel_pro_query":
+                value = {
+                    "engine": "DuckDB 1.5.6", "columns": ["Product"], "rows": [],
+                    "row_count": 0, "truncated": False,
+                    "citations": [{"filename": "sales.xlsx", "range": "Sales!A2:B101"}],
+                }
+            else:
+                self.fail(f"Unexpected tool call: {name}")
+            return {"structuredContent": value}
+
+        _, runner = self.model_runner([
+            json.dumps({"goal": "查询产品", "search_terms": ["销售"]}),
+            json.dumps({"sql": 'SELECT * FROM "asset_41__Sales" WHERE "Product" = \'missing\'', "explanation": "筛选产品"}),
+            "错误地声称来源工作表没有资料。",
+        ])
+        with patch("app.excel_pro_agent.create_mcp_audit_log"):
+            result = await run_excel_pro_agent(
+                "找出 missing 产品", [41], model_id="qwen3-4b", user=self.user,
+                server=self.server, run_model=runner, call_tool=call_tool,
+            )
+        self.assertIn("查詢條件沒有匹配", result["answer"])
+        self.assertIn("100 筆", result["answer"])
+        self.assertNotIn("來源工作表沒有資料", result["answer"])
+
 
 if __name__ == "__main__":
     unittest.main()

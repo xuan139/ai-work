@@ -1,0 +1,9 @@
+# Excel Pro zero-result misreport
+
+- **Trigger:** Asking `当前文件的主要栏位是什么` against generated asset 72 returned no rows and said the source worksheet contained no data.
+- **Root cause:** Qwen3 4B invented a relationship between `Query Result.選取` and the generated `Sources.column_3` metadata column. DuckDB correctly returned zero matches, but the final model confused the SQL result row count with the source worksheet row count. The source worksheet actually contained 100 data rows.
+- **Fix:** Treat field/schema questions deterministically by sampling the primary data table without filters or joins. Hide the generated export's `Sources` metadata sheet from ordinary data planning, prohibit inferred joins without an explicit compatible key, pass source row counts separately from SQL result counts, and replace unsafe zero-result wording with a deterministic explanation.
+- **Validation:** Five agent unit tests pass locally. The Ubuntu deployment passed all 12 Excel Pro tests. Repeating the original question through the authenticated production API generated `SELECT * FROM "asset_72__Query_Result" LIMIT 5`, returned five sample rows and correctly listed all six columns with `Query Result!A2:F101` as its source.
+- **Unverified:** The guard does not prove that every arbitrary natural-language question will produce semantically correct SQL. Users still need to select files containing the requested business data and review generated SQL for high-impact decisions.
+- **Rollback:** Restore `app/excel_pro.py` and `app/excel_pro_agent.py` from the pre-deployment backup, restart `ai-work.service`, and retain database/audit records because this change has no schema migration.
+- **Deployment:** Backed up the previous files to `/home/ubuntu/backups/excel-pro-zero-result-20261021-1205/code.tar.gz`, deployed only the two runtime modules plus the focused test and issue record, then restarted `ai-work.service`. `/healthz` returned healthy after startup.
