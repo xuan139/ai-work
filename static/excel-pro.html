@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>NAS Excel Pro MCP · AI Work</title>
   <link rel="icon" href="/static/icons/icon-192.png">
-  <link rel="stylesheet" href="/static/excel-pro.css?v=2">
-  <script src="/static/excel-pro.js?v=2" defer></script>
+  <link rel="stylesheet" href="/static/excel-pro.css?v=3">
+  <script src="/static/excel-pro.js?v=3" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -32,6 +32,16 @@
         </div>
         <span id="agentModel" class="model-badge">系統預設 LLM</span>
       </div>
+      <div class="scope-section">
+        <div class="scope-title"><span class="step-number">1</span><div><strong>選擇查詢範圍</strong><small>指定檔案時，答案只會使用您選擇的資料。</small></div></div>
+        <div class="scope-controls" role="radiogroup" aria-label="查詢範圍">
+          <button id="scopeAuto" class="scope-option active" type="button" role="radio" aria-checked="true"><strong>自動選擇</strong><small>由系統找出相關檔案</small></button>
+          <button id="scopeFiles" class="scope-option" type="button" role="radio" aria-checked="false"><strong>指定檔案</strong><small>只查詢選取的檔案</small></button>
+          <button id="openSourceDialog" class="secondary choose-files" type="button" hidden>選擇檔案</button>
+        </div>
+        <div id="scopeSelection" class="scope-selection"><span>目前：自動選擇相關檔案</span></div>
+      </div>
+      <div class="prompt-heading"><span class="step-number">2</span><strong>輸入問題</strong></div>
       <div class="assistant-grid">
         <label><span>範例問題</span>
           <select id="questionSample">
@@ -64,6 +74,14 @@
         </div>
       </div>
     </section>
+
+    <dialog id="sourceDialog" class="source-dialog" aria-labelledby="sourceDialogTitle">
+      <div class="dialog-header"><div><p class="eyebrow">QUERY SCOPE</p><h2 id="sourceDialogTitle">選擇要詢問的檔案</h2></div><button id="closeSourceDialog" class="icon-button" type="button" aria-label="關閉">×</button></div>
+      <label class="dialog-search"><span>搜尋檔案或上傳者</span><input id="dialogSourceSearch" type="search" placeholder="例如：銷售、庫存、sales.xlsx"></label>
+      <p class="permission-note">清單只包含您有權限讀取的 Excel、CSV 與 TSV 檔案，最多選擇 6 份。</p>
+      <div id="dialogSourceList" class="dialog-source-list" aria-live="polite"></div>
+      <div class="dialog-footer"><button id="clearSourceSelection" class="secondary" type="button">清除選擇</button><div><span id="dialogSelectionCount">已選 0 份</span><button id="confirmSourceSelection" class="primary" type="button">使用所選檔案</button></div></div>
+    </dialog>
 
     <section class="workspace" aria-label="Excel Pro workspace">
       <aside class="source-panel">

@@ -1,4 +1,4 @@
-const state={sources:[],tables:[],selected:new Set(),poll:null};
+const state={sources:[],tables:[],selected:new Set(),agentMode:"auto",poll:null};
 const $=id=>document.getElementById(id);
 const esc=value=>String(value??"");
 
@@ -15,7 +15,7 @@ function selectedSources(){return [...state.selected].map(asset_id=>({asset_id})
 
 async function loadSources(){
   loading($("reloadSources"),true,"…");
-  try{const q=$("sourceSearch").value.trim();const data=await api(`/api/excel-pro/sources?q=${encodeURIComponent(q)}&limit=100`);state.sources=data.sources||[];renderSources();}
+  try{const q=$("sourceSearch").value.trim();const data=await api(`/api/excel-pro/sources?q=${encodeURIComponent(q)}&limit=100`);state.sources=data.sources||[];renderSources();renderDialogSources();updateAgentScope();}
   catch(error){$("sourceList").innerHTML="";const p=document.createElement("p");p.className="error";p.textContent=error.message;$("sourceList").append(p);}
   finally{loading($("reloadSources"),false,"");}
 }
@@ -23,10 +23,12 @@ async function loadSources(){
 async function askExcel(){
   const prompt=$("agentPrompt").value.trim();
   if(!prompt)return setStatus("agentStatus","請先輸入問題",true);
+  if(state.agentMode==="files"&&!state.selected.size)return setStatus("agentStatus","請先選擇至少一份要詢問的檔案",true);
   loading($("askExcel"),true,"分析中…");$("agentAnswer").hidden=true;
   setStatus("agentStatus","LLM 正在理解問題，接著將透過 MCP 與 DuckDB 查詢…");
   try{
-    const data=await api("/api/excel-pro/ask",{method:"POST",body:JSON.stringify({prompt,selected_asset_ids:[...state.selected]})});
+    const selected_asset_ids=state.agentMode==="files"?[...state.selected]:[];
+    const data=await api("/api/excel-pro/ask",{method:"POST",body:JSON.stringify({prompt,selected_asset_ids})});
     renderAgentAnswer(data);if(data.model)$("agentModel").textContent=data.model;
     setStatus("agentStatus",`${data.result?.engine||"DuckDB"} · 已完成 · 未建立匯出檔`);
   }catch(error){setStatus("agentStatus",error.message,true)}
@@ -48,14 +50,47 @@ function renderSources(){
   if(!state.sources.length){const p=document.createElement("p");p.className="empty";p.textContent="沒有可讀取的試算表。請先從 NAS 上傳 XLSX、CSV 或 TSV。";root.append(p);return;}
   state.sources.forEach(source=>{
     const label=document.createElement("label");label.className="source-item";
-    const input=document.createElement("input");input.type="checkbox";input.checked=state.selected.has(source.asset_id);input.addEventListener("change",()=>{input.checked?state.selected.add(source.asset_id):state.selected.delete(source.asset_id);describe();updateAgentScope();});
+    const input=document.createElement("input");input.type="checkbox";input.checked=state.selected.has(source.asset_id);input.addEventListener("change",()=>{if(!setSourceSelected(source.asset_id,input.checked)){input.checked=false;return}setAgentMode("files");describe();renderDialogSources();});
     const info=document.createElement("span");const strong=document.createElement("strong");strong.textContent=source.filename;const meta=document.createElement("small");meta.textContent=`${source.uploader||"未知"} · ${source.visibility} · ${formatBytes(source.file_size)}`;info.append(strong,meta);label.append(input,info);root.append(label);
   });
 }
 
 function updateAgentScope(){
-  setStatus("agentStatus",state.selected.size?`本次問答限定使用已選取的 ${state.selected.size} 份資料。`:"未指定檔案時，系統會從您可讀取的資料中自動選擇。");
+  const root=$("scopeSelection");root.innerHTML="";
+  if(state.agentMode==="auto"){
+    const span=document.createElement("span");span.textContent="目前：自動選擇相關檔案";root.append(span);
+    setStatus("agentStatus","系統會從您可讀取的資料中自動選擇相關檔案。");return;
+  }
+  if(!state.selected.size){const span=document.createElement("span");span.className="scope-empty";span.textContent="尚未選擇檔案";root.append(span);setStatus("agentStatus","請點擊「選擇檔案」指定查詢範圍。");return}
+  state.sources.filter(item=>state.selected.has(item.asset_id)).forEach(item=>{const span=document.createElement("span");span.className="scope-chip";span.textContent=item.filename;root.append(span)});
+  setStatus("agentStatus",`本次問答限定使用已選取的 ${state.selected.size} 份資料。`);
 }
+
+function setSourceSelected(assetId,checked){
+  if(checked&&state.selected.size>=6&&!state.selected.has(assetId)){setStatus("agentStatus","最多可選擇 6 份檔案",true);return false}
+  checked?state.selected.add(assetId):state.selected.delete(assetId);return true;
+}
+
+function setAgentMode(mode){
+  state.agentMode=mode;const files=mode==="files";
+  $("scopeAuto").classList.toggle("active",!files);$("scopeAuto").setAttribute("aria-checked",String(!files));
+  $("scopeFiles").classList.toggle("active",files);$("scopeFiles").setAttribute("aria-checked",String(files));
+  $("openSourceDialog").hidden=!files;updateAgentScope();
+  if(files&&!state.selected.size)openSourceDialog();
+}
+
+function renderDialogSources(){
+  const root=$("dialogSourceList");if(!root)return;root.innerHTML="";
+  const query=$("dialogSourceSearch").value.trim().toLowerCase();
+  const visible=state.sources.filter(item=>!query||`${item.filename} ${item.title||""} ${item.uploader||""}`.toLowerCase().includes(query));
+  if(!visible.length){const p=document.createElement("p");p.className="empty";p.textContent="沒有符合條件的可讀取檔案。";root.append(p)}
+  visible.forEach(source=>{const label=document.createElement("label");label.className="dialog-source-item";const input=document.createElement("input");input.type="checkbox";input.checked=state.selected.has(source.asset_id);input.addEventListener("change",()=>{if(!setSourceSelected(source.asset_id,input.checked)){input.checked=false;return}renderSources();updateDialogCount();updateAgentScope()});const info=document.createElement("span");const strong=document.createElement("strong");strong.textContent=source.filename;const small=document.createElement("small");small.textContent=`${source.uploader||"未知"} · ${source.visibility} · ${formatBytes(source.file_size)}`;info.append(strong,small);label.append(input,info);root.append(label)});
+  updateDialogCount();
+}
+
+function updateDialogCount(){$("dialogSelectionCount").textContent=`已選 ${state.selected.size} 份`}
+function openSourceDialog(){renderDialogSources();$("sourceDialog").showModal()}
+function closeSourceDialog(){$("sourceDialog").close();describe();renderSources();updateAgentScope()}
 
 async function describe(){
   if(!state.selected.size){state.tables=[];renderTables();return;}
@@ -117,4 +152,4 @@ function split(value){return value.split(",").map(item=>item.trim()).filter(Bool
 function formatBytes(value){const n=Number(value||0);if(n<1024)return `${n} B`;if(n<1048576)return `${(n/1024).toFixed(1)} KB`;return `${(n/1048576).toFixed(1)} MB`}
 function statusLabel(value){return({queued:"等待中",running:"處理中",completed:"已完成",failed:"失敗",cancelled:"已取消"})[value]||value}
 
-$("reloadSources").addEventListener("click",loadSources);$("sourceSearch").addEventListener("input",()=>{clearTimeout(state.searchTimer);state.searchTimer=setTimeout(loadSources,300)});$("questionSample").addEventListener("change",event=>{if(event.target.value)$("agentPrompt").value=event.target.value});$("askExcel").addEventListener("click",askExcel);$("agentPrompt").addEventListener("keydown",event=>{if((event.metaKey||event.ctrlKey)&&event.key==="Enter")askExcel()});$("runQuery").addEventListener("click",runQuery);$("startExport").addEventListener("click",startExport);$("reloadJobs").addEventListener("click",loadJobs);window.addEventListener("beforeunload",stopPolling);loadSources();loadJobs();
+$("reloadSources").addEventListener("click",loadSources);$("sourceSearch").addEventListener("input",()=>{clearTimeout(state.searchTimer);state.searchTimer=setTimeout(loadSources,300)});$("scopeAuto").addEventListener("click",()=>setAgentMode("auto"));$("scopeFiles").addEventListener("click",()=>setAgentMode("files"));$("openSourceDialog").addEventListener("click",openSourceDialog);$("closeSourceDialog").addEventListener("click",closeSourceDialog);$("confirmSourceSelection").addEventListener("click",closeSourceDialog);$("clearSourceSelection").addEventListener("click",()=>{state.selected.clear();renderDialogSources();renderSources();updateAgentScope()});$("dialogSourceSearch").addEventListener("input",renderDialogSources);$("questionSample").addEventListener("change",event=>{if(event.target.value)$("agentPrompt").value=event.target.value});$("askExcel").addEventListener("click",askExcel);$("agentPrompt").addEventListener("keydown",event=>{if((event.metaKey||event.ctrlKey)&&event.key==="Enter")askExcel()});$("runQuery").addEventListener("click",runQuery);$("startExport").addEventListener("click",startExport);$("reloadJobs").addEventListener("click",loadJobs);window.addEventListener("beforeunload",stopPolling);loadSources();loadJobs();

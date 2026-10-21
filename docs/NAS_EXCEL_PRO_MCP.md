@@ -25,7 +25,7 @@ In this application, a department is represented by an AI Work user group. File 
 ## Web use
 
 1. Open **NAS Excel Pro** from the left navigation.
-2. Ask a question in the natural-language area at the top. You may first select files to restrict the scope, or leave all files unselected and let the planner choose among files you are allowed to read.
+2. In **選擇查詢範圍**, keep **自動選擇** when the system may find relevant files, or choose **指定檔案** to open a searchable multi-select file dialog. Selected filenames remain visible above the question field; a specific-file query cannot run with an empty selection.
 3. The page displays the final answer, selected files, worksheet/range citations, generated SQL, and the complete LLM/MCP trace.
 4. Open **DuckDB SQL 進階查詢** only when you want to edit and run SQL manually. This section is collapsed by default.
 5. Check the returned source references such as `銷售明細!A2:G850`.
