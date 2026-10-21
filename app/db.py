@@ -611,6 +611,56 @@ def init_db() -> None:
         )
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS instant_production_reports (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                plant TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'generating',
+                snapshot_path TEXT,
+                pdf_path TEXT,
+                snapshot_asset_id INTEGER,
+                pdf_asset_id INTEGER,
+                kpis_json TEXT,
+                alert_rules_json TEXT,
+                alerts_json TEXT,
+                source_count INTEGER NOT NULL DEFAULT 0,
+                push_status TEXT NOT NULL DEFAULT 'not_sent',
+                push_target TEXT,
+                push_error TEXT,
+                pushed_at TEXT,
+                error_message TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                completed_at TEXT,
+                FOREIGN KEY(user_id) REFERENCES users(id),
+                FOREIGN KEY(snapshot_asset_id) REFERENCES nas_assets(id),
+                FOREIGN KEY(pdf_asset_id) REFERENCES nas_assets(id)
+            )
+            """
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_instant_production_reports_created ON instant_production_reports(created_at DESC, id DESC)"
+        )
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS instant_production_report_questions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                report_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                question TEXT NOT NULL,
+                answer TEXT NOT NULL,
+                model_id TEXT NOT NULL,
+                sources_json TEXT NOT NULL DEFAULT '[]',
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY(report_id) REFERENCES instant_production_reports(id),
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            )
+            """
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_instant_report_questions_report ON instant_production_report_questions(report_id, id DESC)"
+        )
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS quarantined_uploads (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER,
@@ -2103,6 +2153,195 @@ def list_production_reports(*, user_id: int, role: str, limit: int = 50) -> list
     with connect() as conn:
         rows = conn.execute(sql, params).fetchall()
     return [report for row in rows if (report := _decode_production_report(row)) is not None]
+
+
+def _decode_instant_production_report(row: sqlite3.Row | None) -> dict[str, Any] | None:
+    report = _row_to_dict(row)
+    if report is None:
+        return None
+    for column, key, fallback in (
+        ("kpis_json", "kpis", {}),
+        ("alert_rules_json", "alert_rules", {}),
+        ("alerts_json", "alerts", []),
+    ):
+        try:
+            report[key] = json.loads(report.get(column) or json.dumps(fallback))
+        except json.JSONDecodeError:
+            report[key] = fallback
+        report.pop(column, None)
+    return report
+
+
+def create_instant_production_report(
+    *, user_id: int, plant: str, alert_rules: dict[str, Any],
+) -> dict[str, Any]:
+    with connect() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO instant_production_reports (user_id, plant, alert_rules_json)
+            VALUES (?, ?, ?)
+            """,
+            (user_id, plant, json.dumps(alert_rules, ensure_ascii=False)),
+        )
+        row = conn.execute(
+            "SELECT * FROM instant_production_reports WHERE id = ?", (cursor.lastrowid,),
+        ).fetchone()
+    report = _decode_instant_production_report(row)
+    if report is None:
+        raise RuntimeError("Instant production report creation failed")
+    return report
+
+
+def complete_instant_production_report(
+    report_id: int,
+    *,
+    snapshot_path: str,
+    pdf_path: str,
+    snapshot_asset_id: int,
+    pdf_asset_id: int,
+    kpis: dict[str, Any],
+    alerts: list[dict[str, Any]],
+    source_count: int,
+) -> dict[str, Any] | None:
+    with connect() as conn:
+        conn.execute(
+            """
+            UPDATE instant_production_reports
+            SET status = 'completed', snapshot_path = ?, pdf_path = ?, snapshot_asset_id = ?,
+                pdf_asset_id = ?, kpis_json = ?, alerts_json = ?, source_count = ?,
+                error_message = NULL, completed_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (
+                snapshot_path, pdf_path, snapshot_asset_id, pdf_asset_id,
+                json.dumps(kpis, ensure_ascii=False), json.dumps(alerts, ensure_ascii=False),
+                source_count, report_id,
+            ),
+        )
+        row = conn.execute(
+            "SELECT * FROM instant_production_reports WHERE id = ?", (report_id,),
+        ).fetchone()
+    return _decode_instant_production_report(row)
+
+
+def fail_instant_production_report(report_id: int, error_message: str) -> dict[str, Any] | None:
+    with connect() as conn:
+        conn.execute(
+            """
+            UPDATE instant_production_reports
+            SET status = 'failed', error_message = ?, completed_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (error_message, report_id),
+        )
+        row = conn.execute(
+            "SELECT * FROM instant_production_reports WHERE id = ?", (report_id,),
+        ).fetchone()
+    return _decode_instant_production_report(row)
+
+
+def get_instant_production_report(report_id: int, *, user_id: int, role: str) -> dict[str, Any] | None:
+    sql = """
+        SELECT instant_production_reports.*, users.username AS created_by
+        FROM instant_production_reports
+        JOIN users ON users.id = instant_production_reports.user_id
+        WHERE instant_production_reports.id = ?
+    """
+    params: list[Any] = [report_id]
+    if role != "admin":
+        sql += " AND instant_production_reports.user_id = ?"
+        params.append(user_id)
+    with connect() as conn:
+        row = conn.execute(sql, params).fetchone()
+    return _decode_instant_production_report(row)
+
+
+def list_instant_production_reports(*, user_id: int, role: str, limit: int = 50) -> list[dict[str, Any]]:
+    sql = """
+        SELECT instant_production_reports.*, users.username AS created_by
+        FROM instant_production_reports
+        JOIN users ON users.id = instant_production_reports.user_id
+    """
+    params: list[Any] = []
+    if role != "admin":
+        sql += " WHERE instant_production_reports.user_id = ?"
+        params.append(user_id)
+    sql += " ORDER BY instant_production_reports.id DESC LIMIT ?"
+    params.append(max(1, min(int(limit), 100)))
+    with connect() as conn:
+        rows = conn.execute(sql, params).fetchall()
+    return [report for row in rows if (report := _decode_instant_production_report(row)) is not None]
+
+
+def update_instant_report_push(
+    report_id: int, *, status: str, target: str | None, error_message: str | None,
+) -> dict[str, Any] | None:
+    with connect() as conn:
+        conn.execute(
+            """
+            UPDATE instant_production_reports
+            SET push_status = ?, push_target = ?, push_error = ?,
+                pushed_at = CASE WHEN ? = 'completed' THEN CURRENT_TIMESTAMP ELSE pushed_at END
+            WHERE id = ?
+            """,
+            (status, target, error_message, status, report_id),
+        )
+        row = conn.execute(
+            "SELECT * FROM instant_production_reports WHERE id = ?", (report_id,),
+        ).fetchone()
+    return _decode_instant_production_report(row)
+
+
+def create_instant_report_question(
+    *, report_id: int, user_id: int, question: str, answer: str, model_id: str, sources: list[dict[str, Any]],
+) -> dict[str, Any]:
+    with connect() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO instant_production_report_questions
+                (report_id, user_id, question, answer, model_id, sources_json)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            (report_id, user_id, question, answer, model_id, json.dumps(sources, ensure_ascii=False)),
+        )
+        row = conn.execute(
+            """
+            SELECT instant_production_report_questions.*, users.username AS asked_by
+            FROM instant_production_report_questions
+            JOIN users ON users.id = instant_production_report_questions.user_id
+            WHERE instant_production_report_questions.id = ?
+            """,
+            (cursor.lastrowid,),
+        ).fetchone()
+    result = _row_to_dict(row)
+    if result is None:
+        raise RuntimeError("Instant production report question creation failed")
+    result["sources"] = json.loads(result.pop("sources_json") or "[]")
+    return result
+
+
+def list_instant_report_questions(report_id: int, *, limit: int = 30) -> list[dict[str, Any]]:
+    with connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT instant_production_report_questions.*, users.username AS asked_by
+            FROM instant_production_report_questions
+            JOIN users ON users.id = instant_production_report_questions.user_id
+            WHERE report_id = ?
+            ORDER BY instant_production_report_questions.id DESC
+            LIMIT ?
+            """,
+            (report_id, max(1, min(int(limit), 100))),
+        ).fetchall()
+    results = []
+    for row in rows:
+        item = dict(row)
+        try:
+            item["sources"] = json.loads(item.pop("sources_json") or "[]")
+        except json.JSONDecodeError:
+            item["sources"] = []
+        results.append(item)
+    return results
 
 
 def create_nas_asset(

@@ -347,9 +347,10 @@ class _PdfWriter:
 
 def render_report_pdf(report: dict[str, Any], destination: Path) -> None:
     writer = _PdfWriter()
-    writer.text("每日生產報告", size=24, color=(0.03, 0.25, 0.43), gap=2)
+    report_title = str(report.get("report_title") or "每日生產報告")
+    writer.text(report_title, size=24, color=(0.03, 0.25, 0.43), gap=2)
     writer.text(
-        f"報告日期：{report['report_date']}　廠區：{report['plant']}　資料截止：{report.get('snapshot_at') or '-'}",
+        f"報告日期：{report['report_date']}　廠區：{report['plant']}　資料截止：{report.get('snapshot_at') or '-'}　產生時間：{report.get('generated_at') or '-'}",
         size=9, color=(0.35, 0.45, 0.55), gap=12,
     )
     writer.heading("管理摘要")
@@ -381,6 +382,15 @@ def render_report_pdf(report: dict[str, Any], destination: Path) -> None:
     for item in report["equipment_risks"]:
         writer.text(f"• 設備 {item.get('center_id', '-')}：{item.get('reason', '-')} [S5]", size=9)
 
+    alerts = report.get("alerts") or []
+    if alerts:
+        writer.heading("管理告警")
+        alert_rows = [
+            [item["label"], item["actual_display"], item["rule_display"], item["severity"], "、".join(item["sources"])]
+            for item in alerts
+        ]
+        writer.table(["告警欄位", "實際值", "門檻", "等級", "來源"], alert_rows, [120, 90, 120, 75, 100])
+
     writer.new_page()
     writer.heading("資料來源與工具軌跡")
     source_rows = [[item["ref"], item["name"], item["detail"]] for item in report["sources"]]
@@ -394,7 +404,7 @@ def render_report_pdf(report: dict[str, Any], destination: Path) -> None:
         )
     writer.text("說明：報表 KPI 由固定公式計算；LLM 不參與關鍵數字計算。本報告為管理決策支援，不取代 ERP／MES 正式帳務與生產紀錄。", size=8, color=(0.35, 0.45, 0.55), gap=0)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    writer.document.set_metadata({"title": f"每日生產報告 {report['report_date']}", "author": "AI Work NAS"})
+    writer.document.set_metadata({"title": f"{report_title} {report['report_date']}", "author": "AI Work NAS"})
     for index, page in enumerate(writer.document, start=1):
         page.insert_text(
             (writer.page_width - writer.margin - 42, writer.page_height - 22),

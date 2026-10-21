@@ -1,0 +1,123 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>即時生產報告 · AI Work NAS</title>
+  <link rel="stylesheet" href="/static/instant-production-report.css">
+  <script src="/static/instant-production-report.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="back-link" href="/">返回 AI Work</a>
+    <div class="brand">AI Work NAS</div>
+  </header>
+
+  <main>
+    <section class="hero" aria-labelledby="pageTitle">
+      <div>
+        <p class="eyebrow">MANUFACTURING · LIVE MCP REPORTING</p>
+        <h1 id="pageTitle">即時生產報告</h1>
+        <p class="lead">按需讀取企業系統目前快照，固定公式計算 KPI，保存 JSON 與含來源引用的 PDF 到 NAS。每次產生都是獨立記錄，可設定告警、推送至已核准的 LINE 群組，並針對該次快照繼續追問。</p>
+      </div>
+      <button id="generate" class="primary" type="button">立即取得資料並產生</button>
+    </section>
+
+    <section class="settings-band" aria-labelledby="alertSettingsTitle">
+      <div class="section-heading compact">
+        <div>
+          <p class="eyebrow">ALERT POLICY</p>
+          <h2 id="alertSettingsTitle">本次報告告警門檻</h2>
+        </div>
+        <button id="resetRules" class="text-button" type="button">恢復建議值</button>
+      </div>
+      <div class="rule-grid">
+        <label>計畫達成率下限 (%)<input id="planAttainmentMin" type="number" min="0" max="100" step="0.1" value="90"></label>
+        <label>FPY 下限 (%)<input id="firstPassYieldMin" type="number" min="0" max="100" step="0.1" value="95"></label>
+        <label>OEE 下限 (%)<input id="oeeMin" type="number" min="0" max="100" step="0.1" value="75"></label>
+        <label>預測準交率下限 (%)<input id="predictedOnTimeMin" type="number" min="0" max="100" step="0.1" value="95"></label>
+        <label>延期訂單上限 (筆)<input id="lateOrdersMax" type="number" min="0" step="1" value="0"></label>
+        <label>缺料項目上限 (項)<input id="shortageItemsMax" type="number" min="0" step="1" value="0"></label>
+        <label>停機／保養上限 (分鐘)<input id="downtimeMinutesMax" type="number" min="0" step="1" value="60"></label>
+      </div>
+      <div class="delivery-grid">
+        <label>告警推送群組<select id="generationLineGroup"><option value="">不自動推送</option></select></label>
+        <label class="check"><input id="autoPush" type="checkbox">產生後若觸發告警，自動推送至上述群組</label>
+      </div>
+      <p class="hint">門檻只影響本次報告的告警判斷，不會寫回 Odoo、MES、QMS、CMMS 或 PLC。</p>
+    </section>
+
+    <div id="busy" class="status-banner loading" role="status" hidden>正在透過唯讀 MCP 取得資料、計算 KPI 並產生 PDF，請稍候…</div>
+    <div id="notice" class="status-banner" role="status" hidden></div>
+    <div id="error" class="status-banner error" role="alert" hidden></div>
+
+    <section id="current" class="report-section" aria-labelledby="currentTitle" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">CURRENT SNAPSHOT</p>
+          <h2 id="currentTitle">本次即時報告</h2>
+        </div>
+        <a id="download" class="download-link" href="#">下載 PDF</a>
+      </div>
+      <div class="report-meta"><span id="reportStatus" class="badge"></span><span id="reportMeta"></span></div>
+      <div id="kpis" class="kpi-grid" aria-label="固定 KPI"></div>
+
+      <section class="alert-band" aria-labelledby="alertsTitle">
+        <h3 id="alertsTitle">觸發告警</h3>
+        <div id="alerts"></div>
+      </section>
+
+      <div class="detail-grid">
+        <section class="detail-panel"><h3>交期風險</h3><div id="risks"></div></section>
+        <section class="detail-panel"><h3>缺料、品質與設備</h3><div id="exceptions"></div></section>
+      </div>
+
+      <section class="action-band" aria-labelledby="pushTitle">
+        <div><p class="eyebrow">CONTROLLED DELIVERY</p><h3 id="pushTitle">告警推送</h3><p>只可推送至 LINE 企業管理中已核准的群組，每次動作都會記錄在該報告。</p></div>
+        <label>LINE 群組<select id="lineGroup"><option value="">載入已核准群組中…</option></select></label>
+        <label class="check"><input id="alertOnly" type="checkbox" checked>僅在觸發告警時推送</label>
+        <button id="push" class="secondary" type="button">推送本次結果</button>
+        <span id="pushState" class="action-state"></span>
+      </section>
+
+      <section class="question-band" aria-labelledby="questionTitle">
+        <div><p class="eyebrow">MANAGEMENT FOLLOW-UP</p><h3 id="questionTitle">管理層追問</h3></div>
+        <label>範例問題
+          <select id="sampleQuestion">
+            <option value="">選擇一個範例，或直接輸入問題</option>
+            <option>目前最需要管理層處理的三個風險是什麼？請附來源。</option>
+            <option>哪些訂單可能延期，主要原因和可執行建議是什麼？</option>
+            <option>目前缺料、品質與設備風險之間是否有關聯？</option>
+            <option>請用五點摘要說明本次報告與告警。</option>
+          </select>
+        </label>
+        <div class="question-row">
+          <textarea id="question" rows="2" maxlength="1000" placeholder="只會查詢目前顯示的不可變報告快照"></textarea>
+          <button id="ask" class="primary" type="button">詢問目前報告</button>
+        </div>
+        <div id="answer" class="answer" hidden></div>
+        <div id="questionHistory" class="question-history"></div>
+      </section>
+
+      <details class="source-panel">
+        <summary>查看資料來源與 MCP 工具軌跡</summary>
+        <div id="sources" class="source-list"></div>
+        <pre id="trace"></pre>
+      </details>
+    </section>
+
+    <section class="history-section" aria-labelledby="historyTitle">
+      <div class="section-heading">
+        <div><p class="eyebrow">NAS ARCHIVE</p><h2 id="historyTitle">即時報告歷史</h2></div>
+        <button id="refresh" class="secondary" type="button">重新載入</button>
+      </div>
+      <p class="section-note">每次操作建立獨立快照與 PDF；最新記錄排在最前面。</p>
+      <div class="table-scroll"><table>
+        <thead><tr><th>編號</th><th>產生時間</th><th>廠區</th><th>告警</th><th>推送</th><th>來源</th><th>動作</th></tr></thead>
+        <tbody id="historyBody"></tbody>
+      </table></div>
+      <p id="empty" class="empty" hidden>尚未產生即時生產報告。</p>
+    </section>
+  </main>
+</body>
+</html>

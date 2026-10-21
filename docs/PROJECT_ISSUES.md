@@ -1,5 +1,15 @@
 # Project Issues
 
+## 2026-10-22 — 即时生产报告、告警推送与管理层追问
+
+- **Trigger:** 使用者要求新增「即时生产报告」工作流：立即取得资料、计算固定 KPI、保存到 NAS、产生带来源引用的 PDF，并设置告警字段进行推送及管理层追问。
+- **Implementation:** 新增独立管理员页面与资料表，允许同日多次产生不可变报告快照；复用既有 Odoo／MES／QMS／CMMS／WMS／PLM／SPC 唯读 MCP 与本地排程引擎。固定 KPI 不由 LLM 计算。七项可配置门槛记录在每份报告并生成可追溯告警。JSON 与 PDF 登记为 NAS 资产。推送必须明确选择已核准 LINE 群组，默认只在有告警时执行；管理层追问只读取所选报告快照，并保存问题、回答、模型、来源和既有 LLM 审计。
+- **Security:** 页面和 API 只限管理员；下载路径必须位于受控报告目录；LINE 目标必须为企业管理已核准群组；报告来源视为不可信资料，不能改写系统提示；企业 MCP 全程只读。
+- **Verification:** Python／JavaScript 语法检查通过。即时与每日报告共九项专用测试通过，完整 Python 测试为 275 项通过、1 项依既有条件跳过；覆盖固定门槛、告警来源、PDF 中文与来源文字、同日独立报告、NAS 资产、登录保护、下载、LINE 推送与管理层追问持久化。静态手机版页面已实际检查，无重叠或水平溢出。
+- **Deployment:** 2026-10-22 部署至 `goldsys.io` 当前主机 `59.120.2.102`。部署前确认无等待或执行中的处理任务，并将既有代码与 SQLite 一致性备份保存于 `/home/ubuntu/backups/instant-production-report-20261022-053955`。发布包 SHA-256 与本机一致，重启 `ai-work.service` 后健康检查通过；两组九项专用测试在 Ubuntu 上通过，新资料表已建立，静态 HTML／JavaScript 返回 200，页面与 API 匿名访问维持 401。
+- **Unverified:** 尚未以客户正式 MES 字段和管理层 KPI 口径验收；推送目前使用既有 LINE 服务，不含 Email／Teams；即时生成仍是同步请求，未迁移到持久化背景队列；尚未以登入后的公开浏览器执行真实 LINE 推送、真实 LLM 管理层追问和视觉检查。
+- **Rollback:** 移除即时报告路由、页面及菜单入口，保留新增资料表与 NAS 资产供审计。不要影响既有每日生产报告 timer，也不要自动删除历史快照、PDF、推送及追问记录。
+
 ## 2026-10-18 - Manufacturing LLM answer exceeded the local 4,096-token context
 
 - **Trigger:** The browser successfully generated the expanded WMS/PLM/SPC schedule, but asking `ECO-2026-014 會影響哪些訂單？` with a rush order, four-hour SMT downtime and three-day material delay produced no visible answer.
