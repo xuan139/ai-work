@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>NAS Excel Pro MCP · AI Work</title>
+  <link rel="icon" href="/static/icons/icon-192.png">
+  <link rel="stylesheet" href="/static/excel-pro.css?v=1">
+  <script src="/static/excel-pro.js?v=1" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/"><img src="/static/icons/icon-192.png" width="36" height="36" alt="AI Work">AI Work</a>
+    <a class="back" href="/">返回工作區</a>
+  </header>
+  <main>
+    <section class="hero">
+      <div>
+        <p class="eyebrow">DUCKDB · PERMISSION-AWARE MCP</p>
+        <h1>NAS Excel Pro</h1>
+        <p>跨 Excel／CSV／TSV 聯表查詢，結果另存為新 XLSX；不修改 NAS 原始檔案。</p>
+      </div>
+      <div class="hero-facts"><span>只讀來源</span><span>私有輸出</span><span>可追溯範圍</span></div>
+    </section>
+
+    <section class="workspace" aria-label="Excel Pro workspace">
+      <aside class="source-panel">
+        <div class="section-heading"><div><p class="eyebrow">STEP 1</p><h2>選擇資料來源</h2></div><button id="reloadSources" class="icon-button" type="button" title="重新載入" aria-label="重新載入">↻</button></div>
+        <label class="search"><span>搜尋檔案</span><input id="sourceSearch" type="search" placeholder="檔名、上傳者或類型"></label>
+        <p class="permission-note">只顯示您依上傳者、部門群組或檔案授權可讀取的資料。</p>
+        <div id="sourceList" class="source-list" aria-live="polite"></div>
+      </aside>
+
+      <div class="query-workspace">
+        <section class="query-panel">
+          <div class="section-heading"><div><p class="eyebrow">STEP 2</p><h2>DuckDB SQL 查詢</h2></div><span id="engineBadge" class="badge">DuckDB</span></div>
+          <div id="tableMap" class="table-map"><p class="empty">選擇檔案後顯示工作表、欄位、資料範圍與 SQL 表名。</p></div>
+          <label for="sqlEditor">唯讀 SQL</label>
+          <textarea id="sqlEditor" spellcheck="false" placeholder='SELECT * FROM "asset_12__銷售明細" LIMIT 100'></textarea>
+          <div class="actions"><button id="runQuery" class="primary" type="button">執行查詢</button><span id="queryStatus" role="status" aria-live="polite"></span></div>
+        </section>
+
+        <section id="resultPanel" class="result-panel" hidden>
+          <div class="section-heading"><div><p class="eyebrow">QUERY RESULT</p><h2>查詢結果</h2></div><span id="resultCount" class="badge"></span></div>
+          <div class="table-scroll"><table><thead id="resultHead"></thead><tbody id="resultBody"></tbody></table></div>
+          <div><h3>來源引用</h3><div id="citations" class="citations"></div></div>
+        </section>
+
+        <details class="export-panel" open>
+          <summary><span><span class="eyebrow">STEP 3</span><strong>匯出、樞紐分析與圖表</strong></span><span>展開／收合</span></summary>
+          <div class="export-body">
+            <div class="form-grid">
+              <label><span>輸出檔名</span><input id="outputName" value="excel-pro-analysis.xlsx"></label>
+              <label><span>樞紐列欄位</span><input id="pivotRows" placeholder="例如：部門, 產品"></label>
+              <label><span>彙總數值欄位</span><input id="pivotValue" placeholder="例如：銷售額"></label>
+              <label><span>彙總方式</span><select id="pivotAggregate"><option value="sum">合計 SUM</option><option value="count">筆數 COUNT</option><option value="avg">平均 AVG</option><option value="min">最小 MIN</option><option value="max">最大 MAX</option></select></label>
+              <label><span>圖表類型</span><select id="chartType"><option value="">不建立圖表</option><option value="bar">長條圖</option><option value="line">折線圖</option><option value="pie">圓餅圖</option></select></label>
+              <label><span>圖表資料表</span><select id="chartSheet"><option value="result">查詢結果</option><option value="pivot">樞紐摘要</option></select></label>
+              <label><span>圖表分類欄位</span><input id="chartCategory" placeholder="例如：產品"></label>
+              <label><span>圖表數值欄位</span><input id="chartValues" placeholder="例如：sum_銷售額"></label>
+            </div>
+            <div class="actions"><button id="startExport" class="primary" type="button">建立背景匯出</button><span id="exportStatus" role="status" aria-live="polite"></span></div>
+          </div>
+        </details>
+
+        <section class="jobs-panel">
+          <div class="section-heading"><div><p class="eyebrow">BACKGROUND JOBS</p><h2>處理進度</h2></div><button id="reloadJobs" class="secondary" type="button">重新整理</button></div>
+          <div id="jobList" class="job-list" aria-live="polite"></div>
+        </section>
+      </div>
+    </section>
+  </main>
+</body>
+</html>
