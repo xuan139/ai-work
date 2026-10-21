@@ -71,6 +71,8 @@ input:focus, select:focus, textarea:focus { outline: 2px solid #b9e2f8; border-c
 .plain-row span { color: var(--muted); line-height: 1.55; }
 .action-band { display: grid; grid-template-columns: minmax(250px, 1.4fr) minmax(220px, .8fr) auto auto; gap: 18px; align-items: end; margin-top: 30px; padding: 23px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
 .email-band { grid-template-columns: minmax(230px, 1.1fr) minmax(190px, .7fr) minmax(270px, 1fr) auto auto; margin-top: 0; border-top: 0; }
+.report-email-settings { margin: 24px 0; border: 1px solid var(--line); }
+.account-state { margin-top: 8px; color: var(--blue-dark); font-weight: 700; }
 .action-band p { margin: 8px 0 0; color: var(--muted); line-height: 1.5; }
 .check { grid-template-columns: auto 1fr; align-items: center; align-self: center; white-space: nowrap; }
 .check input { width: 18px; height: 18px; }

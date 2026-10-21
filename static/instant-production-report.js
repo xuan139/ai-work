@@ -37,8 +37,14 @@ function node(tag, text = "", className = "") {
 function setBusy(busy, message = "正在處理，請稍候…") {
   $("busy").textContent = message;
   $("busy").hidden = !busy;
-  for (const id of ["generate", "refresh", "push", "email", "ask"]) $(id).disabled = busy;
+  for (const id of ["generate", "refresh", "push", "ask"]) $(id).disabled = busy;
+  updateEmailAvailability(busy);
   if (busy) $("error").hidden = true;
+}
+
+function updateEmailAvailability(busy = false) {
+  const selected = $("gmailAccount").selectedOptions[0];
+  $("email").disabled = busy || !activeReport || !selected?.value || selected.disabled;
 }
 
 function showNotice(message) {
@@ -146,6 +152,7 @@ function renderReport(record) {
       : emailDelivery.status === "failed"
         ? `寄送失敗：${emailDelivery.error_message || "未知錯誤"}`
         : emailDelivery.status === "skipped" ? "未觸發告警，已略過寄送" : "寄送中";
+  updateEmailAvailability();
   renderQuestions(record.questions || []);
   history.replaceState(null, "", `/instant-production-report?report=${record.id}`);
   $("current").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -253,10 +260,28 @@ async function loadGmailAccounts() {
       option.title = account.recipient_policy;
       options.push(option);
     }
-    if (!accounts.length) options[0].textContent = "尚未設定 Gmail 寄件帳號";
+    if (!accounts.length) {
+      options[0].textContent = "尚未設定 Gmail 寄件帳號";
+      $("gmailAccountState").textContent = "伺服器尚未設定可用的 Gmail 寄件帳號。";
+    } else {
+      const readyAccounts = accounts.filter((account) => account.configured);
+      const unavailableAccounts = accounts.filter((account) => !account.configured);
+      const status = [];
+      if (readyAccounts.length) status.push(`可用：${readyAccounts.map((account) => account.email).join("、")}`);
+      if (unavailableAccounts.length) status.push(`需重新授權：${unavailableAccounts.map((account) => account.email).join("、")}`);
+      $("gmailAccountState").textContent = status.join("；");
+    }
     $("gmailAccount").replaceChildren(...options);
+    const firstReady = accounts.find((account) => account.configured);
+    if (firstReady) {
+      $("gmailAccount").value = firstReady.id;
+      $("gmailRecipients").value = firstReady.email;
+    }
+    updateEmailAvailability();
   } catch (error) {
     $("gmailAccount").replaceChildren(new Option(`Gmail 帳號無法載入：${error.message}`, ""));
+    $("gmailAccountState").textContent = `帳號載入失敗：${error.message}`;
+    updateEmailAvailability();
   }
 }
 
@@ -322,6 +347,7 @@ $("email").addEventListener("click", emailReport);
 $("gmailAccount").addEventListener("change", (event) => {
   const option = event.target.selectedOptions[0];
   if (option?.dataset.email && !$("gmailRecipients").value.trim()) $("gmailRecipients").value = option.dataset.email;
+  updateEmailAvailability();
 });
 $("ask").addEventListener("click", askReport);
 $("sampleQuestion").addEventListener("change", (event) => { if (event.target.value) $("question").value = event.target.value; });

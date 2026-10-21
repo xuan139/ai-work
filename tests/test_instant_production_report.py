@@ -101,7 +101,9 @@ class InstantProductionReportTests(unittest.TestCase):
             try:
                 self.assertEqual(client.get("/instant-production-report").status_code, 401)
                 main.app.dependency_overrides[current_user] = lambda: admin
-                self.assertEqual(client.get("/instant-production-report").status_code, 200)
+                page = client.get("/instant-production-report")
+                self.assertEqual(page.status_code, 200)
+                self.assertLess(page.text.index('id="gmailAccount"'), page.text.index('id="current"'))
                 self.assertIn('/instant-production-report', client.get("/").text)
                 with patch.object(main, "manufacturing_schedule_mcp_servers", return_value=({}, {}, {}, {}, {}, {}, {})), \
                      patch.object(main, "run_mcp_schedule", new=AsyncMock(return_value=report_schedule())):

@@ -8,6 +8,7 @@
 - **Security:** OAuth 只请求 Gmail `gmail.send`；收件人预设仅允许寄件帐号本人，并可按帐号配置指定地址或公司网域。每次最多 10 个收件人、附件上限 20 MB，附件路径必须位于受控生产报告目录。LLM 不参与帐号、收件人或发送动作。
 - **Verification:** Gmail 帐号配置、凭证隐藏、停用帐号、收件白名单和 MIME PDF 附件四项测试通过；即时报告四项 API／持久化测试通过；完整 Python 测试为 278 项通过、1 项依既有条件跳过。Python／JavaScript 语法与 `git diff --check` 通过。桌面和 390px 手机页面已实际检查，无重叠或水平溢出。服务器现有 Gmail refresh token 经 Google Token Endpoint 检查回传 `invalid_grant`，因此不能沿用为可发送帐号。
 - **Deployment:** 2026-10-22 部署至 `goldsys.io` 当前主机 `59.120.2.102`。部署前确认无等待或执行中的处理任务，并将既有代码、SQLite 与 `/etc/ai-work.env` 备份于 `/home/ubuntu/backups/gmail-report-delivery-20261022-061552`。新增 `xuan000139@gmail.com` 为停用的候选帐号，未保存新密码或 token；页面显示需要重新授权。重启 `ai-work.service` 后健康检查、新资料表、静态资源及八项服务器专用测试均通过，未发送测试邮件。
+- **Visibility follow-up:** 首次发布把 Gmail 选择器放在预设隐藏的「本次即时报告」区块内，因此尚未产生或打开报告时完全看不到帐号。已将寄件帐号、收件人和寄送按钮移至页面上方固定显示；页面会直接列出可用或需重新授权的帐号，只有选择报告及可用帐号后才开放寄送。HTML 加入静态资源版本参数避免浏览器沿用旧版。新增页面顺序回归断言；完整测试为 279 项通过、1 项跳过。桌面与 390px 手机预览已检查，选择区无重叠或水平溢出。前端修复备份位于 `/home/ubuntu/backups/gmail-selector-visibility-20261022-063418`，公网 HTML／JavaScript／CSS 哈希与本机一致，`/healthz` 正常。
 - **Unverified:** 尚未以真实 Gmail `gmail.send` refresh token 寄送外部邮件；管理员必须重新授权 scope 后才可将帐号改为启用。现阶段不包含背景重试队列、排程寄送、Email 开信追踪或退信处理。
 - **Rollback:** 移除 Gmail 投递 API、页面区块与 `GMAIL_SEND_ACCOUNTS_JSON`。保留 `instant_production_report_deliveries` 记录供审计；不得自动删除历史投递记录或报告 PDF。唯读 Gmail MCP 不受影响。
 

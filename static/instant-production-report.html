@@ -4,8 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>即時生產報告 · AI Work NAS</title>
-  <link rel="stylesheet" href="/static/instant-production-report.css">
-  <script src="/static/instant-production-report.js" defer></script>
+  <link rel="stylesheet" href="/static/instant-production-report.css?v=20261022-2">
+  <script src="/static/instant-production-report.js?v=20261022-2" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -47,6 +47,20 @@
       <p class="hint">門檻只影響本次報告的告警判斷，不會寫回 Odoo、MES、QMS、CMMS 或 PLC。</p>
     </section>
 
+    <section class="action-band email-band report-email-settings" aria-labelledby="emailTitle">
+      <div>
+        <p class="eyebrow">GMAIL DELIVERY</p>
+        <h2 id="emailTitle">Gmail 報告寄送</h2>
+        <p>先選擇寄件帳號；產生或開啟一份報告後即可寄送 PDF。</p>
+        <p id="gmailAccountState" class="account-state">正在載入 Gmail 帳號…</p>
+      </div>
+      <label>寄件帳號<select id="gmailAccount"><option value="">載入 Gmail 帳號中…</option></select></label>
+      <label>收件人<input id="gmailRecipients" type="text" inputmode="email" autocomplete="off" placeholder="name@company.com，可用逗號分隔"></label>
+      <label class="check"><input id="emailAlertOnly" type="checkbox" checked>僅在觸發告警時寄送</label>
+      <button id="email" class="secondary" type="button" disabled>寄送目前報告 PDF</button>
+      <span id="emailState" class="action-state">請先產生或開啟一份報告。</span>
+    </section>
+
     <div id="busy" class="status-banner loading" role="status" hidden>正在透過唯讀 MCP 取得資料、計算 KPI 並產生 PDF，請稍候…</div>
     <div id="notice" class="status-banner" role="status" hidden></div>
     <div id="error" class="status-banner error" role="alert" hidden></div>
@@ -78,15 +92,6 @@
         <label class="check"><input id="alertOnly" type="checkbox" checked>僅在觸發告警時推送</label>
         <button id="push" class="secondary" type="button">推送本次結果</button>
         <span id="pushState" class="action-state"></span>
-      </section>
-
-      <section class="action-band email-band" aria-labelledby="emailTitle">
-        <div><p class="eyebrow">GMAIL DELIVERY</p><h3 id="emailTitle">Gmail 報告寄送</h3><p>寄件帳號與收件範圍由管理員在伺服器設定。</p></div>
-        <label>寄件帳號<select id="gmailAccount"><option value="">載入 Gmail 帳號中…</option></select></label>
-        <label>收件人<input id="gmailRecipients" type="text" inputmode="email" autocomplete="off" placeholder="name@company.com，可用逗號分隔"></label>
-        <label class="check"><input id="emailAlertOnly" type="checkbox" checked>僅在觸發告警時寄送</label>
-        <button id="email" class="secondary" type="button">寄送 PDF</button>
-        <span id="emailState" class="action-state"></span>
       </section>
 
       <section class="question-band" aria-labelledby="questionTitle">
