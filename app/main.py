@@ -151,6 +151,7 @@ from app.excel_pro import (
     run_query as run_excel_pro_query,
 )
 from app.excel_pro_worker import start_excel_pro_worker, stop_excel_pro_worker
+from app.excel_pro_agent import ExcelProAgentError, run_excel_pro_agent
 from app.file_security import UploadScanResult, UploadSecurityError, inspect_uploaded_file, validated_upload_filename
 from app.gmail_mcp import GMAIL_MCP_TOOLS, handle_gmail_mcp_request
 from app.line_service import LineServiceError, list_line_groups, push_line_messages
@@ -835,6 +836,42 @@ async def excel_pro_page(user: dict = Depends(current_user)) -> FileResponse:
 @app.get("/api/excel-pro/sources")
 async def excel_pro_sources(q: str = "", limit: int = 50, user: dict = Depends(current_user)) -> dict:
     return await asyncio.to_thread(list_excel_pro_sources, user, q, limit)
+
+
+@app.post("/api/excel-pro/ask")
+async def excel_pro_ask(payload: dict, user: dict = Depends(current_user)) -> dict:
+    prompt = str(payload.get("prompt") or "").strip()
+    raw_ids = payload.get("selected_asset_ids")
+    if not 1 <= len(prompt) <= 1000:
+        raise HTTPException(status_code=400, detail="问题必须为 1 至 1,000 个字")
+    if raw_ids is None:
+        raw_ids = []
+    if not isinstance(raw_ids, list) or len(raw_ids) > 6:
+        raise HTTPException(status_code=400, detail="最多可指定 6 个资料来源")
+    try:
+        selected_asset_ids = list(dict.fromkeys(int(item) for item in raw_ids))
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail="资料来源格式错误") from exc
+    guard_prompt(prompt, user, "excel_pro_agent")
+    limiter_key = f"excel-pro:{user['id']}"
+    if not LLM_LIMITER.allowed(limiter_key):
+        raise HTTPException(status_code=429, detail="请求过于频繁，请稍后再试")
+    LLM_LIMITER.record(limiter_key)
+    server = next(
+        (item for item in available_mcp_servers(mcp_servers_for_user(user)) if item["slug"] == "nas-excel-pro"),
+        None,
+    )
+    if not server:
+        raise HTTPException(status_code=503, detail="NAS Excel Pro MCP 目前未连线")
+    model_id = current_llm_model()["id"]
+    try:
+        async with LLM_RUN_LOCKS.setdefault((user["id"], model_id), asyncio.Lock()):
+            return await run_excel_pro_agent(
+                prompt, selected_asset_ids, model_id=model_id, user=user, server=server,
+                run_model=run_model_with_audit,
+            )
+    except ExcelProAgentError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @app.post("/api/excel-pro/sources/describe")
