@@ -661,6 +661,30 @@ def init_db() -> None:
         )
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS instant_production_report_deliveries (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                report_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                channel TEXT NOT NULL,
+                account_id TEXT NOT NULL,
+                sender TEXT NOT NULL,
+                recipients_json TEXT NOT NULL DEFAULT '[]',
+                subject TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'sending',
+                external_id TEXT,
+                error_message TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                completed_at TEXT,
+                FOREIGN KEY(report_id) REFERENCES instant_production_reports(id),
+                FOREIGN KEY(user_id) REFERENCES users(id)
+            )
+            """
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_instant_report_deliveries_report ON instant_production_report_deliveries(report_id, id DESC)"
+        )
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS quarantined_uploads (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER,
@@ -2342,6 +2366,77 @@ def list_instant_report_questions(report_id: int, *, limit: int = 30) -> list[di
             item["sources"] = []
         results.append(item)
     return results
+
+
+def create_instant_report_delivery(
+    *, report_id: int, user_id: int, channel: str, account_id: str, sender: str,
+    recipients: list[str], subject: str, status: str = "sending", error_message: str | None = None,
+) -> dict[str, Any]:
+    with connect() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO instant_production_report_deliveries
+                (report_id, user_id, channel, account_id, sender, recipients_json, subject, status, error_message,
+                 completed_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, CASE WHEN ? IN ('completed', 'failed', 'skipped') THEN CURRENT_TIMESTAMP END)
+            """,
+            (
+                report_id, user_id, channel, account_id, sender,
+                json.dumps(recipients, ensure_ascii=False), subject, status, error_message, status,
+            ),
+        )
+        row = conn.execute(
+            "SELECT * FROM instant_production_report_deliveries WHERE id = ?", (cursor.lastrowid,),
+        ).fetchone()
+    delivery = _decode_instant_report_delivery(row)
+    if delivery is None:
+        raise RuntimeError("Instant production report delivery creation failed")
+    return delivery
+
+
+def finish_instant_report_delivery(
+    delivery_id: int, *, status: str, external_id: str | None = None, error_message: str | None = None,
+) -> dict[str, Any] | None:
+    with connect() as conn:
+        conn.execute(
+            """
+            UPDATE instant_production_report_deliveries
+            SET status = ?, external_id = ?, error_message = ?, completed_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (status, external_id, error_message, delivery_id),
+        )
+        row = conn.execute(
+            "SELECT * FROM instant_production_report_deliveries WHERE id = ?", (delivery_id,),
+        ).fetchone()
+    return _decode_instant_report_delivery(row)
+
+
+def list_instant_report_deliveries(report_id: int, *, limit: int = 50) -> list[dict[str, Any]]:
+    with connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT instant_production_report_deliveries.*, users.username AS sent_by
+            FROM instant_production_report_deliveries
+            JOIN users ON users.id = instant_production_report_deliveries.user_id
+            WHERE report_id = ?
+            ORDER BY instant_production_report_deliveries.id DESC
+            LIMIT ?
+            """,
+            (report_id, max(1, min(int(limit), 100))),
+        ).fetchall()
+    return [item for row in rows if (item := _decode_instant_report_delivery(row)) is not None]
+
+
+def _decode_instant_report_delivery(row: sqlite3.Row | None) -> dict[str, Any] | None:
+    delivery = _row_to_dict(row)
+    if delivery is None:
+        return None
+    try:
+        delivery["recipients"] = json.loads(delivery.pop("recipients_json") or "[]")
+    except json.JSONDecodeError:
+        delivery["recipients"] = []
+    return delivery
 
 
 def create_nas_asset(

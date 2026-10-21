@@ -9,7 +9,7 @@
 3. 系统通过既有唯读 MCP 即时读取 Odoo、MES、QMS、CMMS、WMS、PLM 与 SPC，并由本地有限产能排程引擎建立同一时间点的快照。
 4. 固定公式计算计划达成率、FPY、OEE、预测准交率、延期订单、缺料、换线与停机时间。
 5. JSON 快照与含来源引用的 PDF 会作为 NAS 资产保存到 `storage/production_reports/YYYY/MM/DD/instant-NNNNNN/`。
-6. 报告完成后，可明确选择一个已核准 LINE 群组推送，或针对该份不可变快照向目前系统 LLM 追问。
+6. 报告完成后，可明确选择一个已核准 LINE 群组推送、选择一个已授权 Gmail 帐号寄送 PDF，或针对该份不可变快照向目前系统 LLM 追问。
 
 即时报告与「每日生产报告」分开保存。同一天可以多次产生即时报告，每次都有独立编号、来源、工具轨迹、告警门槛和问答记录；每日生产报告仍维持每天一份与 18:00 定时器。
 
@@ -35,6 +35,24 @@
 - 推送内容包含报告编号、时间、关键 KPI、告警、来源编号及返回报告页面的链接。
 - 成功、失败、目标群组和时间会记录在报告资料表。
 
+## Gmail 寄送
+
+- Gmail 寄送只限管理员在报告页面明确操作；LLM 无权选择寄件帐号、收件人或自动寄信。
+- OAuth 必须包含 `https://www.googleapis.com/auth/gmail.send`。既有 Gmail 唯读 refresh token 不会自动取得写入权限，必须由管理员重新授权。
+- 多个寄件帐号以 `GMAIL_SEND_ACCOUNTS_JSON` 设置；JSON 只保存帐号显示资料与 OAuth 环境变量名称，Client Secret 与 Refresh Token 仍各自放在 `.env`，不得写入数据库或 Git。
+- 未设置收件人白名单时只可寄给该 Gmail 帐号本身；可按帐号增加指定地址或公司网域。
+- 邮件包含固定 KPI、告警摘要、报告链接及 PDF 附件。每次寄送会记录寄件帐号、收件人、状态、Gmail Message ID、错误与时间。
+
+```dotenv
+GMAIL_SEND_ACCOUNTS_JSON='[{"id":"operations","label":"营运 Gmail","email":"operations@example.com","oauth_env":"GMAIL_OPERATIONS_TOKEN","send_enabled":true,"allowed_recipients":["manager@example.com"],"allowed_domains":["example.com"]}]'
+GMAIL_OPERATIONS_CLIENT_ID=...
+GMAIL_OPERATIONS_CLIENT_SECRET=...
+GMAIL_OPERATIONS_REFRESH_TOKEN=...
+```
+
+若要复用现有 Gmail MCP 的 OAuth 凭证，可将 `oauth_env` 设为 `GMAIL_MCP_TOKEN`，但必须先用同时包含既有读取权限与 `gmail.send` 的 scope 重新授权。
+尚未重新授权时应设置 `"send_enabled":false`，帐号会显示在下拉菜单但不可选择；取得包含 `gmail.send` 的有效 refresh token 后才改为 `true`。
+
 ## 管理层追问
 
 - LLM 只接收当前报告的不可变 JSON 快照，不重新读取实时系统，因此回答可重现。
@@ -49,10 +67,12 @@
 - `GET /api/instant-production-reports/{id}`：读取报告、来源、推送状态和追问历史。
 - `GET /api/instant-production-reports/{id}/download`：下载 PDF。
 - `POST /api/instant-production-reports/{id}/push`：推送至已核准 LINE 群组。
+- `GET /api/gmail-sender-accounts`：列出可选寄件帐号，不回传 OAuth 环境变量或凭证。
+- `POST /api/instant-production-reports/{id}/email`：由指定 Gmail 帐号寄送报告 PDF。
 - `POST /api/instant-production-reports/{id}/ask`：针对该份快照进行管理层追问。
 
 所有页面与 API 目前均只限管理员。报告取数使用唯读 MCP，不修改 Odoo、MES、QMS、CMMS、WMS、PLM、SPC 或 PLC。
 
 ## 回退
 
-移除即时报告页面、路由和左侧入口即可停用功能。保留 `instant_production_reports`、`instant_production_report_questions` 及 NAS 资产以维持审计记录；除非另有资料保留授权，不应自动删除历史 PDF、JSON 或问答。
+移除即时报告页面、路由和左侧入口即可停用功能。保留 `instant_production_reports`、`instant_production_report_questions`、`instant_production_report_deliveries` 及 NAS 资产以维持审计记录；除非另有资料保留授权，不应自动删除历史 PDF、JSON、投递或问答记录。

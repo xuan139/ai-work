@@ -37,7 +37,7 @@ function node(tag, text = "", className = "") {
 function setBusy(busy, message = "正在處理，請稍候…") {
   $("busy").textContent = message;
   $("busy").hidden = !busy;
-  for (const id of ["generate", "refresh", "push", "ask"]) $(id).disabled = busy;
+  for (const id of ["generate", "refresh", "push", "email", "ask"]) $(id).disabled = busy;
   if (busy) $("error").hidden = true;
 }
 
@@ -139,6 +139,13 @@ function renderReport(record) {
   $("pushState").textContent = record.push_status === "completed"
     ? `已推送至 ${record.push_target} · ${dateTime(record.pushed_at)}`
     : record.push_status === "failed" ? `推送失敗：${record.push_error || "未知錯誤"}` : "尚未推送";
+  const emailDelivery = (record.deliveries || []).find((item) => item.channel === "gmail");
+  $("emailState").textContent = !emailDelivery ? "尚未寄送"
+    : emailDelivery.status === "completed"
+      ? `已由 ${emailDelivery.sender} 寄送至 ${emailDelivery.recipients.join("、")} · ${dateTime(emailDelivery.completed_at)}`
+      : emailDelivery.status === "failed"
+        ? `寄送失敗：${emailDelivery.error_message || "未知錯誤"}`
+        : emailDelivery.status === "skipped" ? "未觸發告警，已略過寄送" : "寄送中";
   renderQuestions(record.questions || []);
   history.replaceState(null, "", `/instant-production-report?report=${record.id}`);
   $("current").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -233,6 +240,26 @@ async function loadLineGroups() {
   }
 }
 
+async function loadGmailAccounts() {
+  try {
+    const data = await request("/api/gmail-sender-accounts");
+    const accounts = data.accounts || [];
+    const options = [new Option("請選擇 Gmail 寄件帳號", "")];
+    for (const account of accounts) {
+      const unavailable = account.status === "reauthorization_required" ? " · 需重新授權 gmail.send" : " · 未設定";
+      const option = new Option(`${account.label} · ${account.email}${account.configured ? "" : unavailable}`, account.id);
+      option.disabled = !account.configured;
+      option.dataset.email = account.email;
+      option.title = account.recipient_policy;
+      options.push(option);
+    }
+    if (!accounts.length) options[0].textContent = "尚未設定 Gmail 寄件帳號";
+    $("gmailAccount").replaceChildren(...options);
+  } catch (error) {
+    $("gmailAccount").replaceChildren(new Option(`Gmail 帳號無法載入：${error.message}`, ""));
+  }
+}
+
 async function pushReport() {
   if (!activeReport) return showError("請先產生或選擇一份即時報告。"), undefined;
   const groupId = $("lineGroup").value;
@@ -247,6 +274,24 @@ async function pushReport() {
     await showReport(activeReport.id);
     await loadHistory();
   } catch (error) { showError(`推送失敗：${error.message}`); }
+  finally { setBusy(false); }
+}
+
+async function emailReport() {
+  if (!activeReport) return showError("請先產生或選擇一份即時報告。"), undefined;
+  const accountId = $("gmailAccount").value;
+  const recipients = $("gmailRecipients").value.trim();
+  if (!accountId) return showError("請選擇 Gmail 寄件帳號。"), undefined;
+  if (!recipients) return showError("請輸入收件人 Email。"), undefined;
+  setBusy(true, "正在透過 Gmail API 寄送報告 PDF…");
+  try {
+    const result = await request(`/api/instant-production-reports/${activeReport.id}/email`, {
+      method: "POST",
+      body: JSON.stringify({ account_id: accountId, recipients, alert_only: $("emailAlertOnly").checked }),
+    });
+    showNotice(result.status === "skipped" ? result.message : `報告已由 ${result.account} 寄送至 ${result.recipients.join("、")}。`);
+    await showReport(activeReport.id);
+  } catch (error) { showError(`Gmail 寄送失敗：${error.message}`); }
   finally { setBusy(false); }
 }
 
@@ -273,10 +318,15 @@ $("refresh").addEventListener("click", async () => {
   try { await loadHistory(); } catch (error) { showError(error.message); } finally { setBusy(false); }
 });
 $("push").addEventListener("click", pushReport);
+$("email").addEventListener("click", emailReport);
+$("gmailAccount").addEventListener("change", (event) => {
+  const option = event.target.selectedOptions[0];
+  if (option?.dataset.email && !$("gmailRecipients").value.trim()) $("gmailRecipients").value = option.dataset.email;
+});
 $("ask").addEventListener("click", askReport);
 $("sampleQuestion").addEventListener("change", (event) => { if (event.target.value) $("question").value = event.target.value; });
 
-Promise.all([loadHistory(), loadLineGroups()]).then(async () => {
+Promise.all([loadHistory(), loadLineGroups(), loadGmailAccounts()]).then(async () => {
   const reportId = Number(new URLSearchParams(location.search).get("report"));
   if (reportId > 0) await showReport(reportId);
 }).catch((error) => showError(error.message));

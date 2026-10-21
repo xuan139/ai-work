@@ -18,7 +18,7 @@
       <div>
         <p class="eyebrow">MANUFACTURING · LIVE MCP REPORTING</p>
         <h1 id="pageTitle">即時生產報告</h1>
-        <p class="lead">按需讀取企業系統目前快照，固定公式計算 KPI，保存 JSON 與含來源引用的 PDF 到 NAS。每次產生都是獨立記錄，可設定告警、推送至已核准的 LINE 群組，並針對該次快照繼續追問。</p>
+        <p class="lead">按需讀取企業系統目前快照，固定公式計算 KPI，保存 JSON 與含來源引用的 PDF 到 NAS。每次產生都是獨立記錄，可設定告警、透過 LINE 或受控 Gmail 帳號推送，並針對該次快照繼續追問。</p>
       </div>
       <button id="generate" class="primary" type="button">立即取得資料並產生</button>
     </section>
@@ -73,11 +73,20 @@
       </div>
 
       <section class="action-band" aria-labelledby="pushTitle">
-        <div><p class="eyebrow">CONTROLLED DELIVERY</p><h3 id="pushTitle">告警推送</h3><p>只可推送至 LINE 企業管理中已核准的群組，每次動作都會記錄在該報告。</p></div>
+        <div><p class="eyebrow">LINE DELIVERY</p><h3 id="pushTitle">LINE 告警推送</h3><p>只可推送至 LINE 企業管理中已核准的群組。</p></div>
         <label>LINE 群組<select id="lineGroup"><option value="">載入已核准群組中…</option></select></label>
         <label class="check"><input id="alertOnly" type="checkbox" checked>僅在觸發告警時推送</label>
         <button id="push" class="secondary" type="button">推送本次結果</button>
         <span id="pushState" class="action-state"></span>
+      </section>
+
+      <section class="action-band email-band" aria-labelledby="emailTitle">
+        <div><p class="eyebrow">GMAIL DELIVERY</p><h3 id="emailTitle">Gmail 報告寄送</h3><p>寄件帳號與收件範圍由管理員在伺服器設定。</p></div>
+        <label>寄件帳號<select id="gmailAccount"><option value="">載入 Gmail 帳號中…</option></select></label>
+        <label>收件人<input id="gmailRecipients" type="text" inputmode="email" autocomplete="off" placeholder="name@company.com，可用逗號分隔"></label>
+        <label class="check"><input id="emailAlertOnly" type="checkbox" checked>僅在觸發告警時寄送</label>
+        <button id="email" class="secondary" type="button">寄送 PDF</button>
+        <span id="emailState" class="action-state"></span>
       </section>
 
       <section class="question-band" aria-labelledby="questionTitle">

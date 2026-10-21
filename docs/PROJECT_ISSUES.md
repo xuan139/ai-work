@@ -1,5 +1,16 @@
 # Project Issues
 
+## 2026-10-22 — 即時生產報告需要受控 Gmail 多帳號寄送
+
+- **Trigger:** 使用者要求即時生產報告除 LINE 外可使用 Gmail 寄送，並可在頁面選擇不同 Email 帳號。
+- **Root cause:** 既有 Gmail MCP 刻意維持唯讀，且即時報告只有 LINE 投遞欄位；直接加入一般 Gmail 寄信工具會讓 LLM 或未受控流程取得寫入能力，也無法限制寄件帳號與收件範圍。
+- **Fix:** 保留 Gmail MCP 唯讀，另增管理員專用 Gmail 報告投遞服務。多帳號由 `GMAIL_SEND_ACCOUNTS_JSON` 引用各自 OAuth 環境變數；頁面只显示帐号、地址与收件策略，不回传 Client Secret、Refresh Token 或环境变量名。管理员选择帐号、输入白名单内收件人并明确按「寄送 PDF」后，系统才调用 Gmail API。每次投递独立记录寄件人、收件人、状态、Message ID、错误与时间。
+- **Security:** OAuth 只请求 Gmail `gmail.send`；收件人预设仅允许寄件帐号本人，并可按帐号配置指定地址或公司网域。每次最多 10 个收件人、附件上限 20 MB，附件路径必须位于受控生产报告目录。LLM 不参与帐号、收件人或发送动作。
+- **Verification:** Gmail 帐号配置、凭证隐藏、停用帐号、收件白名单和 MIME PDF 附件四项测试通过；即时报告四项 API／持久化测试通过；完整 Python 测试为 278 项通过、1 项依既有条件跳过。Python／JavaScript 语法与 `git diff --check` 通过。桌面和 390px 手机页面已实际检查，无重叠或水平溢出。服务器现有 Gmail refresh token 经 Google Token Endpoint 检查回传 `invalid_grant`，因此不能沿用为可发送帐号。
+- **Deployment:** 2026-10-22 部署至 `goldsys.io` 当前主机 `59.120.2.102`。部署前确认无等待或执行中的处理任务，并将既有代码、SQLite 与 `/etc/ai-work.env` 备份于 `/home/ubuntu/backups/gmail-report-delivery-20261022-061552`。新增 `xuan000139@gmail.com` 为停用的候选帐号，未保存新密码或 token；页面显示需要重新授权。重启 `ai-work.service` 后健康检查、新资料表、静态资源及八项服务器专用测试均通过，未发送测试邮件。
+- **Unverified:** 尚未以真实 Gmail `gmail.send` refresh token 寄送外部邮件；管理员必须重新授权 scope 后才可将帐号改为启用。现阶段不包含背景重试队列、排程寄送、Email 开信追踪或退信处理。
+- **Rollback:** 移除 Gmail 投递 API、页面区块与 `GMAIL_SEND_ACCOUNTS_JSON`。保留 `instant_production_report_deliveries` 记录供审计；不得自动删除历史投递记录或报告 PDF。唯读 Gmail MCP 不受影响。
+
 ## 2026-10-22 — 即时生产报告、告警推送与管理层追问
 
 - **Trigger:** 使用者要求新增「即时生产报告」工作流：立即取得资料、计算固定 KPI、保存到 NAS、产生带来源引用的 PDF，并设置告警字段进行推送及管理层追问。

@@ -36,6 +36,7 @@ from app.db import (
     create_meeting,
     create_nas_asset,
     create_instant_report_question,
+    create_instant_report_delivery,
     create_user_group,
     create_user,
     delete_custom_model,
@@ -76,6 +77,7 @@ from app.db import (
     list_network_assets,
     list_pending_network_assets,
     list_instant_production_reports,
+    finish_instant_report_delivery,
     list_production_reports,
     list_custom_models,
     list_users,
@@ -176,6 +178,13 @@ from app.excel_pro_worker import start_excel_pro_worker, stop_excel_pro_worker
 from app.excel_pro_agent import ExcelProAgentError, run_excel_pro_agent
 from app.file_security import UploadScanResult, UploadSecurityError, inspect_uploaded_file, validated_upload_filename
 from app.gmail_mcp import GMAIL_MCP_TOOLS, handle_gmail_mcp_request
+from app.gmail_delivery import (
+    GmailDeliveryError,
+    gmail_sender_account,
+    normalize_gmail_recipients,
+    public_gmail_sender_accounts,
+    send_gmail_report,
+)
 from app.line_service import LineServiceError, list_line_groups, push_line_messages
 from app.local_model_manager import (
     cancel_download,
@@ -1079,6 +1088,14 @@ async def instant_production_report_list(limit: int = 50, user: dict = Depends(r
     return {"reports": [instant_report_record_for_api(item) for item in records]}
 
 
+@app.get("/api/gmail-sender-accounts")
+async def gmail_sender_accounts(user: dict = Depends(require_admin)) -> dict:
+    try:
+        return {"accounts": public_gmail_sender_accounts()}
+    except GmailDeliveryError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
+
 @app.get("/api/instant-production-reports/{report_id}")
 async def instant_production_report_detail(report_id: int, user: dict = Depends(require_admin)) -> dict:
     record = get_instant_production_report(report_id, user_id=int(user["id"]), role=str(user["role"]))
@@ -1166,6 +1183,80 @@ async def instant_production_report_push(report_id: int, payload: dict, user: di
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     updated = update_instant_report_push(report_id, status="completed", target=group_id, error_message=None)
     return {"status": "completed", "group": source.get("display_name") or group_id, "report": instant_report_record_for_api(updated or record)}
+
+
+@app.post("/api/instant-production-reports/{report_id}/email")
+async def instant_production_report_email(report_id: int, payload: dict, user: dict = Depends(require_admin)) -> dict:
+    record = get_instant_production_report(report_id, user_id=int(user["id"]), role=str(user["role"]))
+    if record is None or record.get("status") != "completed":
+        raise HTTPException(status_code=404, detail="找不到可寄送的即時生產報告")
+    try:
+        account = gmail_sender_account(payload.get("account_id"))
+        recipients = normalize_gmail_recipients(payload.get("recipients"), account)
+    except GmailDeliveryError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    report = load_instant_report_payload(record)
+    alerts = report.get("alerts") or []
+    subject = f"{'[告警] ' if alerts else ''}AI Work NAS 即時生產報告 #{report_id}"
+    if bool(payload.get("alert_only", True)) and not alerts:
+        delivery = create_instant_report_delivery(
+            report_id=report_id, user_id=int(user["id"]), channel="gmail",
+            account_id=account["id"], sender=account["email"], recipients=recipients,
+            subject=subject, status="skipped", error_message="目前沒有觸發告警",
+        )
+        return {"status": "skipped", "reason": "no_alerts", "message": "目前沒有觸發告警，未寄送 Gmail。", "delivery": delivery}
+
+    limiter_key = f"instant-production-report-email:{user['id']}"
+    if not LLM_LIMITER.allowed(limiter_key):
+        raise HTTPException(status_code=429, detail="Gmail 寄送過於頻繁，請稍後再試")
+    LLM_LIMITER.record(limiter_key)
+    pdf_path = Path(str(record.get("pdf_path") or ""))
+    try:
+        resolved = pdf_path.resolve(strict=True)
+        resolved.relative_to(REPORTS_DIR.resolve())
+    except (FileNotFoundError, ValueError) as exc:
+        raise HTTPException(status_code=404, detail="即時生產報告 PDF 不存在") from exc
+
+    alert_lines = [f"- {item['message']} [{'/'.join(item.get('sources') or [])}]" for item in alerts]
+    if not alert_lines:
+        alert_lines = ["- 本次未觸發告警門檻。"]
+    public_url = os.getenv("AI_WORK_PUBLIC_URL", "https://goldsys.io").rstrip("/")
+    body = "\n".join([
+        "AI Work NAS 即時生產報告",
+        "",
+        f"報告：#{report_id} · {report.get('plant')} · {report.get('generated_at')}",
+        f"狀態：{'需要關注' if alerts else '正常'}",
+        f"準交率：{report['kpis']['predicted_on_time']['display']}",
+        f"延期訂單：{report['kpis']['late_orders']['display']}",
+        f"缺料項目：{report['kpis']['shortage_items']['display']}",
+        "",
+        "告警：",
+        *alert_lines,
+        "",
+        f"查看與追問：{public_url}/instant-production-report?report={report_id}",
+        "完整 KPI、來源與工具軌跡請參閱附件 PDF。",
+    ])
+    delivery = create_instant_report_delivery(
+        report_id=report_id, user_id=int(user["id"]), channel="gmail",
+        account_id=account["id"], sender=account["email"], recipients=recipients,
+        subject=subject, status="sending",
+    )
+    try:
+        sent = await asyncio.to_thread(
+            send_gmail_report, account=account, recipients=recipients, subject=subject,
+            body=body, attachment_path=resolved,
+        )
+    except GmailDeliveryError as exc:
+        finish_instant_report_delivery(int(delivery["id"]), status="failed", error_message=str(exc))
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    completed = finish_instant_report_delivery(
+        int(delivery["id"]), status="completed", external_id=sent["message_id"], error_message=None,
+    )
+    return {
+        "status": "completed", "account": account["label"], "recipients": recipients,
+        "message_id": sent["message_id"], "delivery": completed,
+    }
 
 
 @app.post("/api/instant-production-reports/{report_id}/ask")

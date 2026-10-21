@@ -19,6 +19,7 @@ from app.db import (
     create_nas_asset,
     fail_instant_production_report,
     get_instant_production_report,
+    list_instant_report_deliveries,
     list_instant_report_questions,
     update_nas_asset,
 )
@@ -202,6 +203,7 @@ def instant_report_record_for_api(record: dict[str, Any], *, include_report: boo
         result["report"] = load_instant_report_payload(record)
     if include_report:
         result["questions"] = list_instant_report_questions(int(record["id"]))
+        result["deliveries"] = list_instant_report_deliveries(int(record["id"]))
     return result
 
 

@@ -124,6 +124,21 @@ class InstantProductionReportTests(unittest.TestCase):
                 self.assertEqual(pushed.json()["status"], "completed")
                 self.assertIn("準交率", push.await_args.args[1][0])
 
+                gmail_account = {
+                    "id": "operations", "label": "營運 Gmail", "email": "operations@example.com",
+                    "oauth_env": "GMAIL_OPERATIONS_TOKEN", "allowed_recipients": ["manager@example.com"],
+                    "allowed_domains": [], "configured": True,
+                }
+                with patch.object(main, "gmail_sender_account", return_value=gmail_account), \
+                     patch.object(main, "send_gmail_report", return_value={"message_id": "gmail-message-1", "thread_id": "thread-1"}) as send:
+                    emailed = client.post(
+                        f"/api/instant-production-reports/{report_id}/email",
+                        json={"account_id": "operations", "recipients": "manager@example.com", "alert_only": True},
+                    )
+                self.assertEqual(emailed.status_code, 200, emailed.text)
+                self.assertEqual(emailed.json()["message_id"], "gmail-message-1")
+                self.assertEqual(send.call_args.kwargs["attachment_path"].suffix, ".pdf")
+
                 model_result = {"answer": "SO-1003 可能延期 [S1][S9]", "call_id": 901}
                 with patch.object(main, "current_llm_model", return_value={"id": "local:qwen", "name": "Qwen"}), \
                      patch.object(main, "run_model_with_audit", new=AsyncMock(return_value=model_result)):
@@ -135,6 +150,8 @@ class InstantProductionReportTests(unittest.TestCase):
                 self.assertIn("[S1]", answer.json()["answer"])
                 detail = client.get(f"/api/instant-production-reports/{report_id}").json()
                 self.assertEqual(len(detail["questions"]), 1)
+                self.assertEqual(detail["deliveries"][0]["external_id"], "gmail-message-1")
+                self.assertEqual(detail["deliveries"][0]["recipients"], ["manager@example.com"])
                 self.assertEqual(detail["push_status"], "completed")
             finally:
                 main.app.dependency_overrides.clear()

@@ -33,7 +33,7 @@ License explanations: [English](docs/LICENSE_EXPLANATIONS.md#english) |
 | Workflows | Optional n8n workflows and LINE notifications for configured processing events. Credentials, destinations and workflow setup are required. |
 | LangChain demo | Read-only Odoo queries with visible tool steps, sourced answers and per-user conversation memory. |
 | Manufacturing demo | MES read-only tools for teaching scenarios involving work orders, production, downtime and quality records. |
-| Production reporting | Scheduled daily and on-demand production reports using fixed KPI formulas, immutable MCP snapshots, cited NAS PDFs, configurable alerts, controlled LINE delivery and audited management follow-up. |
+| Production reporting | Scheduled daily and on-demand production reports using fixed KPI formulas, immutable MCP snapshots, cited NAS PDFs, configurable alerts, controlled LINE or allowlisted Gmail delivery, and audited management follow-up. |
 | Healthcare demo | Query-first HIS/FHIR page with demo patient/MRN selection, question presets, interviews, admission histories, dietary notes and linked Orthanc images/reports. |
 | Imaging demo | Read-only Orthanc MCP, patient/study lookup, authenticated X-ray previews and sourced summaries of authored reports. Text-only LLMs do not interpret image pixels. |
 | Governance | Account/role management, access controls, model-call and MCP audit trails, filterable/paginated audit views, and controls for uploads, prompts and tools. |
