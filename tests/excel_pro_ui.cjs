@@ -18,15 +18,16 @@ const tables = [
   {...sources[0],sheet_name:'銷售明細',table_name:'asset_41__銷售明細',columns:['產品','數量','銷售額'],row_count:849,range:'銷售明細!A2:C850'},
   {...sources[1],sheet_name:'data',table_name:'asset_52__data',columns:['產品','可用庫存'],row_count:20,range:'data!A2:B21'},
 ];
-let jobs = [];
+let jobs = [];let exportPosts=0;
 const server = http.createServer(async (req,res) => {
   const url = new URL(req.url,'http://localhost'); const file = files[url.pathname];
   if(file){try{const content=await readFile(path.join(root,'static',file[0]));res.writeHead(200,{'Content-Type':file[1]});res.end(content)}catch{res.writeHead(500);res.end()}return;}
   const send=(body,status=200)=>{res.writeHead(status,{'Content-Type':'application/json'});res.end(JSON.stringify(body))};
   if(url.pathname==='/api/excel-pro/sources'&&req.method==='GET')return send({count:2,sources});
+  if(url.pathname==='/api/excel-pro/ask'&&req.method==='POST')return send({answer:'NAS B 的可用庫存低於銷售數量，存在缺貨風險。',model:'Qwen3 4B',selected_sources:sources,generated_sql:'SELECT * FROM "asset_41__銷售明細"',sql_explanation:'聯查銷售與庫存',result:{engine:'DuckDB 1.5.6',columns:['產品','銷售數量','可用庫存'],rows:[['NAS B',20,12]],row_count:1,truncated:false},citations:tables,trace:[{step:1,kind:'llm',label:'理解問題與資料範圍',status:'completed',duration_ms:20},{step:2,kind:'mcp',label:'excel_pro_list_sources',status:'completed',duration_ms:10}],export_created:false});
   if(url.pathname==='/api/excel-pro/sources/describe')return send({source_count:2,table_count:2,tables});
   if(url.pathname==='/api/excel-pro/query')return send({engine:'DuckDB 1.5.6',columns:['產品','銷售數量','可用庫存'],rows:[['NAS A',40,100],['NAS B',20,12]],row_count:2,truncated:false,citations:tables});
-  if(url.pathname==='/api/excel-pro/jobs'&&req.method==='POST'){jobs=[{id:7,status:'running',progress:55,stage:'running_query',created_at:'2026-10-21 10:00'}];return send(jobs[0])}
+  if(url.pathname==='/api/excel-pro/jobs'&&req.method==='POST'){exportPosts++;jobs=[{id:7,status:'running',progress:55,stage:'running_query',created_at:'2026-10-21 10:00'}];return send(jobs[0])}
   if(url.pathname==='/api/excel-pro/jobs'&&req.method==='GET')return send({jobs});
   res.writeHead(404);res.end();
 });
@@ -36,15 +37,21 @@ const server = http.createServer(async (req,res) => {
   const page=await browser.newPage({viewport:{width:1440,height:1000}});const errors=[];page.on('pageerror',e=>errors.push(e.message));
   await page.goto(`http://127.0.0.1:${server.address().port}/excel-pro`);
   await page.waitForFunction(()=>document.querySelectorAll('.source-item').length===2);
+  assert.equal(await page.locator('#advancedSql').getAttribute('open'),null);
+  await page.locator('#questionSample').selectOption({label:'綜合銷售與庫存，找出可能缺貨的產品並說明原因。'});
+  await page.locator('#askExcel').click();await page.waitForFunction(()=>!document.getElementById('agentAnswer').hidden);
+  assert.match(await page.locator('#answerText').textContent(),/NAS B/);assert.match(await page.locator('#agentCitations').textContent(),/銷售明細!A2:C850/);
+  assert.match(await page.locator('#agentTrace').textContent(),/excel_pro_list_sources/);assert.equal(exportPosts,0);
   await page.locator('.source-item input').nth(0).check();await page.locator('.source-item input').nth(1).check();
   await page.waitForFunction(()=>document.querySelectorAll('.table-definition').length===2);
   assert.match(await page.locator('#tableMap').textContent(),/銷售明細!A2:C850/);
+  await page.locator('#advancedSql > summary').click();
   await page.locator('#sqlEditor').fill('SELECT * FROM "asset_41__銷售明細"');await page.locator('#runQuery').click();
-  await page.waitForFunction(()=>!document.getElementById('resultPanel').hidden);
+  await page.waitForFunction(()=>document.querySelectorAll('#resultBody tr').length===2);
   assert.equal(await page.locator('#resultBody tr').count(),2);assert.match(await page.locator('#citations').textContent(),/上傳者 sales/);
-  await page.locator('#pivotRows').fill('產品');await page.locator('#pivotValue').fill('銷售數量');await page.locator('#startExport').click();
+  await page.locator('.export-panel > summary').click();await page.locator('#pivotRows').fill('產品');await page.locator('#pivotValue').fill('銷售數量');await page.locator('#startExport').click();
   await page.waitForFunction(()=>document.querySelectorAll('.job').length===1);assert.match(await page.locator('.job').textContent(),/處理中/);
   await mkdir(path.join(root,'tmp'),{recursive:true});await page.screenshot({path:path.join(root,'tmp/excel-pro-1440.png'),fullPage:true});
   for(const width of [1440,390]){await page.setViewportSize({width,height:1000});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),true)}
-  assert.deepEqual(errors,[]);console.log('PASS: sources, aliases, DuckDB results, citations, export progress, responsive layout.');
+  assert.equal(exportPosts,1);assert.deepEqual(errors,[]);console.log('PASS: natural-language chain, folded SQL, citations, explicit export, progress, responsive layout.');
 }finally{if(browser)await browser.close();await new Promise(resolve=>server.close(resolve))}})().catch(error=>{console.error(error);process.exitCode=1});

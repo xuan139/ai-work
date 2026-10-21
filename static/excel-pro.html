@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>NAS Excel Pro MCP · AI Work</title>
   <link rel="icon" href="/static/icons/icon-192.png">
-  <link rel="stylesheet" href="/static/excel-pro.css?v=1">
-  <script src="/static/excel-pro.js?v=1" defer></script>
+  <link rel="stylesheet" href="/static/excel-pro.css?v=2">
+  <script src="/static/excel-pro.js?v=2" defer></script>
 </head>
 <body>
   <header class="topbar">
@@ -23,6 +23,48 @@
       <div class="hero-facts"><span>只讀來源</span><span>私有輸出</span><span>可追溯範圍</span></div>
     </section>
 
+    <section class="assistant-panel" aria-labelledby="assistantTitle">
+      <div class="assistant-heading">
+        <div>
+          <p class="eyebrow">LLM → MCP → DUCKDB → LLM</p>
+          <h2 id="assistantTitle">用自然語言查詢試算表</h2>
+          <p>先理解問題，再依您的檔案權限讀取資料結構、產生唯讀 SQL，最後附來源回答。</p>
+        </div>
+        <span id="agentModel" class="model-badge">系統預設 LLM</span>
+      </div>
+      <div class="assistant-grid">
+        <label><span>範例問題</span>
+          <select id="questionSample">
+            <option value="">選擇範例，或自行輸入</option>
+            <option>綜合銷售與庫存，找出可能缺貨的產品並說明原因。</option>
+            <option>按產品彙總銷售數量與金額，列出前三名。</option>
+            <option>比較各部門本月費用與預算差異。</option>
+            <option>哪些訂單可能因庫存不足而延遲？</option>
+          </select>
+        </label>
+        <label><span>您的問題</span><textarea id="agentPrompt" class="prompt-input" placeholder="例如：綜合銷售與庫存，哪些產品可能缺貨？"></textarea></label>
+      </div>
+      <div class="actions assistant-actions">
+        <button id="askExcel" class="primary" type="button">詢問 Excel</button>
+        <span id="agentStatus" role="status" aria-live="polite">未指定檔案時，系統會從您可讀取的資料中自動選擇。</span>
+      </div>
+      <div id="agentAnswer" class="agent-answer" hidden>
+        <div class="answer-main">
+          <p class="eyebrow">FINAL ANSWER</p>
+          <h3>分析結果</h3>
+          <div id="answerText" class="answer-text"></div>
+          <h4>來源引用</h4>
+          <div id="agentCitations" class="citations"></div>
+        </div>
+        <div class="answer-meta">
+          <h4>本次資料範圍</h4>
+          <div id="agentSources" class="source-chips"></div>
+          <details><summary>查看產生的 SQL</summary><pre id="agentSql"></pre><p id="agentSqlNote"></p></details>
+          <details><summary>查看 LLM / MCP 工具軌跡</summary><ol id="agentTrace" class="trace-list"></ol></details>
+        </div>
+      </div>
+    </section>
+
     <section class="workspace" aria-label="Excel Pro workspace">
       <aside class="source-panel">
         <div class="section-heading"><div><p class="eyebrow">STEP 1</p><h2>選擇資料來源</h2></div><button id="reloadSources" class="icon-button" type="button" title="重新載入" aria-label="重新載入">↻</button></div>
@@ -32,13 +74,16 @@
       </aside>
 
       <div class="query-workspace">
-        <section class="query-panel">
-          <div class="section-heading"><div><p class="eyebrow">STEP 2</p><h2>DuckDB SQL 查詢</h2></div><span id="engineBadge" class="badge">DuckDB</span></div>
-          <div id="tableMap" class="table-map"><p class="empty">選擇檔案後顯示工作表、欄位、資料範圍與 SQL 表名。</p></div>
-          <label for="sqlEditor">唯讀 SQL</label>
-          <textarea id="sqlEditor" spellcheck="false" placeholder='SELECT * FROM "asset_12__銷售明細" LIMIT 100'></textarea>
-          <div class="actions"><button id="runQuery" class="primary" type="button">執行查詢</button><span id="queryStatus" role="status" aria-live="polite"></span></div>
-        </section>
+        <details id="advancedSql" class="advanced-panel">
+          <summary><span><span class="eyebrow">ADVANCED MODE</span><strong>DuckDB SQL 進階查詢</strong></span><span>展開／收合</span></summary>
+          <section class="query-panel">
+            <div class="section-heading"><div><p class="eyebrow">MANUAL QUERY</p><h2>唯讀 SQL</h2></div><span id="engineBadge" class="badge">DuckDB</span></div>
+            <div id="tableMap" class="table-map"><p class="empty">選擇檔案後顯示工作表、欄位、資料範圍與 SQL 表名。</p></div>
+            <label for="sqlEditor">DuckDB SQL</label>
+            <textarea id="sqlEditor" spellcheck="false" placeholder='SELECT * FROM "asset_12__銷售明細" LIMIT 100'></textarea>
+            <div class="actions"><button id="runQuery" class="primary" type="button">執行查詢</button><span id="queryStatus" role="status" aria-live="polite"></span></div>
+          </section>
+        </details>
 
         <section id="resultPanel" class="result-panel" hidden>
           <div class="section-heading"><div><p class="eyebrow">QUERY RESULT</p><h2>查詢結果</h2></div><span id="resultCount" class="badge"></span></div>
@@ -46,7 +91,7 @@
           <div><h3>來源引用</h3><div id="citations" class="citations"></div></div>
         </section>
 
-        <details class="export-panel" open>
+        <details class="export-panel">
           <summary><span><span class="eyebrow">STEP 3</span><strong>匯出、樞紐分析與圖表</strong></span><span>展開／收合</span></summary>
           <div class="export-body">
             <div class="form-grid">
