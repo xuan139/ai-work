@@ -12,6 +12,7 @@ import subprocess
 import time
 import uuid
 from contextlib import asynccontextmanager
+from datetime import datetime
 from pathlib import Path
 from urllib.parse import quote, urlparse
 
@@ -48,6 +49,8 @@ from app.db import (
     get_meeting_by_nas_asset_id,
     get_mcp_server,
     get_rag_eval_run,
+    get_production_report,
+    get_production_report_by_date,
     list_langchain_demo_messages,
     get_nas_asset,
     get_asset_permissions,
@@ -70,6 +73,7 @@ from app.db import (
     list_nas_assets,
     list_network_assets,
     list_pending_network_assets,
+    list_production_reports,
     list_custom_models,
     list_users,
     list_asset_versions,
@@ -101,6 +105,13 @@ from app.db import (
     user_can_read_asset,
 )
 from app.document_processing import analyzer_for_category, classify_asset, process_nas_asset
+from app.daily_production_report import (
+    ProductionReportError,
+    REPORTS_DIR,
+    REPORT_TIMEZONE,
+    generate_and_store_report,
+    report_record_for_api,
+)
 from app.embedding_runtime import (
     EMBEDDING_MODEL,
     cosine_similarity,
@@ -828,6 +839,11 @@ async def manufacturing_schedule_demo_page(user: dict = Depends(current_user)) -
     return FileResponse(STATIC_DIR / "manufacturing-schedule-demo.html", headers={"Cache-Control": "no-cache"})
 
 
+@app.get("/daily-production-report")
+async def daily_production_report_page(admin: dict = Depends(require_admin)) -> FileResponse:
+    return FileResponse(STATIC_DIR / "daily-production-report.html", headers={"Cache-Control": "no-cache"})
+
+
 @app.get("/excel-pro")
 async def excel_pro_page(user: dict = Depends(current_user)) -> FileResponse:
     return FileResponse(STATIC_DIR / "excel-pro.html", headers={"Cache-Control": "no-cache"})
@@ -976,6 +992,69 @@ def manufacturing_schedule_mcp_servers(user: dict) -> tuple[dict, dict, dict, di
     if missing:
         raise HTTPException(status_code=503, detail=f"排程所需 MCP 尚未連線：{', '.join(missing)}")
     return odoo, mes, qms, cmms, wms, plm, spc
+
+
+@app.get("/api/daily-production-reports")
+async def daily_production_report_list(limit: int = 50, user: dict = Depends(require_admin)) -> dict:
+    records = list_production_reports(user_id=int(user["id"]), role=str(user["role"]), limit=limit)
+    return {"reports": [report_record_for_api(item) for item in records]}
+
+
+@app.get("/api/daily-production-reports/{report_id}")
+async def daily_production_report_detail(report_id: int, user: dict = Depends(require_admin)) -> dict:
+    record = get_production_report(report_id, user_id=int(user["id"]), role=str(user["role"]))
+    if record is None:
+        raise HTTPException(status_code=404, detail="找不到生產日報")
+    try:
+        return report_record_for_api(record, include_report=record.get("status") == "completed")
+    except ProductionReportError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.post("/api/daily-production-reports")
+async def daily_production_report_generate(user: dict = Depends(require_admin)) -> dict:
+    report_date = datetime.now(REPORT_TIMEZONE).date().isoformat()
+    existing = get_production_report_by_date(report_date)
+    if existing and existing.get("status") == "completed":
+        return report_record_for_api(existing, include_report=True)
+    limiter_key = f"daily-production-report:{user['id']}"
+    if not LLM_LIMITER.allowed(limiter_key):
+        raise HTTPException(status_code=429, detail="報告產生過於頻繁，請稍後再試")
+    LLM_LIMITER.record(limiter_key)
+    try:
+        odoo, mes, qms, cmms, wms, plm, spc = manufacturing_schedule_mcp_servers(user)
+        schedule = await run_mcp_schedule(
+            {}, user=user, odoo_server=odoo, mes_server=mes, qms_server=qms,
+            cmms_server=cmms, wms_server=wms, plm_server=plm, spc_server=spc,
+            default_engine=current_scheduling_engine()["id"],
+        )
+        record = await asyncio.to_thread(generate_and_store_report, schedule, user)
+        return report_record_for_api(record)
+    except ManufacturingMcpError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+    except ProductionReportError as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
+    except (OSError, RuntimeError, ValueError) as exc:
+        raise HTTPException(status_code=500, detail=f"生產日報產生失敗：{exc}") from exc
+
+
+@app.get("/api/daily-production-reports/{report_id}/download")
+async def daily_production_report_download(report_id: int, user: dict = Depends(require_admin)) -> FileResponse:
+    record = get_production_report(report_id, user_id=int(user["id"]), role=str(user["role"]))
+    if record is None or record.get("status") != "completed":
+        raise HTTPException(status_code=404, detail="找不到可下載的生產日報")
+    path = Path(str(record.get("pdf_path") or ""))
+    try:
+        resolved = path.resolve(strict=True)
+        resolved.relative_to(REPORTS_DIR.resolve())
+    except (FileNotFoundError, ValueError) as exc:
+        raise HTTPException(status_code=404, detail="生產日報 PDF 不存在") from exc
+    return FileResponse(
+        resolved,
+        filename=f"daily-production-report-{record['report_date']}.pdf",
+        media_type="application/pdf",
+        content_disposition_type="attachment",
+    )
 
 
 @app.post("/api/manufacturing-schedule-demo/schedule")

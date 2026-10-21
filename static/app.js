@@ -25,6 +25,7 @@ const messages = {
       aiwork: "AI Work",
       excelPro: "NAS Excel Pro",
       manufacturingScheduleDemo: "電子製造排程 Demo",
+      dailyProductionReport: "每日生產報告",
       mes: "MES 產線演示",
       langchainDemo: "LangChain Odoo Demo",
       hospitalDemo: "醫療 HIS／FHIR Demo",
@@ -1062,6 +1063,7 @@ const messages = {
       aiwork: "AI Work",
       excelPro: "NAS Excel Pro",
       manufacturingScheduleDemo: "Electronics Scheduling Demo",
+      dailyProductionReport: "Daily Production Report",
       mes: "MES Line Demo",
       wiki: "Enterprise Wiki",
       langchainDemo: "LangChain Odoo Demo",
@@ -2403,6 +2405,7 @@ const els = {
   mcpNav: document.querySelector("#mcpNav"),
   n8nNav: document.querySelector("#n8nNav"),
   modelNav: document.querySelector("#modelNav"),
+  dailyProductionReportNav: document.querySelector("#dailyProductionReportNav"),
   lineGroupTotal: document.querySelector("#lineGroupTotal"),
   lineGroupApproved: document.querySelector("#lineGroupApproved"),
   lineMonthlyCalls: document.querySelector("#lineMonthlyCalls"),
@@ -2665,6 +2668,7 @@ async function showApp() {
   const isAdmin = state.user.role === "admin";
   els.settingsNav.hidden = !isAdmin;
   els.modelNav.hidden = !isAdmin;
+  els.dailyProductionReportNav.hidden = !isAdmin;
   els.accountNav.hidden = !isAdmin;
   els.lineAdminNav.hidden = !isAdmin;
   els.mcpNav.hidden = !isAdmin;

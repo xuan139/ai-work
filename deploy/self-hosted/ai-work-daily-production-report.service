@@ -1,0 +1,30 @@
+[Unit]
+Description=AI Work NAS Daily Production Report
+After=network-online.target ai-work.service
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=aiwork
+Group=aiwork
+WorkingDirectory=/opt/ai-work
+EnvironmentFile=/etc/ai-work/ai-work.env
+Environment=HOME=/var/lib/ai-work
+Environment=PYTHONDONTWRITEBYTECODE=1
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/ai-work/.venv/bin/python -m app.daily_production_report_job
+TimeoutStartSec=900
+UMask=0027
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectClock=true
+ProtectKernelLogs=true
+ProtectKernelModules=true
+ProtectKernelTunables=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictRealtime=true
+LockPersonality=true
+ReadWritePaths=/var/lib/ai-work

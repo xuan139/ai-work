@@ -8,6 +8,8 @@ STATE_DIR="/var/lib/ai-work"
 CONFIG_DIR="/etc/ai-work"
 CONFIG_FILE="$CONFIG_DIR/ai-work.env"
 SERVICE_FILE="/etc/systemd/system/ai-work.service"
+DAILY_REPORT_SERVICE_FILE="/etc/systemd/system/ai-work-daily-production-report.service"
+DAILY_REPORT_TIMER_FILE="/etc/systemd/system/ai-work-daily-production-report.timer"
 
 fail() {
   printf 'ERROR: %s\n' "$1" >&2
@@ -22,7 +24,7 @@ export DEBIAN_FRONTEND=noninteractive
 apt-get update
 apt-get install -y --no-install-recommends \
   python3 python3-venv python3-pip ffmpeg curl ca-certificates openssl \
-  smartmontools nvme-cli sudo clamav clamav-daemon
+  smartmontools nvme-cli sudo clamav clamav-daemon fonts-noto-cjk
 
 if ! id aiwork >/dev/null 2>&1; then
   useradd --system --home-dir "$STATE_DIR" --create-home --shell /usr/sbin/nologin aiwork
@@ -131,9 +133,16 @@ install -o root -g root -m 0440 \
   /etc/sudoers.d/ai-work-ssd-cli
 visudo -cf /etc/sudoers.d/ai-work-ssd-cli >/dev/null
 install -o root -g root -m 0644 "$SCRIPT_DIR/ai-work.service" "$SERVICE_FILE"
+install -o root -g root -m 0644 \
+  "$SCRIPT_DIR/ai-work-daily-production-report.service" \
+  "$DAILY_REPORT_SERVICE_FILE"
+install -o root -g root -m 0644 \
+  "$SCRIPT_DIR/ai-work-daily-production-report.timer" \
+  "$DAILY_REPORT_TIMER_FILE"
 
 systemctl daemon-reload
 systemctl enable --now ai-work.service
+systemctl enable --now ai-work-daily-production-report.timer
 
 port="$(sed -n 's/^AI_WORK_HTTP_PORT=//p' "$CONFIG_FILE" | tail -n 1)"
 port="${port:-8000}"

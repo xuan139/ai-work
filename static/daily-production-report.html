@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>每日生產報告 · AI Work NAS</title>
+  <link rel="stylesheet" href="/static/daily-production-report.css">
+  <script src="/static/daily-production-report.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="back-link" href="/">返回 AI Work</a>
+    <div class="brand">AI Work NAS</div>
+  </header>
+
+  <main>
+    <section class="hero" aria-labelledby="pageTitle">
+      <div>
+        <p class="eyebrow">MANUFACTURING · MCP REPORTING</p>
+        <h1 id="pageTitle">每日生產報告</h1>
+        <p class="lead">每天 18:00（台灣時間）從 Odoo、MES、QMS、CMMS 等唯讀 MCP 自動取數，以固定公式計算 KPI，並把資料快照與可追溯 PDF 保存到 NAS；每天只保留一份正式日報。</p>
+      </div>
+      <div class="hero-action">
+        <span id="today" class="report-date"></span>
+        <button id="generate" class="primary" type="button">產生／查看今日報告</button>
+      </div>
+    </section>
+
+    <div id="busy" class="status-banner loading" role="status" hidden>正在讀取企業系統並產生報告，請稍候…</div>
+    <div id="error" class="status-banner error" role="alert" hidden></div>
+
+    <section id="current" class="report-section" aria-labelledby="currentTitle" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">LATEST REPORT</p>
+          <h2 id="currentTitle">最新報告</h2>
+        </div>
+        <a id="download" class="download-link" href="#">下載 PDF</a>
+      </div>
+
+      <div class="report-meta">
+        <span id="reportStatus" class="badge"></span>
+        <span id="reportMeta"></span>
+      </div>
+
+      <div id="kpis" class="kpi-grid" aria-label="固定 KPI"></div>
+
+      <div class="summary-band">
+        <h3>管理摘要</h3>
+        <ul id="summary"></ul>
+      </div>
+
+      <div class="detail-grid">
+        <section class="detail-panel">
+          <h3>交期風險</h3>
+          <div id="risks"></div>
+        </section>
+        <section class="detail-panel">
+          <h3>缺料、品質與設備</h3>
+          <div id="exceptions"></div>
+        </section>
+      </div>
+
+      <details class="source-panel">
+        <summary>查看資料來源與 MCP 工具軌跡</summary>
+        <div id="sources" class="source-list"></div>
+        <pre id="trace"></pre>
+      </details>
+    </section>
+
+    <section class="history-section" aria-labelledby="historyTitle">
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">NAS ARCHIVE</p>
+          <h2 id="historyTitle">報告歷史</h2>
+        </div>
+        <button id="refresh" class="secondary" type="button">重新載入</button>
+      </div>
+      <p class="section-note">系統每日自動產生一份；手動操作會返回當天既有報告，不會重複建立。PDF 與使用的 MCP 資料快照會一起保存。</p>
+      <div class="table-scroll">
+        <table>
+          <thead><tr><th>報告日期</th><th>廠區</th><th>建立者</th><th>狀態</th><th>來源</th><th>建立時間</th><th>動作</th></tr></thead>
+          <tbody id="historyBody"></tbody>
+        </table>
+      </div>
+      <p id="empty" class="empty" hidden>尚未產生每日生產報告。</p>
+    </section>
+  </main>
+</body>
+</html>

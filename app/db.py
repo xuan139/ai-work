@@ -582,6 +582,35 @@ def init_db() -> None:
         )
         conn.execute(
             """
+            CREATE TABLE IF NOT EXISTS production_reports (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER NOT NULL,
+                report_date TEXT NOT NULL,
+                plant TEXT NOT NULL,
+                status TEXT NOT NULL DEFAULT 'generating',
+                snapshot_path TEXT,
+                pdf_path TEXT,
+                snapshot_asset_id INTEGER,
+                pdf_asset_id INTEGER,
+                kpis_json TEXT,
+                source_count INTEGER NOT NULL DEFAULT 0,
+                error_message TEXT,
+                created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                completed_at TEXT,
+                FOREIGN KEY(user_id) REFERENCES users(id),
+                FOREIGN KEY(snapshot_asset_id) REFERENCES nas_assets(id),
+                FOREIGN KEY(pdf_asset_id) REFERENCES nas_assets(id)
+            )
+            """
+        )
+        conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_production_reports_date ON production_reports(report_date DESC, id DESC)"
+        )
+        conn.execute(
+            "CREATE UNIQUE INDEX IF NOT EXISTS idx_production_reports_unique_date ON production_reports(report_date)"
+        )
+        conn.execute(
+            """
             CREATE TABLE IF NOT EXISTS quarantined_uploads (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 user_id INTEGER,
@@ -1925,6 +1954,155 @@ def get_meeting_by_nas_asset_id(asset_id: int) -> dict[str, Any] | None:
             (asset_id,),
         ).fetchone()
     return _row_to_dict(row)
+
+
+def _decode_production_report(row: sqlite3.Row | None) -> dict[str, Any] | None:
+    report = _row_to_dict(row)
+    if report is None:
+        return None
+    try:
+        report["kpis"] = json.loads(report.get("kpis_json") or "{}")
+    except json.JSONDecodeError:
+        report["kpis"] = {}
+    report.pop("kpis_json", None)
+    return report
+
+
+def create_production_report(*, user_id: int, report_date: str, plant: str) -> dict[str, Any]:
+    with connect() as conn:
+        cursor = conn.execute(
+            """
+            INSERT INTO production_reports (user_id, report_date, plant, status)
+            VALUES (?, ?, ?, 'generating')
+            """,
+            (user_id, report_date, plant),
+        )
+        row = conn.execute("SELECT * FROM production_reports WHERE id = ?", (cursor.lastrowid,)).fetchone()
+    report = _decode_production_report(row)
+    if report is None:
+        raise RuntimeError("Production report creation failed")
+    return report
+
+
+def claim_daily_production_report(*, user_id: int, report_date: str, plant: str) -> tuple[dict[str, Any], bool]:
+    """Claim the company-wide report date, allowing a failed attempt to be retried."""
+    with connect() as conn:
+        cursor = conn.execute(
+            """
+            INSERT OR IGNORE INTO production_reports (user_id, report_date, plant, status)
+            VALUES (?, ?, ?, 'generating')
+            """,
+            (user_id, report_date, plant),
+        )
+        claimed = cursor.rowcount == 1
+        row = conn.execute(
+            "SELECT * FROM production_reports WHERE report_date = ?",
+            (report_date,),
+        ).fetchone()
+        if row is not None and row["status"] == "failed":
+            conn.execute(
+                """
+                UPDATE production_reports
+                SET user_id = ?, plant = ?, status = 'generating', snapshot_path = NULL,
+                    pdf_path = NULL, snapshot_asset_id = NULL, pdf_asset_id = NULL,
+                    kpis_json = NULL, source_count = 0, error_message = NULL,
+                    created_at = CURRENT_TIMESTAMP, completed_at = NULL
+                WHERE id = ?
+                """,
+                (user_id, plant, row["id"]),
+            )
+            row = conn.execute("SELECT * FROM production_reports WHERE id = ?", (row["id"],)).fetchone()
+            claimed = True
+    report = _decode_production_report(row)
+    if report is None:
+        raise RuntimeError("Daily production report claim failed")
+    return report, claimed
+
+
+def complete_production_report(
+    report_id: int,
+    *,
+    snapshot_path: str,
+    pdf_path: str,
+    snapshot_asset_id: int,
+    pdf_asset_id: int,
+    kpis_json: str,
+    source_count: int,
+) -> dict[str, Any] | None:
+    with connect() as conn:
+        conn.execute(
+            """
+            UPDATE production_reports
+            SET status = 'completed', snapshot_path = ?, pdf_path = ?, snapshot_asset_id = ?,
+                pdf_asset_id = ?, kpis_json = ?, source_count = ?, error_message = NULL,
+                completed_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (snapshot_path, pdf_path, snapshot_asset_id, pdf_asset_id, kpis_json, source_count, report_id),
+        )
+        row = conn.execute("SELECT * FROM production_reports WHERE id = ?", (report_id,)).fetchone()
+    return _decode_production_report(row)
+
+
+def fail_production_report(report_id: int, error_message: str) -> dict[str, Any] | None:
+    with connect() as conn:
+        conn.execute(
+            """
+            UPDATE production_reports
+            SET status = 'failed', error_message = ?, completed_at = CURRENT_TIMESTAMP
+            WHERE id = ?
+            """,
+            (error_message, report_id),
+        )
+        row = conn.execute("SELECT * FROM production_reports WHERE id = ?", (report_id,)).fetchone()
+    return _decode_production_report(row)
+
+
+def get_production_report(report_id: int, *, user_id: int, role: str) -> dict[str, Any] | None:
+    sql = """
+        SELECT production_reports.*, users.username AS created_by
+        FROM production_reports
+        JOIN users ON users.id = production_reports.user_id
+        WHERE production_reports.id = ?
+    """
+    params: list[Any] = [report_id]
+    if role != "admin":
+        sql += " AND production_reports.user_id = ?"
+        params.append(user_id)
+    with connect() as conn:
+        row = conn.execute(sql, params).fetchone()
+    return _decode_production_report(row)
+
+
+def get_production_report_by_date(report_date: str) -> dict[str, Any] | None:
+    with connect() as conn:
+        row = conn.execute(
+            """
+            SELECT production_reports.*, users.username AS created_by
+            FROM production_reports
+            JOIN users ON users.id = production_reports.user_id
+            WHERE production_reports.report_date = ?
+            """,
+            (report_date,),
+        ).fetchone()
+    return _decode_production_report(row)
+
+
+def list_production_reports(*, user_id: int, role: str, limit: int = 50) -> list[dict[str, Any]]:
+    sql = """
+        SELECT production_reports.*, users.username AS created_by
+        FROM production_reports
+        JOIN users ON users.id = production_reports.user_id
+    """
+    params: list[Any] = []
+    if role != "admin":
+        sql += " WHERE production_reports.user_id = ?"
+        params.append(user_id)
+    sql += " ORDER BY production_reports.report_date DESC, production_reports.id DESC LIMIT ?"
+    params.append(max(1, min(int(limit), 100)))
+    with connect() as conn:
+        rows = conn.execute(sql, params).fetchall()
+    return [report for row in rows if (report := _decode_production_report(row)) is not None]
 
 
 def create_nas_asset(

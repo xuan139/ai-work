@@ -33,6 +33,20 @@ def electronics_schedule_snapshot(now: datetime | None = None) -> dict:
         "plant": "ELECTRONICS-DEMO-01",
         "plant_timezone": "Asia/Taipei",
         "notice": "教學模擬資料；由 MES MCP 提供，不代表真實工廠設備狀態。",
+        "daily_production": {
+            "shift": "day",
+            "planned_units": 500,
+            "completed_units": 410,
+            "first_pass_good_units": 388,
+            "good_units": 395,
+            "rework_units": 10,
+            "scrap_units": 5,
+            "wip_units": 180,
+            "planned_production_minutes": 480,
+            "runtime_minutes": 400,
+            "ideal_cycle_seconds": 50,
+            "note": "固定教學班次原始計數；KPI 由 AI Work 固定公式計算。",
+        },
         "work_centers": work_centers,
         "downtimes": [
             {

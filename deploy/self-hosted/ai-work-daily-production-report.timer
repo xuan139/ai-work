@@ -1,0 +1,11 @@
+[Unit]
+Description=Generate one AI Work production report every day
+
+[Timer]
+OnCalendar=*-*-* 18:00:00 Asia/Taipei
+Persistent=true
+RandomizedDelaySec=60
+Unit=ai-work-daily-production-report.service
+
+[Install]
+WantedBy=timers.target

@@ -496,6 +496,7 @@ def _build_snapshot(
             "plant": plant,
             "plant_timezone": mes_snapshot.get("plant_timezone"),
             "notice": mes_snapshot.get("notice"),
+            "daily_production": mes_snapshot.get("daily_production") or {},
             "work_centers": work_centers,
             "downtimes": [item for item in mapped_downtimes if item.get("source") == "mes_mcp"],
         },
