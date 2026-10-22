@@ -23,6 +23,7 @@ const messages = {
       models: "模型管理",
       meetings: "資料庫查詢",
       aiwork: "AI Work",
+      mcpDemo: "MCP Demo",
       excelPro: "NAS Excel Pro",
       manufacturingScheduleDemo: "電子製造排程 Demo",
       instantProductionReport: "即時生產報告",
@@ -31,6 +32,7 @@ const messages = {
       langchainDemo: "LangChain Odoo Demo",
       hospitalDemo: "醫療 HIS／FHIR Demo",
       radiologyDemo: "放射影像／Orthanc Demo",
+      notionDemo: "Notion MCP Demo",
       wiki: "企業 Wiki",
       settings: "設定與管理",
       mcp: "MCP 管理",
@@ -1062,6 +1064,7 @@ const messages = {
       models: "Model Management",
       meetings: "Knowledge Search",
       aiwork: "AI Work",
+      mcpDemo: "MCP Demo",
       excelPro: "NAS Excel Pro",
       manufacturingScheduleDemo: "Electronics Scheduling Demo",
       instantProductionReport: "Instant Production Report",
@@ -1071,6 +1074,7 @@ const messages = {
       langchainDemo: "LangChain Odoo Demo",
       hospitalDemo: "Hospital HIS / FHIR Demo",
       radiologyDemo: "Radiology / Orthanc Demo",
+      notionDemo: "Notion MCP Demo",
       settings: "Settings & Management",
       mcp: "MCP Management",
       n8n: "n8n Automation",
@@ -2168,6 +2172,8 @@ const els = {
   viewTitle: document.querySelector("#viewTitle"),
   langOptions: [...document.querySelectorAll(".lang-option")],
   navItems: [...document.querySelectorAll(".nav-item[data-view]")],
+  mcpDemoNav: document.querySelector("#mcpDemoNav"),
+  mcpDemoNavGroup: document.querySelector("#mcpDemoNavGroup"),
   settingsNav: document.querySelector("#settingsNav"),
   managementNavGroup: document.querySelector("#managementNavGroup"),
   sections: {
@@ -2664,6 +2670,12 @@ function setManagementMenuExpanded(expanded) {
   els.settingsNav.classList.toggle("expanded", expanded);
 }
 
+function setMcpDemoMenuExpanded(expanded) {
+  els.mcpDemoNavGroup.hidden = !expanded;
+  els.mcpDemoNav.setAttribute("aria-expanded", String(expanded));
+  els.mcpDemoNav.classList.toggle("expanded", expanded);
+}
+
 async function showApp() {
   els.loginView.hidden = true;
   els.appView.hidden = false;
@@ -2680,6 +2692,7 @@ async function showApp() {
   els.evaluationNav.hidden = !isAdmin;
   document.querySelector("#notionDemoNav").hidden = !isAdmin;
   els.addCustomModelButton.hidden = !isAdmin;
+  setMcpDemoMenuExpanded(false);
   setManagementMenuExpanded(false);
   resetLlmAuditFilters();
   switchView("dashboard");
@@ -2707,11 +2720,14 @@ function renderCurrentUser() {
 function switchView(name) {
   if (["models", "mcp", "n8n", "lineAdmin", "evaluation", "accounts"].includes(name) && state.user?.role !== "admin") name = "dashboard";
   const isManagementView = ["models", "mcp", "n8n", "lineAdmin", "evaluation", "accounts"].includes(name);
+  const isMcpDemoView = name === "mes";
   Object.entries(els.sections).forEach(([key, section]) => {
     section.hidden = key !== name;
   });
   els.navItems.forEach((item) => item.classList.toggle("active", item.dataset.view === name));
   els.settingsNav.classList.toggle("active", isManagementView);
+  els.mcpDemoNav.classList.toggle("active", isMcpDemoView);
+  if (isMcpDemoView) setMcpDemoMenuExpanded(true);
   if (isManagementView) setManagementMenuExpanded(true);
   els.viewTitle.textContent = t(`nav.${name}`);
 }
@@ -6396,6 +6412,9 @@ els.langOptions.forEach((button) => {
 els.navItems.forEach((item) => item.addEventListener("click", () => {
   navigateFromSidebar(item.dataset.view, item).catch((error) => showToast(error.message, t("errors.requestFailed")));
 }));
+els.mcpDemoNav.addEventListener("click", () => {
+  setMcpDemoMenuExpanded(els.mcpDemoNav.getAttribute("aria-expanded") !== "true");
+});
 els.settingsNav.addEventListener("click", () => {
   setManagementMenuExpanded(els.settingsNav.getAttribute("aria-expanded") !== "true");
 });

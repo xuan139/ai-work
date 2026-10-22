@@ -1,5 +1,14 @@
 # Project Issues
 
+## 2026-10-22 — Demo 入口过多导致左侧导航难以扫描
+
+- **Trigger:** 使用者要求将 NAS Excel Pro、电子制造排程、即时／每日生产报告、医疗 HIS／FHIR、Orthanc、MES、LangChain Odoo 与 Notion 等入口作为二级菜单，统一挂在名为「MCP Demo」的一级菜单下。
+- **Root cause:** 九个教学与整合 Demo 与日常业务入口平铺在同一导航层级，左侧菜单过长，也无法清楚区分正式工作区和示范功能。
+- **Fix:** 复用既有「设定与管理」折叠机制，新增默认收合的「MCP Demo」一级菜单并迁移九个入口。MES 仍为站内视图，切换后父菜单自动展开并标记选中；其他入口维持原路由。即时／每日生产报告与 Notion 仍只限管理员，不改变任何页面、API 或资料权限。新增繁体中文与英文菜单文案及静态资源版本参数。
+- **Verification:** 新增两项导航结构回归测试；JavaScript 语法和差异检查通过；完整测试为 281 项通过、1 项跳过。桌面与 390px 窄屏预览确认九个二级入口完整显示、无水平溢出。部署前文件备份位于 `/home/ubuntu/backups/mcp-demo-menu-20261022-130549`；服务器与公网 HTML／JavaScript 哈希均和本机一致，`/healthz` 正常，无需重启服务。
+- **Unverified:** 独立 Demo 页面目前仍会离开主工作区，不会在目标页面持续显示左侧「MCP Demo」选中状态；本次仅整理主入口导航，不统一重构各 Demo 的页面框架。
+- **Rollback:** 将九个入口移回 `static/index.html` 的顶层导航，移除 `mcpDemoNav`／`mcpDemoNavGroup` 及对应展开逻辑、翻译与回归测试。不得变更各入口既有权限或路由。
+
 ## 2026-10-22 — 即時生產報告需要受控 Gmail 多帳號寄送
 
 - **Trigger:** 使用者要求即時生產報告除 LINE 外可使用 Gmail 寄送，並可在頁面選擇不同 Email 帳號。
